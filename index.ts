@@ -1,56 +1,152 @@
-import { MCPServer, object, text, widget, getRequestContext } from "mcp-use/server";
+import {
+  error,
+  MCPServer,
+  text,
+  widget,
+  type EnhancedToolContext,
+} from "mcp-use/server";
 import { z } from "zod";
 import { brandSchema, type Brand } from "./resources/context-brand/types";
-import { ENDPOINTS, type Endpoint, type EndpointParam } from "./context-endpoints";
+import {
+  COMPONENT_SCHEMAS,
+  ENDPOINTS,
+  type Endpoint,
+} from "./context-endpoints";
+import {
+  createOAuthProvider,
+  MISSING_CREDENTIAL_MESSAGE,
+  resolveContextCredential,
+} from "./src/auth";
+import { callContextApi } from "./src/context-client";
+import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
+import { selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
+const oauthProvider = createOAuthProvider();
+const registeredEndpoints = selectEndpoints(ENDPOINTS);
 
 const server = new MCPServer({
   name: "context",
   title: "Context",
   version: "1.0.0",
   description:
-    "The full Context (context.dev) web-context API for software and AI agents: brand intelligence (logos, colors, descriptions, socials), web scraping (markdown, HTML, images, screenshots, sitemaps, crawl), structured extraction, product extraction, web search, competitor discovery and NAICS/SIC industry classification — for any domain.",
+    "Context's web-context API for software and AI agents: document parsing, monitoring, brand intelligence, web scraping, crawling, structured extraction, product extraction, search, and competitor discovery.",
   instructions:
-    "This server exposes the complete Context API (context.dev).\n\n" +
-    "AUTH: each call needs a Context API key. Provide it in one of three ways (checked in this order): " +
-    "(1) an `api_key` query param on the MCP URL — e.g. https://context.run.mcp-use.com/mcp?api_key=YOUR_KEY, " +
-    "(2) an `Authorization: Bearer YOUR_KEY` header, or (3) the server's own configured key.\n\n" +
+    "This server exposes Context's primary web-context and monitoring APIs. Deployments can opt into the complete generated API with CONTEXT_MCP_TOOLSET=full.\n\n" +
+    "Connect your Context account with OAuth. Direct API-key authentication is available for local and private integrations through the Authorization header; never put API keys in URLs.\n\n" +
     "For a polished, visual brand card use `get-brand` (renders a Context-branded UI widget). " +
-    "For everything else use the matching tool: `web-scrape-markdown` / `web-scrape-html` / `web-scrape-images` / " +
-    "`web-screenshot` / `web-scrape-sitemap` / `web-crawl` (site -> markdown), `web-extract` (structured data via JSON schema), " +
-    "`web-search`, `web-competitors`, `web-styleguide`, `web-fonts`, `web-naics` / `web-sic` (industry codes), " +
-    "`brand-retrieve*` (by domain/name/email/ticker/isin/simplified), `brand-transaction-identifier`, " +
-    "`brand-ai-product` / `brand-ai-products` / `brand-ai-query`, and `people-retrieve`. " +
+    "Use the matching tool for parsing, scraping, crawling, structured extraction, search, brand/product intelligence, people retrieval, or monitoring. " +
     "Each call consumes Context credits.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
   websiteUrl: "https://context.dev",
   icons: [{ src: "icon.png", mimeType: "image/png", sizes: ["128x128"] }],
+  publicLandingPage: true,
+  ...(oauthProvider ? { oauth: oauthProvider } : {}),
 });
 
-// Health check for the deploy platform (Manufact probes /health on startup).
 server.app.get("/health", (c) => c.json({ status: "ok" }));
 
-/**
- * Resolve the Context API key for the current request, in priority order:
- *   1. `?api_key=` query param on the MCP connection URL
- *   2. `Authorization: Bearer <key>` (or `x-api-key`) header
- *   3. the server's own CONTEXT_API_KEY env var (fallback / demo key)
- * This lets each user bring their own key by appending `?api_key=...` to the MCP URL.
- */
-function resolveApiKey(): string | undefined {
-  const c = getRequestContext();
-  const fromQuery = c?.req?.query?.("api_key");
-  const auth = c?.req?.header?.("authorization");
-  const bearer = auth && /^bearer\s+/i.test(auth) ? auth.replace(/^bearer\s+/i, "").trim() : undefined;
-  const xKey = c?.req?.header?.("x-api-key");
-  return fromQuery || bearer || xKey || process.env.CONTEXT_API_KEY;
+function isAllowedOAuthRedirect(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (
+      url.href === "https://claude.ai/api/mcp/auth_callback" ||
+      url.href === "https://claude.com/api/mcp/auth_callback"
+    ) {
+      return true;
+    }
+    const allowedOrigins = (
+      process.env.MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS ?? ""
+    )
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+    if (allowedOrigins.includes(url.origin)) {
+      return true;
+    }
+    return (
+      url.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
-const NO_KEY_MSG =
-  "No Context API key found. Append `?api_key=YOUR_KEY` to the MCP server URL, send an " +
-  "`Authorization: Bearer YOUR_KEY` header, or set CONTEXT_API_KEY on the server.";
+if (oauthProvider) {
+  server.app.use("/register", async (context, next) => {
+    context.header("Access-Control-Allow-Origin", "*");
+    if (context.req.method === "OPTIONS") {
+      await next();
+      return;
+    }
+    const body = await context.req.json().catch(() => undefined);
+    const redirectUris: unknown[] =
+      body &&
+      typeof body === "object" &&
+      Array.isArray((body as Record<string, unknown>).redirect_uris)
+        ? ((body as Record<string, unknown>).redirect_uris as unknown[])
+        : [];
+    if (
+      redirectUris.length === 0 ||
+      redirectUris.some(
+        (redirectUri) =>
+          typeof redirectUri !== "string" ||
+          !isAllowedOAuthRedirect(redirectUri)
+      )
+    ) {
+      return context.json(
+        {
+          error: "invalid_redirect_uri",
+          error_description: "One or more redirect_uris are not allowed",
+        },
+        400
+      );
+    }
+    await next();
+  });
+  server.app.post("/register", async (context) => {
+    const body = (await context.req.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    return context.json(
+      {
+        client_id: process.env.CONTEXT_OAUTH_CLIENT_ID,
+        client_name:
+          typeof body.client_name === "string"
+            ? body.client_name
+            : "MCP Client",
+        redirect_uris: body.redirect_uris,
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      },
+      201
+    );
+  });
+  server.app.use("/authorize", async (context, next) => {
+    const params =
+      context.req.method === "POST"
+        ? await context.req.parseBody()
+        : context.req.query();
+    const redirectUri = params.redirect_uri;
+    if (
+      typeof redirectUri !== "string" ||
+      !isAllowedOAuthRedirect(redirectUri)
+    ) {
+      return context.json(
+        {
+          error: "invalid_request",
+          error_description: "redirect_uri is not allowed",
+        },
+        400
+      );
+    }
+    await next();
+  });
+}
 
 // ---------------------------------------------------------------------------
 // 1) Branded UI: get-brand renders a Context brand card (logo, colors, ...)
@@ -107,26 +203,28 @@ server.tool(
       maxSpeed: z.boolean().optional().describe("Optimize for speed, skipping slower enrichment steps."),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
-    outputSchema: brandSchema,
+    outputSchema: z.object({ brand: brandSchema }),
     widget: { name: "context-brand", invoking: "Querying Context...", invoked: "Brand loaded" },
   },
-  async ({ domain, maxSpeed }) => {
-    const apiKey = resolveApiKey();
-    if (!apiKey) return text(NO_KEY_MSG);
+  async ({ domain, maxSpeed }, context) => {
+    const credential = resolveContextCredential(context);
+    if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
     const clean = domain.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
     const url = new URL(`${API_BASE}/brand/retrieve`);
     url.searchParams.set("domain", clean);
     if (maxSpeed) url.searchParams.set("maxSpeed", "true");
     let res: Response;
     try {
-      res = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+      res = await fetch(url, {
+        headers: { Authorization: `Bearer ${credential.apiKey}` },
+      });
     } catch (e: any) {
-      return text(`Failed to reach Context API: ${e?.message ?? e}`);
+      return error(`Failed to reach Context API: ${e?.message ?? e}`);
     }
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = (payload as any)?.message || `Context API returned ${res.status}`;
-      return text(`${msg} (domain: ${clean})`);
+      return error(`${msg} (domain: ${clean})`);
     }
     const brand = normalizeBrand(payload);
     const summary =
@@ -137,87 +235,88 @@ server.tool(
   }
 );
 
-// ---------------------------------------------------------------------------
-// 2) Full API: register every Context endpoint as a tool (generic).
-// ---------------------------------------------------------------------------
-
-function zForParam(p: EndpointParam): z.ZodTypeAny {
-  let s: z.ZodTypeAny;
-  switch (p.type) {
-    case "integer":
-    case "number":
-      s = z.number();
-      break;
-    case "boolean":
-      s = z.boolean();
-      break;
-    case "array":
-      s = z.array(p.items === "number" || p.items === "integer" ? z.number() : z.string());
-      break;
-    case "object":
-      s = z.record(z.string(), z.any());
-      break;
-    default:
-      s = z.string();
-  }
-  if (p.desc) s = s.describe(p.desc);
-  return p.required ? s : s.optional();
-}
-
-async function callContext(ep: Endpoint, args: Record<string, any>) {
-  const apiKey = resolveApiKey();
-  if (!apiKey) return text(NO_KEY_MSG);
-
-  const url = new URL(API_BASE + ep.path);
-  for (const p of ep.query) {
-    const v = args[p.name];
-    if (v === undefined || v === null) continue;
-    if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(p.name, String(x)));
-    else if (typeof v === "object") url.searchParams.set(p.name, JSON.stringify(v));
-    else url.searchParams.set(p.name, String(v));
-  }
-
-  const init: RequestInit = { method: ep.method, headers: { Authorization: `Bearer ${apiKey}` } };
-  if (ep.method !== "GET") {
-    const body: Record<string, any> = {};
-    for (const p of ep.body) if (args[p.name] !== undefined) body[p.name] = args[p.name];
-    (init.headers as Record<string, string>)["Content-Type"] = "application/json";
-    init.body = JSON.stringify(body);
-  }
-
-  let res: Response;
-  try {
-    res = await fetch(url, init);
-  } catch (e: any) {
-    return text(`Request to Context failed: ${e?.message ?? e}`);
-  }
-  const raw = await res.text();
-  let data: any;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    data = { raw };
-  }
-  if (!res.ok) {
-    return text(`Context API ${res.status}: ${data?.message || raw.slice(0, 400)}`);
-  }
-  return object(data);
-}
-
-for (const ep of ENDPOINTS as Endpoint[]) {
+function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
   const shape: Record<string, z.ZodTypeAny> = {};
-  for (const p of [...ep.query, ...ep.body]) shape[p.name] = zForParam(p);
+  for (const parameter of endpoint.parameters) {
+    if (parameter.in === "cookie") {
+      continue;
+    }
+    let parameterSchema = schemaToZod(
+      parameter.schema,
+      COMPONENT_SCHEMAS
+    );
+    if (parameter.description) {
+      parameterSchema = parameterSchema.describe(parameter.description);
+    }
+    shape[parameter.name] = parameter.required
+      ? parameterSchema
+      : parameterSchema.optional();
+  }
+  if (endpoint.requestBody?.binary) {
+    shape.fileBase64 = z
+      .string()
+      .min(1)
+      .describe("Base64-encoded file bytes. Maximum decoded size: 25 MiB.");
+  } else if (endpoint.requestBody) {
+    const bodyObject = resolveObjectSchema(
+      endpoint.requestBody.schema,
+      COMPONENT_SCHEMAS
+    );
+    const bodyProperties = Object.keys(bodyObject?.properties ?? {});
+    const canFlattenBody =
+      bodyObject &&
+      bodyProperties.every((name) => shape[name] === undefined);
+
+    if (canFlattenBody) {
+      const required = new Set(bodyObject.required ?? []);
+      for (const [name, property] of Object.entries(
+        bodyObject.properties ?? {}
+      )) {
+        const propertySchema = schemaToZod(property, COMPONENT_SCHEMAS);
+        shape[name] = required.has(name)
+          ? propertySchema
+          : propertySchema.optional();
+      }
+    } else {
+      let bodySchema = schemaToZod(
+        endpoint.requestBody.schema,
+        COMPONENT_SCHEMAS
+      );
+      if (endpoint.requestBody.description) {
+        bodySchema = bodySchema.describe(endpoint.requestBody.description);
+      }
+      shape.body = endpoint.requestBody.required
+        ? bodySchema
+        : bodySchema.optional();
+    }
+  }
+  return z.object(shape);
+}
+
+for (const ep of registeredEndpoints as Endpoint[]) {
   server.tool(
     {
       name: ep.name,
+      title: ep.title,
       description: ep.description,
-      schema: z.object(shape),
-      annotations: { readOnlyHint: ep.method === "GET", destructiveHint: false, openWorldHint: true },
+      schema: createEndpointSchema(ep),
+      annotations: ep.annotations,
     },
-    async (args) => callContext(ep, args as Record<string, any>)
+    async (args, context: EnhancedToolContext) => {
+      const credential = resolveContextCredential(context);
+      if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
+      return callContextApi({
+        apiBase: API_BASE,
+        endpoint: ep,
+        args: args as Record<string, unknown>,
+        credential,
+      });
+    }
   );
 }
 
 server.listen().then(() => {
-  console.log(`Context MCP server running — ${ENDPOINTS.length + 1} tools`);
+  console.log(
+    `Context MCP server running — ${registeredEndpoints.length + 1} tools`
+  );
 });

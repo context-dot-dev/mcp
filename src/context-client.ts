@@ -1,0 +1,265 @@
+import { error, object, text } from "mcp-use/server";
+import type { Endpoint } from "../context-endpoints";
+
+type ToolArguments = Record<string, unknown>;
+const DEFAULT_MAX_RESPONSE_CHARS = 40_000;
+
+export type ContextCredential = {
+  apiKey: string;
+  scopes?: string[];
+};
+
+function appendDeepQueryValue(
+  searchParams: URLSearchParams,
+  name: string,
+  value: unknown
+): void {
+  if (value === undefined || value === null) {
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry) => appendDeepQueryValue(searchParams, name, entry));
+    return;
+  }
+  if (typeof value === "object") {
+    Object.entries(value).forEach(([key, entry]) =>
+      appendDeepQueryValue(searchParams, `${name}[${key}]`, entry)
+    );
+    return;
+  }
+  searchParams.append(name, String(value));
+}
+
+function buildRequestBody(
+  endpoint: Endpoint,
+  args: ToolArguments
+): unknown {
+  if ("body" in args) {
+    return args.body;
+  }
+
+  const parameterNames = new Set(
+    endpoint.parameters.map((parameter) => parameter.name)
+  );
+  return Object.fromEntries(
+    Object.entries(args).filter(
+      ([name, value]) =>
+        value !== undefined &&
+        name !== "fileBase64" &&
+        !parameterNames.has(name)
+    )
+  );
+}
+
+function contextErrorMessage(
+  status: number,
+  raw: string,
+  parsed: unknown
+): string {
+  const payload =
+    parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  const message =
+    typeof payload.message === "string"
+      ? payload.message
+      : typeof payload.error === "string"
+        ? payload.error
+        : raw.slice(0, 600);
+  const code =
+    typeof payload.error_code === "string" ? ` [${payload.error_code}]` : "";
+  return `Context API ${status}${code}: ${message || "Request failed"}`;
+}
+
+function maxResponseChars(): number {
+  const configured = Number(process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS);
+  if (Number.isFinite(configured) && configured >= 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_MAX_RESPONSE_CHARS;
+}
+
+function truncateJsonValue(
+  value: unknown,
+  budget: { remaining: number; truncated: boolean }
+): unknown {
+  if (budget.remaining <= 0) {
+    budget.truncated = true;
+    return undefined;
+  }
+  if (typeof value === "string") {
+    if (value.length <= budget.remaining) {
+      budget.remaining -= value.length;
+      return value;
+    }
+    const marker = "\n\n[truncated by Context MCP]";
+    const available = Math.max(0, budget.remaining - marker.length);
+    budget.remaining = 0;
+    budget.truncated = true;
+    return `${value.slice(0, available)}${marker}`;
+  }
+  if (
+    value === null ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    budget.remaining -= String(value).length;
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const result: unknown[] = [];
+    for (const entry of value) {
+      const truncatedEntry = truncateJsonValue(entry, budget);
+      if (truncatedEntry === undefined) break;
+      result.push(truncatedEntry);
+    }
+    if (result.length < value.length) budget.truncated = true;
+    return result;
+  }
+  if (typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    const entries = Object.entries(value).sort(([, first], [, second]) => {
+      const size = (entry: unknown): number =>
+        typeof entry === "string"
+          ? entry.length
+          : Array.isArray(entry)
+            ? entry.length * 100
+            : entry && typeof entry === "object"
+              ? Object.keys(entry).length * 100
+              : 0;
+      return size(first) - size(second);
+    });
+    for (const [name, entry] of entries) {
+      budget.remaining -= name.length + 4;
+      const truncatedEntry = truncateJsonValue(entry, budget);
+      if (truncatedEntry === undefined) break;
+      result[name] = truncatedEntry;
+    }
+    if (Object.keys(result).length < Object.keys(value).length) {
+      budget.truncated = true;
+    }
+    return result;
+  }
+  return String(value);
+}
+
+function boundedObject(value: Record<string, unknown>, originalChars: number) {
+  const limit = maxResponseChars();
+  if (limit === 0 || originalChars <= limit) {
+    return object(value);
+  }
+  const budget = { remaining: Math.max(1_000, limit - 500), truncated: false };
+  const truncated = truncateJsonValue(value, budget) as Record<string, unknown>;
+  return object({
+    ...truncated,
+    _context_mcp: {
+      truncated: true,
+      original_chars: originalChars,
+      message:
+        "Response was shortened for MCP client limits. Narrow the request or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
+    },
+  });
+}
+
+export async function callContextApi({
+  apiBase,
+  endpoint,
+  args,
+  credential,
+}: {
+  apiBase: string;
+  endpoint: Endpoint;
+  args: ToolArguments;
+  credential: ContextCredential;
+}) {
+  const requiredScope = endpoint.annotations.readOnlyHint
+    ? "api.read"
+    : "api.write";
+  if (credential.scopes && !credential.scopes.includes(requiredScope)) {
+    return error(`Missing required OAuth scope: ${requiredScope}`);
+  }
+
+  let path = endpoint.path;
+  for (const parameter of endpoint.parameters) {
+    if (parameter.in !== "path") {
+      continue;
+    }
+    const value = args[parameter.name];
+    path = path.replace(
+      `{${parameter.name}}`,
+      encodeURIComponent(String(value ?? ""))
+    );
+  }
+
+  const url = new URL(`${apiBase.replace(/\/$/, "")}${path}`);
+  for (const parameter of endpoint.parameters) {
+    if (parameter.in !== "query") {
+      continue;
+    }
+    appendDeepQueryValue(
+      url.searchParams,
+      parameter.name,
+      args[parameter.name]
+    );
+  }
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${credential.apiKey}`,
+  };
+  for (const parameter of endpoint.parameters) {
+    if (parameter.in === "header" && args[parameter.name] !== undefined) {
+      headers[parameter.name] = String(args[parameter.name]);
+    }
+  }
+
+  const request: RequestInit = { method: endpoint.method, headers };
+  if (endpoint.requestBody) {
+    if (endpoint.requestBody.binary) {
+      const fileBase64 = args.fileBase64;
+      if (typeof fileBase64 !== "string") {
+        return error("fileBase64 is required for this binary request");
+      }
+      headers["Content-Type"] =
+        endpoint.requestBody.contentType === "*/*"
+          ? "application/octet-stream"
+          : endpoint.requestBody.contentType;
+      request.body = Buffer.from(fileBase64, "base64");
+    } else {
+      headers["Content-Type"] = endpoint.requestBody.contentType;
+      request.body = JSON.stringify(
+        buildRequestBody(endpoint, args)
+      );
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, request);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    return error(`Failed to reach Context API: ${message}`);
+  }
+
+  const raw = await response.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = undefined;
+  }
+
+  if (!response.ok) {
+    return error(contextErrorMessage(response.status, raw, parsed));
+  }
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    return boundedObject(parsed as Record<string, unknown>, raw.length);
+  }
+  const resultText = parsed === undefined ? raw : JSON.stringify(parsed);
+  const limit = maxResponseChars();
+  if (limit > 0 && resultText.length > limit) {
+    return text(
+      `${resultText.slice(0, Math.max(0, limit - 34))}\n\n[truncated by Context MCP]`
+    );
+  }
+  return text(resultText);
+}
