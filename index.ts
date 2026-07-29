@@ -19,6 +19,11 @@ import {
 } from "./src/auth";
 import { callContextApi } from "./src/context-client";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
+import {
+  clearOAuthBrowserCookie,
+  createOAuthBrowserCookie,
+  hasValidOAuthBrowserCookie,
+} from "./src/oauth-browser-transaction";
 import { selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
@@ -75,6 +80,11 @@ function isAllowedOAuthRedirect(value: string): boolean {
 }
 
 if (oauthProvider) {
+  const oauthClientSecret = process.env.CONTEXT_OAUTH_CLIENT_SECRET!;
+  const secureOAuthCookies = new URL(
+    process.env.MCP_URL || "http://localhost:3000"
+  ).protocol === "https:";
+
   server.app.use("/register", async (context, next) => {
     context.header("Access-Control-Allow-Origin", "*");
     if (context.req.method === "OPTIONS") {
@@ -144,6 +154,43 @@ if (oauthProvider) {
         400
       );
     }
+    await next();
+    const location = context.res.headers.get("location");
+    if (!location) return;
+    const upstreamState = new URL(location).searchParams.get("state");
+    if (!upstreamState) return;
+    context.header(
+      "Set-Cookie",
+      createOAuthBrowserCookie(
+        upstreamState,
+        oauthClientSecret,
+        secureOAuthCookies
+      )
+    );
+  });
+  server.app.use("/oauth/callback", async (context, next) => {
+    const state = context.req.query("state");
+    if (
+      !state ||
+      !hasValidOAuthBrowserCookie(
+        state,
+        oauthClientSecret,
+        context.req.header("cookie")
+      )
+    ) {
+      return context.json(
+        {
+          error: "invalid_request",
+          error_description:
+            "OAuth callback did not originate from this browser",
+        },
+        400
+      );
+    }
+    context.header(
+      "Set-Cookie",
+      clearOAuthBrowserCookie(state, secureOAuthCookies)
+    );
     await next();
   });
 }
