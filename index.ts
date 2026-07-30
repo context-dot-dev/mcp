@@ -57,40 +57,66 @@ server.app.get("/health", (c) => c.json({ status: "ok" }));
 // exact URIs. Each entry covers the domain itself, any subdomain, and any path.
 // Google is scoped to cloud.google.com rather than the apex: an open redirect
 // on any trusted subdomain is a route for leaking an authorization code.
-const TRUSTED_OAUTH_REDIRECT_DOMAINS = [
+// The client key names the connecting app on the upstream consent screen; it
+// is derived from this allowlist rather than client-supplied registration
+// metadata, which any caller could spoof.
+const TRUSTED_OAUTH_REDIRECT_DOMAINS: ReadonlyArray<{
+  domain: string;
+  client: string;
+}> = [
   // Claude web, desktop, mobile, and Cowork
-  "claude.ai",
-  "claude.com",
-  "anthropic.com",
+  { domain: "claude.ai", client: "claude" },
+  { domain: "claude.com", client: "claude" },
+  { domain: "anthropic.com", client: "claude" },
   // ChatGPT connectors and Codex
-  "chatgpt.com",
-  "openai.com",
-  "cursor.com",
+  { domain: "chatgpt.com", client: "chatgpt" },
+  { domain: "openai.com", client: "chatgpt" },
+  { domain: "cursor.com", client: "cursor" },
   // VS Code and VS Code Insiders web redirects
-  "vscode.dev",
+  { domain: "vscode.dev", client: "vscode" },
   // Le Chat, Copilot Studio, Gemini, n8n, MCPJam
-  "mistral.ai",
-  "azure-apim.net",
-  "cloud.google.com",
-  "n8n.cloud",
-  "mcpjam.com",
+  { domain: "mistral.ai", client: "le-chat" },
+  { domain: "azure-apim.net", client: "copilot-studio" },
+  { domain: "cloud.google.com", client: "gemini" },
+  { domain: "n8n.cloud", client: "n8n" },
+  { domain: "mcpjam.com", client: "mcpjam" },
   // The Manufact platform (dashboard, hosted inspector)
-  "manufact.com",
+  { domain: "manufact.com", client: "manufact" },
 ];
 
 // Desktop clients finish the flow through a private URL scheme rather than
 // HTTPS, so the scheme registration itself is the trust boundary.
-const TRUSTED_OAUTH_REDIRECT_SCHEMES = new Set(["cursor:", "vscode:", "warp:"]);
+const TRUSTED_OAUTH_REDIRECT_SCHEMES = new Map([
+  ["cursor:", "cursor"],
+  ["vscode:", "vscode"],
+  ["warp:", "warp"],
+]);
 
 // CLI and editor clients bind an ephemeral loopback port per RFC 8252, so the
 // port and path vary per session and cannot be pinned.
 const LOOPBACK_REDIRECT_HOSTNAMES = ["localhost", "127.0.0.1", "[::1]"];
 
-function isTrustedOAuthRedirectHost(hostname: string): boolean {
+function trustedOAuthClientForHost(hostname: string): string | undefined {
   const host = hostname.toLowerCase();
-  return TRUSTED_OAUTH_REDIRECT_DOMAINS.some(
-    (domain) => host === domain || host.endsWith(`.${domain}`),
-  );
+  return TRUSTED_OAUTH_REDIRECT_DOMAINS.find(
+    ({ domain }) => host === domain || host.endsWith(`.${domain}`),
+  )?.client;
+}
+
+// Slug consumed by the upstream consent screen, which maps it to display copy
+// and falls back to generic wording for values it does not recognize.
+function resolveOAuthClientKey(redirectUri: string): string {
+  try {
+    const url = new URL(redirectUri);
+    const schemeClient = TRUSTED_OAUTH_REDIRECT_SCHEMES.get(url.protocol);
+    if (schemeClient) return schemeClient;
+    const hostClient = trustedOAuthClientForHost(url.hostname);
+    if (hostClient) return hostClient;
+    if (LOOPBACK_REDIRECT_HOSTNAMES.includes(url.hostname)) return "local";
+  } catch {
+    // fall through to the generic slug
+  }
+  return "mcp-client";
 }
 
 function isAllowedOAuthRedirect(value: string): boolean {
@@ -99,7 +125,10 @@ function isAllowedOAuthRedirect(value: string): boolean {
     if (TRUSTED_OAUTH_REDIRECT_SCHEMES.has(url.protocol)) {
       return true;
     }
-    if (url.protocol === "https:" && isTrustedOAuthRedirectHost(url.hostname)) {
+    if (
+      url.protocol === "https:" &&
+      trustedOAuthClientForHost(url.hostname) !== undefined
+    ) {
       return true;
     }
     const allowedOrigins = (
@@ -221,7 +250,13 @@ if (oauthProvider) {
     await next();
     const location = context.res.headers.get("location");
     if (!location) return;
-    const upstreamState = new URL(location).searchParams.get("state");
+    const upstreamUrl = new URL(location);
+    upstreamUrl.searchParams.set(
+      "mcp_client",
+      resolveOAuthClientKey(redirectUri),
+    );
+    context.res.headers.set("location", upstreamUrl.toString());
+    const upstreamState = upstreamUrl.searchParams.get("state");
     if (!upstreamState) return;
     context.header(
       "Set-Cookie",

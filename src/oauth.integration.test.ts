@@ -320,6 +320,36 @@ test("limits dynamic registration and authorization redirects", async () => {
   assert.equal(rejectedAuthorization.status, 400);
 });
 
+test("labels the upstream consent request with the connecting client", async () => {
+  const labeledRedirects: Array<[string, string]> = [
+    ["https://www.cursor.com/agents/mcp/oauth/callback", "cursor"],
+    ["https://chatgpt.com/connector/oauth/some-connector-id", "chatgpt"],
+    ["https://insiders.vscode.dev/redirect", "vscode"],
+    ["http://127.0.0.1:33418/callback", "local"],
+  ];
+  for (const [redirectUri, expectedClient] of labeledRedirects) {
+    const authorizeResponse = await fetch(
+      `${mcpBase}/authorize?${new URLSearchParams({
+        client_id: "dynamic-client",
+        redirect_uri: redirectUri,
+        response_type: "code",
+        code_challenge: "local-code-challenge",
+        code_challenge_method: "S256",
+      })}`,
+      { redirect: "manual" }
+    );
+    assert.equal(authorizeResponse.status, 302, redirectUri);
+    const upstreamLocation = new URL(
+      authorizeResponse.headers.get("location")!
+    );
+    assert.equal(
+      upstreamLocation.searchParams.get("mcp_client"),
+      expectedClient,
+      redirectUri
+    );
+  }
+});
+
 test("completes the authorization proxy flow without passing OAuth tokens upstream", async () => {
   const clientRedirect = "https://claude.ai/api/mcp/auth_callback";
   const authorizeResponse = await fetch(
@@ -364,6 +394,10 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   assert.equal(
     authorizationRequest.searchParams.get("audience"),
     `${mcpBase}/mcp`
+  );
+  assert.equal(
+    authorizationRequest.searchParams.get("mcp_client"),
+    "claude"
   );
 
   const callbackResponse = await fetch(
