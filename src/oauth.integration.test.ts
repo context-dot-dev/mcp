@@ -242,6 +242,8 @@ test("limits dynamic registration and authorization redirects", async () => {
       client_name: "mcp-use Inspector",
       redirect_uris: [
         "https://inspector.manufact.com/inspector/oauth/callback",
+        "https://manufact.com/cloud/oauth/callback",
+        "https://cloud.manufact.com/oauth/callback",
       ],
     }),
   });
