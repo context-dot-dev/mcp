@@ -52,13 +52,17 @@ const server = new MCPServer({
 
 server.app.get("/health", (c) => c.json({ status: "ok" }));
 
+const TRUSTED_OAUTH_REDIRECTS = new Set([
+  "https://claude.ai/api/mcp/auth_callback",
+  "https://claude.com/api/mcp/auth_callback",
+  "cursor://anysphere.cursor-mcp/oauth/callback",
+  "https://www.cursor.com/agents/mcp/oauth/callback",
+]);
+
 function isAllowedOAuthRedirect(value: string): boolean {
   try {
     const url = new URL(value);
-    if (
-      url.href === "https://claude.ai/api/mcp/auth_callback" ||
-      url.href === "https://claude.com/api/mcp/auth_callback"
-    ) {
+    if (TRUSTED_OAUTH_REDIRECTS.has(url.href)) {
       return true;
     }
     const allowedOrigins = (
