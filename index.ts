@@ -116,7 +116,7 @@ function resolveOAuthClientKey(redirectUri: string): string {
   } catch {
     // fall through to the generic slug
   }
-  return "unknown";
+  return "mcp-client";
 }
 
 function isAllowedOAuthRedirect(value: string): boolean {
