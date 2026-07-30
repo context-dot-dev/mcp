@@ -235,6 +235,18 @@ test("limits dynamic registration and authorization redirects", async () => {
   });
   assert.equal(allowedCursorRegistration.status, 201);
 
+  const allowedInspectorRegistration = await fetch(`${mcpBase}/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_name: "mcp-use Inspector",
+      redirect_uris: [
+        "https://inspector.manufact.com/inspector/oauth/callback",
+      ],
+    }),
+  });
+  assert.equal(allowedInspectorRegistration.status, 201);
+
   const rejectedRegistration = await fetch(`${mcpBase}/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },

@@ -59,10 +59,19 @@ const TRUSTED_OAUTH_REDIRECTS = new Set([
   "https://www.cursor.com/agents/mcp/oauth/callback",
 ]);
 
+// Manufact Cloud's hosted inspector registers with a redirect on its own
+// origin (`/inspector/oauth/callback`), so trust the origin rather than one URI.
+const TRUSTED_OAUTH_REDIRECT_ORIGINS = new Set([
+  "https://inspector.manufact.com",
+]);
+
 function isAllowedOAuthRedirect(value: string): boolean {
   try {
     const url = new URL(value);
     if (TRUSTED_OAUTH_REDIRECTS.has(url.href)) {
+      return true;
+    }
+    if (TRUSTED_OAUTH_REDIRECT_ORIGINS.has(url.origin)) {
       return true;
     }
     const allowedOrigins = (
