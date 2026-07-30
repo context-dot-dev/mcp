@@ -221,6 +221,20 @@ test("limits dynamic registration and authorization redirects", async () => {
   assert.equal(registrationPayload.token_endpoint_auth_method, "none");
   assert.equal(registrationPayload.client_secret, undefined);
 
+  const allowedCursorRegistration = await fetch(`${mcpBase}/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_name: "Cursor",
+      redirect_uris: [
+        "cursor://anysphere.cursor-mcp/oauth/callback",
+        "https://www.cursor.com/agents/mcp/oauth/callback",
+        "http://localhost:8787/callback",
+      ],
+    }),
+  });
+  assert.equal(allowedCursorRegistration.status, 201);
+
   const rejectedRegistration = await fetch(`${mcpBase}/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
