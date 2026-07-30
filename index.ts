@@ -35,12 +35,12 @@ const server = new MCPServer({
   title: "Context",
   version: "1.0.0",
   description:
-    "Context's web-context API for software and AI agents: document parsing, monitoring, brand intelligence, web scraping, crawling, structured extraction, product extraction, search, and competitor discovery.",
+    "Context's public web-context API for software and AI agents: document parsing, monitoring, brand intelligence, web scraping, crawling, structured extraction, product extraction, and search.",
   instructions:
-    "This server exposes Context's primary web-context and monitoring APIs. Deployments can opt into the complete generated API with CONTEXT_MCP_TOOLSET=full.\n\n" +
+    "This server exposes Context's public web-context and monitoring APIs.\n\n" +
     "Connect your Context account with OAuth. Direct API-key authentication is available for local and private integrations through the Authorization header; never put API keys in URLs.\n\n" +
     "For a polished, visual brand card use `get-brand` (renders a Context-branded UI widget). " +
-    "Use the matching tool for parsing, scraping, crawling, structured extraction, search, brand/product intelligence, people retrieval, or monitoring. " +
+    "Use the matching tool for parsing, scraping, crawling, structured extraction, search, brand/product intelligence, or monitoring. " +
     "Each call consumes Context credits.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
@@ -261,13 +261,19 @@ server.tool(
     const credential = resolveContextCredential(context);
     if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
     const clean = domain.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-    const url = new URL(`${API_BASE}/brand/retrieve`);
-    url.searchParams.set("domain", clean);
-    if (maxSpeed) url.searchParams.set("maxSpeed", "true");
     let res: Response;
     try {
-      res = await fetch(url, {
-        headers: { Authorization: `Bearer ${credential.apiKey}` },
+      res = await fetch(`${API_BASE}/brand/retrieve`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${credential.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "by_domain",
+          domain: clean,
+          ...(maxSpeed ? { maxSpeed: true } : {}),
+        }),
       });
     } catch (e: any) {
       return error(`Failed to reach Context API: ${e?.message ?? e}`);
