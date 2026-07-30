@@ -52,28 +52,54 @@ const server = new MCPServer({
 
 server.app.get("/health", (c) => c.json({ status: "ok" }));
 
-const TRUSTED_OAUTH_REDIRECTS = new Set([
-  "https://claude.ai/api/mcp/auth_callback",
-  "https://claude.com/api/mcp/auth_callback",
-  "cursor://anysphere.cursor-mcp/oauth/callback",
-  "https://www.cursor.com/agents/mcp/oauth/callback",
-]);
+// Trusted clients move their callback paths and spin up new subdomains without
+// warning, so match on the registrable domain over HTTPS instead of pinning
+// exact URIs. Each entry covers the domain itself, any subdomain, and any path.
+// Google is scoped to cloud.google.com rather than the apex: an open redirect
+// on any trusted subdomain is a route for leaking an authorization code.
+const TRUSTED_OAUTH_REDIRECT_DOMAINS = [
+  // Claude web, desktop, mobile, and Cowork
+  "claude.ai",
+  "claude.com",
+  "anthropic.com",
+  // ChatGPT connectors and Codex
+  "chatgpt.com",
+  "openai.com",
+  "cursor.com",
+  // VS Code and VS Code Insiders web redirects
+  "vscode.dev",
+  // Le Chat, Copilot Studio, Gemini, n8n, MCPJam
+  "mistral.ai",
+  "azure-apim.net",
+  "cloud.google.com",
+  "n8n.cloud",
+  "mcpjam.com",
+  // The Manufact platform (dashboard, hosted inspector)
+  "manufact.com",
+];
 
-// The Manufact platform (dashboard, hosted inspector) registers with
-// redirects on its own origins, so trust the origins rather than exact URIs.
-const TRUSTED_OAUTH_REDIRECT_ORIGINS = new Set([
-  "https://inspector.manufact.com",
-  "https://manufact.com",
-  "https://cloud.manufact.com",
-]);
+// Desktop clients finish the flow through a private URL scheme rather than
+// HTTPS, so the scheme registration itself is the trust boundary.
+const TRUSTED_OAUTH_REDIRECT_SCHEMES = new Set(["cursor:", "vscode:", "warp:"]);
+
+// CLI and editor clients bind an ephemeral loopback port per RFC 8252, so the
+// port and path vary per session and cannot be pinned.
+const LOOPBACK_REDIRECT_HOSTNAMES = ["localhost", "127.0.0.1", "[::1]"];
+
+function isTrustedOAuthRedirectHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return TRUSTED_OAUTH_REDIRECT_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
+}
 
 function isAllowedOAuthRedirect(value: string): boolean {
   try {
     const url = new URL(value);
-    if (TRUSTED_OAUTH_REDIRECTS.has(url.href)) {
+    if (TRUSTED_OAUTH_REDIRECT_SCHEMES.has(url.protocol)) {
       return true;
     }
-    if (TRUSTED_OAUTH_REDIRECT_ORIGINS.has(url.origin)) {
+    if (url.protocol === "https:" && isTrustedOAuthRedirectHost(url.hostname)) {
       return true;
     }
     const allowedOrigins = (
@@ -86,8 +112,8 @@ function isAllowedOAuthRedirect(value: string): boolean {
       return true;
     }
     return (
-      url.protocol === "http:" &&
-      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      LOOPBACK_REDIRECT_HOSTNAMES.includes(url.hostname)
     );
   } catch {
     return false;
@@ -96,9 +122,26 @@ function isAllowedOAuthRedirect(value: string): boolean {
 
 if (oauthProvider) {
   const oauthClientSecret = process.env.CONTEXT_OAUTH_CLIENT_SECRET!;
-  const secureOAuthCookies = new URL(
-    process.env.MCP_URL || "http://localhost:3000"
-  ).protocol === "https:";
+  const secureOAuthCookies =
+    new URL(process.env.MCP_URL || "http://localhost:3000").protocol ===
+    "https:";
+
+  // The bearer middleware mcp-use mounts at listen() only reads the
+  // Authorization header; promote the documented x-api-key header so API-key
+  // clients that cannot customize Authorization still pass the transport gate.
+  const promoteApiKeyHeader = async (
+    context: { req: { header: (name: string) => string | undefined; raw: Request } },
+    next: () => Promise<void>,
+  ) => {
+    const headerKey = context.req.header("x-api-key");
+    if (headerKey && !context.req.header("authorization")) {
+      context.req.raw.headers.set("Authorization", `Bearer ${headerKey}`);
+    }
+    await next();
+  };
+  server.app.use("/mcp/*", promoteApiKeyHeader);
+  server.app.use("/sse", promoteApiKeyHeader);
+  server.app.use("/sse/*", promoteApiKeyHeader);
 
   server.app.use("/register", async (context, next) => {
     context.header("Access-Control-Allow-Origin", "*");
@@ -118,18 +161,18 @@ if (oauthProvider) {
       redirectUris.some(
         (redirectUri) =>
           typeof redirectUri !== "string" ||
-          !isAllowedOAuthRedirect(redirectUri)
+          !isAllowedOAuthRedirect(redirectUri),
       )
     ) {
       console.warn(
-        `[OAuth] Rejected registration, redirect_uris: ${JSON.stringify(redirectUris)}`
+        `[OAuth] Rejected registration, redirect_uris: ${JSON.stringify(redirectUris)}`,
       );
       return context.json(
         {
           error: "invalid_redirect_uri",
           error_description: "One or more redirect_uris are not allowed",
         },
-        400
+        400,
       );
     }
     await next();
@@ -151,7 +194,7 @@ if (oauthProvider) {
         response_types: ["code"],
         token_endpoint_auth_method: "none",
       },
-      201
+      201,
     );
   });
   server.app.use("/authorize", async (context, next) => {
@@ -165,14 +208,14 @@ if (oauthProvider) {
       !isAllowedOAuthRedirect(redirectUri)
     ) {
       console.warn(
-        `[OAuth] Rejected authorization, redirect_uri: ${JSON.stringify(redirectUri)}`
+        `[OAuth] Rejected authorization, redirect_uri: ${JSON.stringify(redirectUri)}`,
       );
       return context.json(
         {
           error: "invalid_request",
           error_description: "redirect_uri is not allowed",
         },
-        400
+        400,
       );
     }
     await next();
@@ -185,8 +228,8 @@ if (oauthProvider) {
       createOAuthBrowserCookie(
         upstreamState,
         oauthClientSecret,
-        secureOAuthCookies
-      )
+        secureOAuthCookies,
+      ),
     );
   });
   server.app.use("/oauth/callback", async (context, next) => {
@@ -196,7 +239,7 @@ if (oauthProvider) {
       !hasValidOAuthBrowserCookie(
         state,
         oauthClientSecret,
-        context.req.header("cookie")
+        context.req.header("cookie"),
       )
     ) {
       return context.json(
@@ -205,12 +248,12 @@ if (oauthProvider) {
           error_description:
             "OAuth callback did not originate from this browser",
         },
-        400
+        400,
       );
     }
     context.header(
       "Set-Cookie",
-      clearOAuthBrowserCookie(state, secureOAuthCookies)
+      clearOAuthBrowserCookie(state, secureOAuthCookies),
     );
     await next();
   });
@@ -221,8 +264,12 @@ if (oauthProvider) {
 // ---------------------------------------------------------------------------
 
 const LINK_LABELS: Record<string, string> = {
-  careers: "Careers", privacy: "Privacy", terms: "Terms",
-  contact: "Contact", blog: "Blog", pricing: "Pricing",
+  careers: "Careers",
+  privacy: "Privacy",
+  terms: "Terms",
+  contact: "Contact",
+  blog: "Blog",
+  pricing: "Pricing",
 };
 
 function normalizeBrand(payload: any): Brand {
@@ -244,20 +291,37 @@ function normalizeBrand(payload: any): Brand {
     .map((i: any) => ({ industry: i.industry, subindustry: i.subindustry }));
   const links = Object.entries(b.links ?? {})
     .filter(([, url]) => typeof url === "string" && url)
-    .map(([key, url]) => ({ label: LINK_LABELS[key] ?? key, url: url as string }));
+    .map(([key, url]) => ({
+      label: LINK_LABELS[key] ?? key,
+      url: url as string,
+    }));
   const addr = b.address ?? {};
   const location =
-    [addr.city, addr.state_code || addr.state_province, addr.country_code || addr.country]
-      .filter(Boolean).join(", ") || undefined;
+    [
+      addr.city,
+      addr.state_code || addr.state_province,
+      addr.country_code || addr.country,
+    ]
+      .filter(Boolean)
+      .join(", ") || undefined;
   const stockTicker = b.stock?.ticker
     ? [b.stock.exchange, b.stock.ticker].filter(Boolean).join(": ")
     : undefined;
   return {
-    domain: b.domain ?? "", title: b.title ?? b.domain ?? "Unknown",
-    slogan: b.slogan || undefined, description: b.description || undefined,
-    logo: bestLogo, colors, socials, industries, links,
-    email: b.email || undefined, phone: b.phone || undefined,
-    location, stockTicker, creditsRemaining: payload?.key_metadata?.credits_remaining,
+    domain: b.domain ?? "",
+    title: b.title ?? b.domain ?? "Unknown",
+    slogan: b.slogan || undefined,
+    description: b.description || undefined,
+    logo: bestLogo,
+    colors,
+    socials,
+    industries,
+    links,
+    email: b.email || undefined,
+    phone: b.phone || undefined,
+    location,
+    stockTicker,
+    creditsRemaining: payload?.key_metadata?.credits_remaining,
   };
 }
 
@@ -267,17 +331,35 @@ server.tool(
     description:
       "Retrieve live brand intelligence for a domain and render it as a Context-branded brand card: logo, color palette, slogan, description, social profiles, industry and key company links. Use for any 'show me the brand / branding / logo / colors of <company>' request.",
     schema: z.object({
-      domain: z.string().describe("Domain to look up, e.g. 'stripe.com'. Bare domain, no https://."),
-      maxSpeed: z.boolean().optional().describe("Optimize for speed, skipping slower enrichment steps."),
+      domain: z
+        .string()
+        .describe(
+          "Domain to look up, e.g. 'stripe.com'. Bare domain, no https://.",
+        ),
+      maxSpeed: z
+        .boolean()
+        .optional()
+        .describe("Optimize for speed, skipping slower enrichment steps."),
     }),
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
     outputSchema: z.object({ brand: brandSchema }),
-    widget: { name: "context-brand", invoking: "Querying Context...", invoked: "Brand loaded" },
+    widget: {
+      name: "context-brand",
+      invoking: "Querying Context...",
+      invoked: "Brand loaded",
+    },
   },
   async ({ domain, maxSpeed }, context) => {
     const credential = resolveContextCredential(context);
     if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
-    const clean = domain.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    const clean = domain
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/.*$/, "");
     let res: Response;
     try {
       res = await fetch(`${API_BASE}/brand/retrieve`, {
@@ -297,16 +379,19 @@ server.tool(
     }
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg = (payload as any)?.message || `Context API returned ${res.status}`;
+      const msg =
+        (payload as any)?.message || `Context API returned ${res.status}`;
       return error(`${msg} (domain: ${clean})`);
     }
     const brand = normalizeBrand(payload);
     const summary =
       `${brand.title} (${brand.domain})` +
       (brand.slogan ? ` — ${brand.slogan}` : "") +
-      (brand.colors.length ? `. Colors: ${brand.colors.map((c) => c.hex).join(", ")}` : "");
+      (brand.colors.length
+        ? `. Colors: ${brand.colors.map((c) => c.hex).join(", ")}`
+        : "");
     return widget({ props: { brand }, output: text(summary) });
-  }
+  },
 );
 
 function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
@@ -315,10 +400,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
     if (parameter.in === "cookie") {
       continue;
     }
-    let parameterSchema = schemaToZod(
-      parameter.schema,
-      COMPONENT_SCHEMAS
-    );
+    let parameterSchema = schemaToZod(parameter.schema, COMPONENT_SCHEMAS);
     if (parameter.description) {
       parameterSchema = parameterSchema.describe(parameter.description);
     }
@@ -334,17 +416,16 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
   } else if (endpoint.requestBody) {
     const bodyObject = resolveObjectSchema(
       endpoint.requestBody.schema,
-      COMPONENT_SCHEMAS
+      COMPONENT_SCHEMAS,
     );
     const bodyProperties = Object.keys(bodyObject?.properties ?? {});
     const canFlattenBody =
-      bodyObject &&
-      bodyProperties.every((name) => shape[name] === undefined);
+      bodyObject && bodyProperties.every((name) => shape[name] === undefined);
 
     if (canFlattenBody) {
       const required = new Set(bodyObject.required ?? []);
       for (const [name, property] of Object.entries(
-        bodyObject.properties ?? {}
+        bodyObject.properties ?? {},
       )) {
         const propertySchema = schemaToZod(property, COMPONENT_SCHEMAS);
         shape[name] = required.has(name)
@@ -354,7 +435,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
     } else {
       let bodySchema = schemaToZod(
         endpoint.requestBody.schema,
-        COMPONENT_SCHEMAS
+        COMPONENT_SCHEMAS,
       );
       if (endpoint.requestBody.description) {
         bodySchema = bodySchema.describe(endpoint.requestBody.description);
@@ -385,12 +466,12 @@ for (const ep of registeredEndpoints as Endpoint[]) {
         args: args as Record<string, unknown>,
         credential,
       });
-    }
+    },
   );
 }
 
 server.listen().then(() => {
   console.log(
-    `Context MCP server running — ${registeredEndpoints.length + 1} tools`
+    `Context MCP server running — ${registeredEndpoints.length + 1} tools`,
   );
 });

@@ -1,6 +1,24 @@
+import { createHash } from "node:crypto";
 import { jwtDecrypt } from "jose";
 import { oauthProxy, type EnhancedToolContext } from "mcp-use/server";
 import type { ContextCredential } from "./context-client";
+
+// OAuth access tokens are compact JWEs (dot-separated segments); Context API
+// keys are opaque strings without dots. Dotted tokens must fail closed through
+// JWE verification so an expired OAuth session still gets the 401 that
+// triggers client re-authentication instead of being replayed as an API key.
+function isOAuthTokenShaped(token: string): boolean {
+  return token.includes(".");
+}
+
+function apiKeyAuthPayload(apiKey: string): Record<string, unknown> {
+  const keyDigest = createHash("sha256").update(apiKey).digest("hex");
+  return {
+    sub: `api-key:${keyDigest.slice(0, 12)}`,
+    context_api_key: apiKey,
+    scope: "api.read api.write",
+  };
+}
 
 const REQUIRED_OAUTH_ENVIRONMENT = [
   "CONTEXT_OAUTH_CLIENT_ID",
@@ -62,6 +80,9 @@ export function createOAuthProvider() {
     scopes: ["api.read", "api.write"],
     extraAuthorizeParams: { audience },
     verifyToken: async (token) => {
+      if (!isOAuthTokenShaped(token)) {
+        return { payload: apiKeyAuthPayload(token) };
+      }
       const { payload } = await jwtDecrypt(token, encryptionKey, {
         issuer,
         audience,

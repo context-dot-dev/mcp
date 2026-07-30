@@ -249,14 +249,63 @@ test("limits dynamic registration and authorization redirects", async () => {
   });
   assert.equal(allowedInspectorRegistration.status, 201);
 
-  const rejectedRegistration = await fetch(`${mcpBase}/register`, {
+  const allowedWildcardRegistration = await fetch(`${mcpBase}/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      redirect_uris: ["https://attacker.example/callback"],
+      client_name: "Wildcard clients",
+      redirect_uris: [
+        "https://claude.ai/api/organizations/custom-connectors/oauth/callback",
+        "https://api.claude.com/api/mcp/auth_callback",
+        "https://chatgpt.com/connector/oauth/some-connector-id",
+        "https://platform.openai.com/mcp/oauth/callback",
+        "https://preview.manufact.com/oauth/callback",
+      ],
     }),
   });
-  assert.equal(rejectedRegistration.status, 400);
+  assert.equal(allowedWildcardRegistration.status, 201);
+
+  const allowedOtherClientRegistration = await fetch(`${mcpBase}/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_name: "Other MCP clients",
+      redirect_uris: [
+        "https://vscode.dev/redirect",
+        "https://insiders.vscode.dev/redirect",
+        "http://127.0.0.1:33418",
+        "https://localhost:7777/oauth/callback",
+        "vscode://saoudrizwan.claude-dev/mcp/callback",
+        "warp://mcp/oauth/callback",
+        "https://callback.mistral.ai/v1/integrations_auth/oauth2_callback",
+        "https://global.consent.azure-apim.net/redirect/context",
+        "https://vertexaisearch.cloud.google.com/oauth-redirect",
+        "https://oauth.n8n.cloud/oauth2/callback",
+        "https://app.mcpjam.com/oauth/callback",
+      ],
+    }),
+  });
+  assert.equal(allowedOtherClientRegistration.status, 201);
+
+  for (const redirectUri of [
+    "https://attacker.example/callback",
+    "https://claude.ai.attacker.example/callback",
+    "https://notclaude.ai/callback",
+    "http://claude.ai/api/mcp/auth_callback",
+    "https://google.com/oauth-redirect",
+    "https://accounts.google.com/oauth-redirect",
+  ]) {
+    const rejectedRegistration = await fetch(`${mcpBase}/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ redirect_uris: [redirectUri] }),
+    });
+    assert.equal(
+      rejectedRegistration.status,
+      400,
+      `expected ${redirectUri} to be rejected`
+    );
+  }
 
   const rejectedAuthorization = await fetch(
     `${mcpBase}/authorize?${new URLSearchParams({
@@ -405,4 +454,61 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     }),
   });
   assert.equal(rejectedToken.status, 401);
+});
+
+test("accepts direct Context API keys at the MCP transport", async () => {
+  const bearerClient = new Client({ name: "api-key-test", version: "1.0.0" });
+  await bearerClient.connect(
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+      requestInit: {
+        headers: { Authorization: "Bearer ctxt_direct_bearer_key" },
+      },
+    })
+  );
+  const { tools } = await bearerClient.listTools();
+  assert.equal(tools.length, 32);
+  await bearerClient.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await bearerClient.close();
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_direct_bearer_key"
+  );
+
+  const headerClient = new Client({
+    name: "api-key-header-test",
+    version: "1.0.0",
+  });
+  await headerClient.connect(
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+      requestInit: { headers: { "x-api-key": "ctxt_x_api_key_header" } },
+    })
+  );
+  await headerClient.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await headerClient.close();
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_x_api_key_header"
+  );
+
+  const dottedToken = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      authorization: "Bearer looks.like.an.oauth.token",
+      accept: "application/json, text/event-stream",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+  assert.equal(dottedToken.status, 401);
 });

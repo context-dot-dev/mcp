@@ -12,7 +12,7 @@ The MCP endpoint is:
 https://<your-domain>/mcp
 ```
 
-For a public deployment, connect through OAuth. For local or private deployments without OAuth, send a Context API key in a header:
+Connect through OAuth, or send a Context API key in a header (works on both hosted and local deployments):
 
 ```text
 Authorization: Bearer ctxt_secret_...
@@ -98,7 +98,13 @@ Generate the encryption key once and store the same value in the MCP deployment 
 node -e 'console.log(require("node:crypto").randomBytes(32).toString("base64url"))'
 ```
 
-Claude's two connector callback URLs and loopback HTTP callbacks are allowed by default. Add another trusted HTTPS client origin only when needed:
+These redirect targets are allowed by default:
+
+- HTTPS callbacks on `claude.ai`, `claude.com`, `anthropic.com`, `chatgpt.com`, `openai.com`, `cursor.com`, `vscode.dev`, `mistral.ai`, `azure-apim.net`, `cloud.google.com`, `n8n.cloud`, `mcpjam.com`, and `manufact.com`, including any subdomain and any path.
+- The `cursor://`, `vscode://`, and `warp://` client schemes.
+- Loopback callbacks on `localhost`, `127.0.0.1`, and `[::1]`, over HTTP or HTTPS, on any port and path. CLI clients such as Claude Code and Codex bind an ephemeral port per session, so the port cannot be pinned.
+
+Add another trusted HTTPS client origin only when needed:
 
 ```text
 MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS=https://trusted-client.example
