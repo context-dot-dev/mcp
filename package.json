@@ -2,22 +2,17 @@
   "name": "context-mcp",
   "type": "module",
   "version": "1.0.0",
-  "description": "MCP server: context-mcp",
-  "author": "",
+  "description": "Remote MCP server for the Context web-context API",
+  "author": "Context",
   "license": "MIT",
   "keywords": [
     "mcp",
     "server",
-    "starter",
-    "tools",
-    "resources",
-    "prompts",
-    "uiresource",
-    "ui",
-    "react",
-    "widgets",
-    "mcp-ui",
-    "apps-sdk"
+    "context",
+    "web-scraping",
+    "document-parsing",
+    "monitoring",
+    "oauth"
   ],
   "main": "dist/index.js",
   "scripts": {
@@ -25,14 +20,17 @@
     "dev": "mcp-use dev",
     "start": "mcp-use start",
     "deploy": "mcp-use deploy",
+    "generate:endpoints": "tsx scripts/generate-context-endpoints.ts",
+    "test": "npm run build && node --import tsx --test --test-concurrency=1 src/*.test.ts",
     "postinstall": "mcp-use generate-types || exit 0"
   },
   "dependencies": {
-    "@openai/apps-sdk-ui": "^0.2.1",
-    "mcp-use": "latest",
+    "@openai/apps-sdk-ui": "^0.2.2",
+    "jose": "6.2.4",
+    "mcp-use": "1.34.5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router": "^7.13.0",
+    "react-router": "7.18.2",
     "tailwindcss": "^4.2.0",
     "zod": "4.3.5"
   },
@@ -42,5 +40,17 @@
     "@types/react-dom": "^19.2.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@hono/node-server": "2.0.12",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "dompurify": "3.4.12",
+    "fast-uri": "3.1.4",
+    "hono": "4.12.32",
+    "lodash": "4.18.1",
+    "posthog-js": "1.407.5",
+    "protobufjs": "7.6.5",
+    "react-router": "7.18.2",
+    "react-router-dom": "7.18.2"
   }
 }
