@@ -59,10 +59,12 @@ const TRUSTED_OAUTH_REDIRECTS = new Set([
   "https://www.cursor.com/agents/mcp/oauth/callback",
 ]);
 
-// Manufact Cloud's hosted inspector registers with a redirect on its own
-// origin (`/inspector/oauth/callback`), so trust the origin rather than one URI.
+// The Manufact platform (dashboard, hosted inspector) registers with
+// redirects on its own origins, so trust the origins rather than exact URIs.
 const TRUSTED_OAUTH_REDIRECT_ORIGINS = new Set([
   "https://inspector.manufact.com",
+  "https://manufact.com",
+  "https://cloud.manufact.com",
 ]);
 
 function isAllowedOAuthRedirect(value: string): boolean {
@@ -119,6 +121,9 @@ if (oauthProvider) {
           !isAllowedOAuthRedirect(redirectUri)
       )
     ) {
+      console.warn(
+        `[OAuth] Rejected registration, redirect_uris: ${JSON.stringify(redirectUris)}`
+      );
       return context.json(
         {
           error: "invalid_redirect_uri",
@@ -159,6 +164,9 @@ if (oauthProvider) {
       typeof redirectUri !== "string" ||
       !isAllowedOAuthRedirect(redirectUri)
     ) {
+      console.warn(
+        `[OAuth] Rejected authorization, redirect_uri: ${JSON.stringify(redirectUri)}`
+      );
       return context.json(
         {
           error: "invalid_request",
