@@ -75,7 +75,6 @@ before(async () => {
       MCP_URL: mcpBase,
       CONTEXT_API_BASE: upstreamBase,
       CONTEXT_API_KEY: "ctxt_secret_local_test",
-      CONTEXT_MCP_TOOLSET: "full",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -104,22 +103,38 @@ async function connectClient(): Promise<Client> {
   return client;
 }
 
-test("lists the complete generated Context API with safety annotations", async () => {
+test("lists the public Context API with safety annotations", async () => {
   const client = await connectClient();
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 69);
+  assert.equal(tools.length, 32);
   const names = new Set(tools.map((tool) => tool.name));
   for (const requiredName of [
     "parse-document",
+    "web-scrape-html",
+    "web-scrape-sitemap",
+    "brand-retrieve-unified",
+    "web-fonts",
+    "web-naics",
+    "web-sic",
+    "utility-prefetch",
     "create-monitor",
     "list-monitors",
-    "create-webdb-collection",
-    "preview-webdb",
+    "get-monitor-run",
     "get-brand",
   ]) {
     assert.ok(names.has(requiredName), `missing ${requiredName}`);
+  }
+  for (const privateName of [
+    "people-retrieve",
+    "web-competitors",
+    "brand-ai-query",
+    "get-monitor-limits",
+    "create-webdb-collection",
+    "preview-webdb",
+  ]) {
+    assert.equal(names.has(privateName), false, `exposed ${privateName}`);
   }
 
   const createMonitor = tools.find((tool) => tool.name === "create-monitor");
@@ -148,6 +163,10 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
     arguments: { monitor_id: "monitor/a" },
   });
   await client.callTool({
+    name: "get-monitor-run",
+    arguments: { monitor_id: "monitor/a", run_id: "run/b" },
+  });
+  await client.callTool({
     name: "create-monitor",
     arguments: {
       name: "Pricing monitor",
@@ -164,6 +183,22 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
       fileBase64: Buffer.from("hello parser").toString("base64"),
     },
   });
+  await client.callTool({
+    name: "get-brand",
+    arguments: {
+      domain: "https://example.test/path",
+      maxSpeed: true,
+    },
+  });
+  await client.callTool({
+    name: "brand-retrieve-unified",
+    arguments: {
+      body: {
+        type: "by_domain",
+        domain: "example.test",
+      },
+    },
+  });
   await client.close();
 
   const markdownUrl = new URL(captured[0]!.url, upstreamBase);
@@ -174,13 +209,27 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
     "article",
   ]);
   assert.equal(captured[1]!.url, "/monitors/monitor%2Fa");
-  assert.equal(captured[2]!.method, "POST");
-  assert.deepEqual(JSON.parse(captured[2]!.body.toString()), {
+  assert.equal(captured[2]!.url, "/monitors/monitor%2Fa/runs/run%2Fb");
+  assert.equal(captured[3]!.method, "POST");
+  assert.deepEqual(JSON.parse(captured[3]!.body.toString()), {
     name: "Pricing monitor",
     target: {
       type: "page",
       url: "https://example.test/pricing",
     },
   });
-  assert.equal(captured[3]!.body.toString(), "hello parser");
+  assert.equal(captured[4]!.body.toString(), "hello parser");
+  assert.equal(captured[5]!.method, "POST");
+  assert.equal(captured[5]!.url, "/brand/retrieve");
+  assert.deepEqual(JSON.parse(captured[5]!.body.toString()), {
+    type: "by_domain",
+    domain: "example.test",
+    maxSpeed: true,
+  });
+  assert.equal(captured[6]!.method, "POST");
+  assert.equal(captured[6]!.url, "/brand/retrieve");
+  assert.deepEqual(JSON.parse(captured[6]!.body.toString()), {
+    type: "by_domain",
+    domain: "example.test",
+  });
 });

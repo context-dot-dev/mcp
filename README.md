@@ -1,8 +1,8 @@
 # Context MCP Server
 
-A remote MCP server for the [Context API](https://context.dev): parsing, web scraping, crawling, extraction, search, brand and product intelligence, people lookup, screenshots, and monitors.
+A remote MCP server for the public [Context API](https://context.dev): parsing, web scraping, crawling, extraction, search, brand and product intelligence, screenshots, and monitors.
 
-The default deployment exposes 29 focused tools so clients can select tools reliably without loading the full API schema. Set `CONTEXT_MCP_TOOLSET=full` to expose all 69 tools.
+The server exposes all 31 callable operations in Context's public documentation plus the visual `get-brand` tool. Generated endpoints that are internal, legacy, or not part of the public product are never registered.
 
 ## Connect
 
@@ -25,21 +25,14 @@ Authorization: Bearer ctxt_secret_...
 | Group | Tools |
 | --- | --- |
 | Parse | `parse-document` |
-| Scrape and crawl | `web-scrape-markdown`, `web-scrape-images`, `web-crawl`, `web-screenshot` |
-| Extract and search | `web-extract`, `web-search`, `web-competitors` |
-| Brand and products | `get-brand`, `brand-retrieve`, `web-styleguide`, `brand-ai-query`, `brand-ai-product`, `brand-ai-products` |
-| People | `people-retrieve` |
-| Monitors | create, list, retrieve, update, delete, run, change history, usage, limits, and webhook-secret rotation |
+| Scrape and crawl | `web-scrape-html`, `web-scrape-markdown`, `web-scrape-images`, `web-scrape-sitemap`, `web-crawl`, `web-screenshot` |
+| Extract and search | `web-extract`, `web-search`, `web-naics`, `web-sic` |
+| Brand and products | `get-brand`, `brand-retrieve-unified`, `web-styleguide`, `web-fonts`, `brand-ai-product`, `brand-ai-products`, `utility-prefetch` |
+| Monitors | create, list, retrieve, update, delete, run, change history, usage, and webhook-secret rotation |
 
 `get-brand` includes a visual brand-card widget. All API tools are generated from Context's OpenAPI document and retain their request validation and read/write safety annotations.
 
 Tool responses are capped at 40,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
-
-To expose every generated endpoint, including HTML, sitemap, fonts, industry classification, unified brand retrieval, and WebDB operations:
-
-```bash
-CONTEXT_MCP_TOOLSET=full npm start
-```
 
 ## Run locally
 

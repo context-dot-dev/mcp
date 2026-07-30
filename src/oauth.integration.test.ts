@@ -349,10 +349,11 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     })
   );
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 29);
+  assert.equal(tools.length, 32);
+  const toolCatalogBytes = Buffer.byteLength(JSON.stringify(tools));
   assert.ok(
-    Buffer.byteLength(JSON.stringify(tools)) < 85_000,
-    "recommended tool catalog exceeds the release budget"
+    toolCatalogBytes < 110_000,
+    `public tool catalog exceeds the release budget: ${toolCatalogBytes} bytes`
   );
   await client.callTool({
     name: "web-scrape-markdown",
