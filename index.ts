@@ -28,6 +28,26 @@ import {
 import { selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
+const monitorIntervalSchedule = COMPONENT_SCHEMAS.MonitorsIntervalSchedule!;
+const monitorIntervalProperties = monitorIntervalSchedule.properties!;
+const MCP_COMPONENT_SCHEMAS = {
+  ...COMPONENT_SCHEMAS,
+  MonitorsIntervalSchedule: {
+    ...monitorIntervalSchedule,
+    properties: {
+      ...monitorIntervalProperties,
+      type: {
+        ...monitorIntervalProperties.type!,
+        description: "Schedule strategy. Must be `interval`.",
+      },
+      unit: {
+        ...monitorIntervalProperties.unit!,
+        description:
+          "Time unit used with `frequency`: `minutes`, `hours`, or `days`.",
+      },
+    },
+  },
+};
 const oauthProvider = createOAuthProvider();
 const registeredEndpoints = selectEndpoints(ENDPOINTS);
 
@@ -508,7 +528,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
     if (parameter.in === "cookie") {
       continue;
     }
-    let parameterSchema = schemaToZod(parameter.schema, COMPONENT_SCHEMAS);
+    let parameterSchema = schemaToZod(parameter.schema, MCP_COMPONENT_SCHEMAS);
     const parameterDescription =
       parameter.description ?? mcpParameterDescription(endpoint.name, parameter.name);
     if (parameterDescription) {
@@ -526,7 +546,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
   } else if (endpoint.requestBody) {
     const bodyObject = resolveObjectSchema(
       endpoint.requestBody.schema,
-      COMPONENT_SCHEMAS,
+      MCP_COMPONENT_SCHEMAS,
     );
     const bodyProperties = Object.keys(bodyObject?.properties ?? {});
     const canFlattenBody =
@@ -537,7 +557,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
       for (const [name, property] of Object.entries(
         bodyObject.properties ?? {},
       )) {
-        let propertySchema = schemaToZod(property, COMPONENT_SCHEMAS);
+        let propertySchema = schemaToZod(property, MCP_COMPONENT_SCHEMAS);
         const propertyDescription = mcpParameterDescription(endpoint.name, name);
         if (propertyDescription) {
           propertySchema = propertySchema.describe(propertyDescription);
@@ -549,7 +569,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
     } else {
       let bodySchema = schemaToZod(
         endpoint.requestBody.schema,
-        COMPONENT_SCHEMAS,
+        MCP_COMPONENT_SCHEMAS,
       );
       if (endpoint.requestBody.description) {
         bodySchema = bodySchema.describe(endpoint.requestBody.description);
