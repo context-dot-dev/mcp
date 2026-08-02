@@ -163,7 +163,7 @@ after(async () => {
   );
 });
 
-test("publishes protected-resource metadata and rejects unauthenticated MCP calls", async () => {
+test("publishes protected-resource metadata and permits anonymous MCP discovery only", async () => {
   const metadataResponse = await fetch(
     `${mcpBase}/.well-known/oauth-protected-resource/mcp`
   );
@@ -175,28 +175,34 @@ test("publishes protected-resource metadata and rejects unauthenticated MCP call
     bearer_methods_supported: ["header"],
   });
 
-  const unauthorized = await fetch(`${mcpBase}/mcp`, {
-    method: "POST",
-    headers: {
-      accept: "application/json, text/event-stream",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-06-18",
-        capabilities: {},
-        clientInfo: { name: "unauthorized-test", version: "1.0.0" },
-      },
-    }),
+  const anonymousClient = new Client({
+    name: "anonymous-discovery-test",
+    version: "1.0.0",
   });
-  assert.equal(unauthorized.status, 401);
-  assert.match(
-    unauthorized.headers.get("www-authenticate") ?? "",
-    /oauth-protected-resource/
+  await anonymousClient.connect(
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`))
   );
+  const { tools } = await anonymousClient.listTools();
+  assert.equal(tools.length, 34);
+  const { resources } = await anonymousClient.listResources();
+  assert.equal(resources.length, 1);
+  const { resourceTemplates } = await anonymousClient.listResourceTemplates();
+  assert.equal(resourceTemplates.length, 1);
+
+  const upstreamCallsBeforeUnauthorizedTool =
+    upstreamAuthorizationHeaders.length;
+  await assert.rejects(
+    anonymousClient.callTool({
+      name: "web-scrape-markdown",
+      arguments: { url: "https://example.test" },
+    }),
+    /401|Missing Authorization header/
+  );
+  assert.equal(
+    upstreamAuthorizationHeaders.length,
+    upstreamCallsBeforeUnauthorizedTool
+  );
+  await anonymousClient.close();
 });
 
 test("limits dynamic registration and authorization redirects", async () => {
