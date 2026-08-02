@@ -446,10 +446,10 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     })
   );
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 32);
+  assert.equal(tools.length, 34);
   const toolCatalogBytes = Buffer.byteLength(JSON.stringify(tools));
   assert.ok(
-    toolCatalogBytes < 110_000,
+    toolCatalogBytes < 130_000,
     `public tool catalog exceeds the release budget: ${toolCatalogBytes} bytes`
   );
   await client.callTool({
@@ -500,7 +500,7 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     })
   );
   const { tools } = await bearerClient.listTools();
-  assert.equal(tools.length, 32);
+  assert.equal(tools.length, 34);
   await bearerClient.callTool({
     name: "web-scrape-markdown",
     arguments: { url: "https://example.test" },

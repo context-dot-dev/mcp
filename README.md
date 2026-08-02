@@ -1,8 +1,8 @@
 # Context MCP Server
 
-A remote MCP server for the public [Context API](https://context.dev): parsing, web scraping, crawling, extraction, search, brand and product intelligence, screenshots, and monitors.
+A remote MCP server that gives AI agents reliable context from the live web and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
 
-The server exposes all 31 callable operations in Context's public documentation plus the visual `get-brand` tool. Generated endpoints that are internal, legacy, or not part of the public product are never registered.
+The server exposes a curated 34-tool surface from the public [Context API](https://context.dev). Internal and legacy endpoints are never registered. Public endpoints that do not improve an agent workflow, such as cache prefetching, dedicated product extraction, and webhook-secret rotation, are intentionally omitted to keep tool selection clear.
 
 ## Connect
 
@@ -20,17 +20,20 @@ Authorization: Bearer ctxt_secret_...
 
 `x-api-key` is also accepted. API keys are never accepted in query parameters because URLs commonly leak into logs, browser history, and analytics.
 
-## Default tools
+## Tools
 
 | Group | Tools |
 | --- | --- |
 | Parse | `parse-document` |
 | Scrape and crawl | `web-scrape-html`, `web-scrape-markdown`, `web-scrape-images`, `web-scrape-sitemap`, `web-crawl`, `web-screenshot` |
 | Extract and search | `web-extract`, `web-search`, `web-naics`, `web-sic` |
-| Brand and products | `get-brand`, `brand-retrieve-unified`, `web-styleguide`, `web-fonts`, `brand-ai-product`, `brand-ai-products`, `utility-prefetch` |
-| Monitors | create, list, retrieve, update, delete, run, change history, usage, and webhook-secret rotation |
+| Brand and design | `get-brand`, `brand-retrieve-unified`, `web-styleguide`, `web-fonts` |
+| Batches | `submit-batch`, `list-batches`, `get-batch`, `get-batch-results`, `cancel-batch`, `delete-batch` |
+| Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `run-monitor-now`, run and change history, and credit usage |
 
-`get-brand` includes a visual brand-card widget. All API tools are generated from Context's OpenAPI document and retain their request validation and read/write safety annotations.
+`get-brand` includes a visual brand card. Tool descriptions explain when each tool should be used, which adjacent tool to choose instead, whether work is synchronous or asynchronous, and what the result contains. API-backed tools retain the public OpenAPI request validation with MCP safety annotations audited for account state, open-web access, and destructive operations.
+
+For one known page, use `web-scrape-markdown`. Use `web-search` when the source is unknown, `web-crawl` for a focused multi-page request, and `submit-batch` for up to 25,000 URLs or a large asynchronous crawl. A batch returns an ID; poll `get-batch`, then page through `get-batch-results` after completion.
 
 Tool responses are capped at 40,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
 

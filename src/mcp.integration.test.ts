@@ -9,6 +9,7 @@ type CapturedRequest = {
   method: string;
   url: string;
   body: Buffer;
+  idempotencyKey?: string;
 };
 
 const captured: CapturedRequest[] = [];
@@ -16,17 +17,99 @@ let upstreamBase = "";
 let mcpBase = "";
 let mcpProcess: ChildProcess;
 
+function batchResponse(method: string, requestUrl: string) {
+  const path = new URL(requestUrl, "http://context.test").pathname;
+  if (method === "POST" && path === "/batch/submit") {
+    return {
+      status: 202,
+      body: {
+        id: "batch_demo",
+        status: "queued",
+        mode: "scrape",
+        format: "markdown",
+      },
+    };
+  }
+  if (method === "GET" && path === "/batch/list") {
+    return {
+      status: 200,
+      body: {
+        data: [{ id: "batch_demo", status: "completed" }],
+        has_more: false,
+        next_cursor: null,
+      },
+    };
+  }
+  if (method === "GET" && path.endsWith("/results")) {
+    return {
+      status: 200,
+      body: {
+        data: [
+          {
+            url: "https://example.test/docs",
+            status: "success",
+            markdown: "# Documentation",
+          },
+        ],
+        has_more: false,
+        next_cursor: null,
+      },
+    };
+  }
+  if (method === "GET" && path.startsWith("/batch/")) {
+    return {
+      status: 200,
+      body: {
+        id: "batch/a",
+        status: "completed",
+        progress: { succeeded: 1, failed: 0, pending: 0 },
+      },
+    };
+  }
+  if (method === "POST" && path.endsWith("/cancel")) {
+    return {
+      status: 202,
+      body: { id: "batch/a", status: "cancelling" },
+    };
+  }
+  if (method === "DELETE" && path.startsWith("/batch/")) {
+    return {
+      status: 200,
+      body: { id: "batch/a", deleted: true },
+    };
+  }
+  return { status: 200, body: { ok: true } };
+}
+
+function resultObject(result: Awaited<ReturnType<Client["callTool"]>>) {
+  assert.ok(Array.isArray(result.content));
+  const textBlock = result.content.find(
+    (block: unknown): block is { type: "text"; text: string } =>
+      !!block &&
+      typeof block === "object" &&
+      (block as { type?: unknown }).type === "text" &&
+      typeof (block as { text?: unknown }).text === "string",
+  );
+  assert.ok(textBlock);
+  return JSON.parse(textBlock.text) as Record<string, unknown>;
+}
+
 const upstream = createServer((request, response) => {
   const chunks: Buffer[] = [];
   request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
   request.on("end", () => {
+    const idempotencyHeader = request.headers["idempotency-key"];
     captured.push({
       method: request.method ?? "",
       url: request.url ?? "",
       body: Buffer.concat(chunks),
+      idempotencyKey: Array.isArray(idempotencyHeader)
+        ? idempotencyHeader[0]
+        : idempotencyHeader,
     });
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({ ok: true }));
+    const result = batchResponse(request.method ?? "", request.url ?? "");
+    response.writeHead(result.status, { "content-type": "application/json" });
+    response.end(JSON.stringify(result.body));
   });
 });
 
@@ -108,7 +191,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 32);
+  assert.equal(tools.length, 34);
   const names = new Set(tools.map((tool) => tool.name));
   for (const requiredName of [
     "parse-document",
@@ -118,10 +201,15 @@ test("lists the public Context API with safety annotations", async () => {
     "web-fonts",
     "web-naics",
     "web-sic",
-    "utility-prefetch",
     "create-monitor",
     "list-monitors",
     "get-monitor-run",
+    "submit-batch",
+    "list-batches",
+    "get-batch",
+    "get-batch-results",
+    "cancel-batch",
+    "delete-batch",
     "get-brand",
   ]) {
     assert.ok(names.has(requiredName), `missing ${requiredName}`);
@@ -130,6 +218,10 @@ test("lists the public Context API with safety annotations", async () => {
     "people-retrieve",
     "web-competitors",
     "brand-ai-query",
+    "brand-ai-product",
+    "brand-ai-products",
+    "utility-prefetch",
+    "rotate-monitor-webhook-secret",
     "get-monitor-limits",
     "create-webdb-collection",
     "preview-webdb",
@@ -139,10 +231,194 @@ test("lists the public Context API with safety annotations", async () => {
 
   const createMonitor = tools.find((tool) => tool.name === "create-monitor");
   assert.equal(createMonitor?.annotations?.readOnlyHint, false);
-  assert.equal(createMonitor?.annotations?.destructiveHint, true);
+  assert.equal(createMonitor?.annotations?.destructiveHint, false);
   const webSearch = tools.find((tool) => tool.name === "web-search");
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);
+
+  const submitBatch = tools.find((tool) => tool.name === "submit-batch");
+  assert.equal(submitBatch?.annotations?.readOnlyHint, false);
+  assert.equal(submitBatch?.annotations?.destructiveHint, false);
+  const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
+  assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+});
+
+test("executes the complete batch lifecycle with headers, bodies, paths, and queries", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+
+  const submitResult = await client.callTool({
+    name: "submit-batch",
+    arguments: {
+      "Idempotency-Key": "mcp-batch-demo-1",
+      input: {
+        mode: "scrape",
+        data: {
+          format: "markdown",
+          urls: [
+            {
+              url: "https://example.test/docs",
+              itemId: "docs",
+              meta: { source: "integration-test" },
+            },
+          ],
+          options: { useMainContentOnly: true },
+        },
+      },
+      tags: ["mcp", "test"],
+    },
+  });
+  const listResult = await client.callTool({
+    name: "list-batches",
+    arguments: { status: "completed", limit: 10, tags: "mcp,test" },
+  });
+  const statusResult = await client.callTool({
+    name: "get-batch",
+    arguments: { batch_id: "batch/a" },
+  });
+  const resultsResult = await client.callTool({
+    name: "get-batch-results",
+    arguments: { batch_id: "batch/a", limit: 25, cursor: "25:0" },
+  });
+  const cancelResult = await client.callTool({
+    name: "cancel-batch",
+    arguments: { batch_id: "batch/a" },
+  });
+  const deleteResult = await client.callTool({
+    name: "delete-batch",
+    arguments: { batch_id: "batch/a" },
+  });
+  await client.close();
+
+  assert.equal(captured[0]!.method, "POST");
+  assert.equal(captured[0]!.url, "/batch/submit");
+  assert.equal(captured[0]!.idempotencyKey, "mcp-batch-demo-1");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    input: {
+      mode: "scrape",
+      data: {
+        format: "markdown",
+        urls: [
+          {
+            url: "https://example.test/docs",
+            itemId: "docs",
+            meta: { source: "integration-test" },
+          },
+        ],
+        options: { useMainContentOnly: true },
+      },
+    },
+    tags: ["mcp", "test"],
+  });
+
+  const listUrl = new URL(captured[1]!.url, upstreamBase);
+  assert.equal(listUrl.pathname, "/batch/list");
+  assert.equal(listUrl.searchParams.get("status"), "completed");
+  assert.equal(listUrl.searchParams.get("limit"), "10");
+  assert.equal(listUrl.searchParams.get("tags"), "mcp,test");
+  assert.equal(captured[2]!.url, "/batch/batch%2Fa");
+
+  const resultsUrl = new URL(captured[3]!.url, upstreamBase);
+  assert.equal(resultsUrl.pathname, "/batch/batch%2Fa/results");
+  assert.equal(resultsUrl.searchParams.get("limit"), "25");
+  assert.equal(resultsUrl.searchParams.get("cursor"), "25:0");
+  assert.equal(captured[4]!.method, "POST");
+  assert.equal(captured[4]!.url, "/batch/batch%2Fa/cancel");
+  assert.equal(captured[5]!.method, "DELETE");
+  assert.equal(captured[5]!.url, "/batch/batch%2Fa");
+
+  assert.deepEqual(resultObject(submitResult), {
+    id: "batch_demo",
+    status: "queued",
+    mode: "scrape",
+    format: "markdown",
+  });
+  assert.deepEqual(resultObject(listResult), {
+    data: [{ id: "batch_demo", status: "completed" }],
+    has_more: false,
+    next_cursor: null,
+  });
+  assert.deepEqual(resultObject(statusResult), {
+    id: "batch/a",
+    status: "completed",
+    progress: { succeeded: 1, failed: 0, pending: 0 },
+  });
+  assert.deepEqual(resultObject(resultsResult), {
+    data: [
+      {
+        url: "https://example.test/docs",
+        status: "success",
+        markdown: "# Documentation",
+      },
+    ],
+    has_more: false,
+    next_cursor: null,
+  });
+  assert.deepEqual(resultObject(cancelResult), {
+    id: "batch/a",
+    status: "cancelling",
+  });
+  assert.deepEqual(resultObject(deleteResult), {
+    id: "batch/a",
+    deleted: true,
+  });
+});
+
+test("accepts every documented batch submission mode", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const inputs = [
+    {
+      mode: "scrape",
+      data: {
+        format: "markdown",
+        urls: [{ url: "https://example.test/markdown" }],
+      },
+    },
+    {
+      mode: "scrape",
+      data: {
+        format: "html",
+        urls: [{ url: "https://example.test/html" }],
+      },
+    },
+    {
+      mode: "crawl",
+      data: {
+        format: "markdown",
+        source: {
+          type: "start_url",
+          url: "https://example.test/docs",
+          controls: { maxUrls: 100, maxDepth: 3 },
+        },
+      },
+    },
+    {
+      mode: "crawl",
+      data: {
+        format: "html",
+        source: {
+          type: "sitemap",
+          domain: "example.test",
+          controls: { maxUrls: 100 },
+        },
+      },
+    },
+  ];
+
+  for (const input of inputs) {
+    await client.callTool({
+      name: "submit-batch",
+      arguments: { input },
+    });
+  }
+  await client.close();
+
+  assert.equal(captured.length, inputs.length);
+  assert.deepEqual(
+    captured.map((request) => JSON.parse(request.body.toString()).input),
+    inputs,
+  );
 });
 
 test("executes nested queries, path operations, JSON bodies, and parse bytes", async () => {
