@@ -190,13 +190,6 @@ if (oauthProvider) {
     context: { req: { method: string; header: (name: string) => string | undefined; raw: Request } },
     next: () => Promise<void>,
   ) => {
-    if (
-      context.req.header("authorization") ||
-      context.req.header("x-api-key")
-    ) {
-      await next();
-      return;
-    }
     if (context.req.method === "GET" || context.req.method === "DELETE") {
       context.req.raw.headers.set(
         "Authorization",

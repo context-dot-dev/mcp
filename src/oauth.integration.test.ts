@@ -203,6 +203,31 @@ test("publishes protected-resource metadata and permits anonymous MCP discovery 
     upstreamCallsBeforeUnauthorizedTool
   );
   await anonymousClient.close();
+
+  const staleTokenClient = new Client({
+    name: "stale-token-discovery-test",
+    version: "1.0.0",
+  });
+  await staleTokenClient.connect(
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+      requestInit: {
+        headers: { Authorization: "Bearer expired.oauth.token" },
+      },
+    })
+  );
+  assert.equal((await staleTokenClient.listTools()).tools.length, 34);
+  await assert.rejects(
+    staleTokenClient.callTool({
+      name: "web-scrape-markdown",
+      arguments: { url: "https://example.test" },
+    }),
+    /401|Invalid token/
+  );
+  assert.equal(
+    upstreamAuthorizationHeaders.length,
+    upstreamCallsBeforeUnauthorizedTool
+  );
+  await staleTokenClient.close();
 });
 
 test("limits dynamic registration and authorization redirects", async () => {
@@ -489,8 +514,11 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
-      method: "tools/list",
-      params: {},
+      method: "tools/call",
+      params: {
+        name: "web-scrape-markdown",
+        arguments: { url: "https://example.test" },
+      },
     }),
   });
   assert.equal(rejectedToken.status, 401);
@@ -546,8 +574,11 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
-      method: "tools/list",
-      params: {},
+      method: "tools/call",
+      params: {
+        name: "web-scrape-markdown",
+        arguments: { url: "https://example.test" },
+      },
     }),
   });
   assert.equal(dottedToken.status, 401);
