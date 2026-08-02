@@ -35,13 +35,12 @@ const server = new MCPServer({
   title: "Context",
   version: "1.0.0",
   description:
-    "Context's public web-context API for software and AI agents: document parsing, monitoring, brand intelligence, web scraping, crawling, structured extraction, product extraction, and search.",
+    "Turn the live web and files into reliable, agent-ready context. Search, scrape, crawl, extract structured data, parse documents, enrich brands, run large batches, and monitor meaningful changes.",
   instructions:
-    "This server exposes Context's public web-context and monitoring APIs.\n\n" +
-    "Connect your Context account with OAuth. Direct API-key authentication is available for local and private integrations through the Authorization header; never put API keys in URLs.\n\n" +
-    "For a polished, visual brand card use `get-brand` (renders a Context-branded UI widget). " +
-    "Use the matching tool for parsing, scraping, crawling, structured extraction, search, brand/product intelligence, or monitoring. " +
-    "Each call consumes Context credits.",
+    "Use Context when a task needs current web data, clean content from a URL, structured facts from a site, document parsing, brand intelligence, large-scale collection, or recurring change detection.\n\n" +
+    "Choose the smallest suitable tool: `web-search` discovers sources; `web-scrape-markdown` reads one known page; `web-scrape-sitemap` discovers a site's URLs; `web-crawl` reads several linked pages synchronously; `submit-batch` handles large asynchronous jobs; and `web-extract` returns schema-shaped JSON. Use `parse-document` for file bytes.\n\n" +
+    "Use `get-brand` for a visual domain profile and `brand-retrieve-unified` for raw brand data or non-domain identifiers. Monitors are for recurring checks, not one-time scraping. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
+    "Connect with Context OAuth. API-key authentication is available for private integrations through the Authorization header; never put API keys in URLs. Some operations consume Context credits, so avoid unnecessary duplicate calls and use idempotency keys for retried batch submissions.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
   websiteUrl: "https://context.dev",
@@ -363,8 +362,9 @@ function normalizeBrand(payload: any): Brand {
 server.tool(
   {
     name: "get-brand",
+    title: "Show a brand profile",
     description:
-      "Retrieve live brand intelligence for a domain and render it as a Context-branded brand card: logo, color palette, slogan, description, social profiles, industry and key company links. Use for any 'show me the brand / branding / logo / colors of <company>' request.",
+      "Retrieve live brand intelligence for a domain and render a visual Context card with its logo, colors, slogan, description, social profiles, industry, location, and key links. Use this when a user wants to see or inspect a company's brand. Use brand-retrieve-unified instead for raw structured data or lookup by name, email, ticker, ISIN, transaction descriptor, or direct URL.",
     schema: z.object({
       domain: z
         .string()

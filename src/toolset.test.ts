@@ -3,11 +3,11 @@ import { test } from "node:test";
 import { ENDPOINTS } from "../context-endpoints";
 import { selectEndpoints } from "./toolset";
 
-test("toolset exposes only APIs listed in the public documentation", () => {
+test("toolset exposes the curated public API surface", () => {
   const selected = selectEndpoints(ENDPOINTS);
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 31);
+  assert.equal(selected.length, 33);
   assert.ok(names.has("web-scrape-html"));
   assert.ok(names.has("web-scrape-markdown"));
   assert.ok(names.has("web-scrape-sitemap"));
@@ -15,14 +15,62 @@ test("toolset exposes only APIs listed in the public documentation", () => {
   assert.ok(names.has("web-fonts"));
   assert.ok(names.has("web-naics"));
   assert.ok(names.has("web-sic"));
-  assert.ok(names.has("utility-prefetch"));
   assert.ok(names.has("create-monitor"));
   assert.ok(names.has("get-monitor-run"));
   assert.ok(names.has("list-monitor-changes"));
+  assert.ok(names.has("submit-batch"));
+  assert.ok(names.has("list-batches"));
+  assert.ok(names.has("get-batch"));
+  assert.ok(names.has("get-batch-results"));
+  assert.ok(names.has("cancel-batch"));
+  assert.ok(names.has("delete-batch"));
+  assert.equal(names.has("brand-ai-product"), false);
+  assert.equal(names.has("brand-ai-products"), false);
+  assert.equal(names.has("utility-prefetch"), false);
+  assert.equal(names.has("rotate-monitor-webhook-secret"), false);
   assert.equal(names.has("create-webdb-collection"), false);
   assert.equal(names.has("people-retrieve"), false);
   assert.equal(names.has("web-competitors"), false);
   assert.equal(names.has("brand-ai-query"), false);
   assert.equal(names.has("brand-retrieve"), false);
   assert.equal(names.has("get-monitor-limits"), false);
+});
+
+test("tool descriptions route agents between overlapping workflows", () => {
+  const tools = new Map(
+    selectEndpoints(ENDPOINTS).map((endpoint) => [endpoint.name, endpoint]),
+  );
+
+  assert.match(
+    tools.get("web-scrape-markdown")?.description ?? "",
+    /web-search.*web-crawl.*submit-batch/i,
+  );
+  assert.match(
+    tools.get("submit-batch")?.description ?? "",
+    /25,000.*get-batch.*get-batch-results/i,
+  );
+  assert.match(
+    tools.get("create-monitor")?.description ?? "",
+    /recurring.*not a one-time scrape/i,
+  );
+  assert.match(
+    tools.get("brand-retrieve-unified")?.description ?? "",
+    /get-brand.*raw structured data/i,
+  );
+
+  assert.deepEqual(tools.get("submit-batch")?.annotations, {
+    readOnlyHint: false,
+    destructiveHint: false,
+    openWorldHint: true,
+  });
+  assert.deepEqual(tools.get("delete-batch")?.annotations, {
+    readOnlyHint: false,
+    destructiveHint: true,
+    openWorldHint: false,
+  });
+  assert.deepEqual(tools.get("list-batches")?.annotations, {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  });
 });

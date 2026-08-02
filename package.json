@@ -2,7 +2,7 @@
   "name": "context-mcp",
   "type": "module",
   "version": "1.0.0",
-  "description": "Remote MCP server for the Context web-context API",
+  "description": "Live web and document context for AI agents",
   "author": "Context",
   "license": "MIT",
   "keywords": [
@@ -11,6 +11,7 @@
     "context",
     "web-scraping",
     "document-parsing",
+    "batch-scraping",
     "monitoring",
     "oauth"
   ],
