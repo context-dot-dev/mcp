@@ -174,6 +174,7 @@ if (oauthProvider) {
     "ping",
     "prompts/list",
     "resources/list",
+    "resources/read",
     "resources/templates/list",
     "tools/list",
   ]);
@@ -399,6 +400,38 @@ function normalizeBrand(payload: any): Brand {
   };
 }
 
+const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  "brand-retrieve-unified.body":
+    "Brand lookup request. Provide exactly one lookup type: domain, company name, email, stock ticker, direct URL, or transaction descriptor.",
+  "create-monitor.name":
+    "Human-readable monitor name used to identify it in lists, runs, changes, and notifications.",
+  "create-monitor.webhook":
+    "Optional webhook configuration for delivering monitor change notifications.",
+  "submit-batch.input":
+    "Batch job definition. Choose a scrape or crawl mode and provide the URLs, output format, and processing options for that mode.",
+  "update-monitor.name": "New human-readable name for the monitor.",
+  "update-monitor.status":
+    "New monitor lifecycle status: active continues scheduled runs; paused stops them until reactivated.",
+  "web-extract.pdf":
+    "PDF handling for discovered documents. Control whether PDFs are parsed and optionally restrict extraction to an inclusive page range.",
+};
+
+function mcpParameterDescription(
+  toolName: string,
+  parameterName: string,
+): string | undefined {
+  const exactDescription =
+    MCP_PARAMETER_DESCRIPTIONS[`${toolName}.${parameterName}`];
+  if (exactDescription) return exactDescription;
+  if (parameterName === "monitor_id") {
+    return "Unique monitor ID returned by create-monitor or list-monitors, for example `mon_123`.";
+  }
+  if (parameterName === "change_id") {
+    return "Unique change ID returned by a monitor changes endpoint, for example `chg_123`.";
+  }
+  return undefined;
+}
+
 server.tool(
   {
     name: "get-brand",
@@ -476,8 +509,10 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
       continue;
     }
     let parameterSchema = schemaToZod(parameter.schema, COMPONENT_SCHEMAS);
-    if (parameter.description) {
-      parameterSchema = parameterSchema.describe(parameter.description);
+    const parameterDescription =
+      parameter.description ?? mcpParameterDescription(endpoint.name, parameter.name);
+    if (parameterDescription) {
+      parameterSchema = parameterSchema.describe(parameterDescription);
     }
     shape[parameter.name] = parameter.required
       ? parameterSchema
@@ -502,7 +537,11 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
       for (const [name, property] of Object.entries(
         bodyObject.properties ?? {},
       )) {
-        const propertySchema = schemaToZod(property, COMPONENT_SCHEMAS);
+        let propertySchema = schemaToZod(property, COMPONENT_SCHEMAS);
+        const propertyDescription = mcpParameterDescription(endpoint.name, name);
+        if (propertyDescription) {
+          propertySchema = propertySchema.describe(propertyDescription);
+        }
         shape[name] = required.has(name)
           ? propertySchema
           : propertySchema.optional();
@@ -514,6 +553,9 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
       );
       if (endpoint.requestBody.description) {
         bodySchema = bodySchema.describe(endpoint.requestBody.description);
+      } else {
+        const bodyDescription = mcpParameterDescription(endpoint.name, "body");
+        if (bodyDescription) bodySchema = bodySchema.describe(bodyDescription);
       }
       shape.body = endpoint.requestBody.required
         ? bodySchema

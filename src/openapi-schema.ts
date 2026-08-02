@@ -130,48 +130,57 @@ export function schemaToZod(
       return z.unknown();
     }
     const nextResolving = new Set(resolving).add(input.$ref);
-    return schemaToZod(
+    const referencedSchema = schemaToZod(
       resolveSchema(input, components),
       components,
       nextResolving
     );
+    return input.description
+      ? referencedSchema.describe(input.description)
+      : referencedSchema;
   }
 
   if (input.const !== undefined) {
-    return z.literal(input.const as z.util.Literal);
+    const schema = z.literal(input.const as z.util.Literal);
+    return input.description ? schema.describe(input.description) : schema;
   }
   if (input.enum?.length) {
+    let schema: z.ZodTypeAny;
     if (input.enum.every((value) => typeof value === "string")) {
-      return z.enum(input.enum as [string, ...string[]]);
+      schema = z.enum(input.enum as [string, ...string[]]);
+    } else {
+      const literals = input.enum.map((value) =>
+        z.literal(value as z.util.Literal)
+      );
+      schema = literals.length === 1
+        ? literals[0]!
+        : z.union(
+            literals as [
+              z.ZodLiteral,
+              z.ZodLiteral,
+              ...z.ZodLiteral[],
+            ]
+          );
     }
-    const literals = input.enum.map((value) =>
-      z.literal(value as z.util.Literal)
-    );
-    return literals.length === 1
-      ? literals[0]!
-      : z.union(
-          literals as [
-            z.ZodLiteral,
-            z.ZodLiteral,
-            ...z.ZodLiteral[],
-          ]
-        );
+    return input.description ? schema.describe(input.description) : schema;
   }
   if (input.oneOf?.length || input.anyOf?.length) {
-    return unionSchemaToZod(
+    const schema = unionSchemaToZod(
       input.oneOf ?? input.anyOf ?? [],
       components,
       resolving
     );
+    return input.description ? schema.describe(input.description) : schema;
   }
   if (input.allOf?.length) {
     const [first, ...rest] = input.allOf.map((part) =>
       schemaToZod(part, components, resolving)
     );
-    return rest.reduce<z.ZodTypeAny>(
+    const schema = rest.reduce<z.ZodTypeAny>(
       (combined, current) => z.intersection(combined, current),
       first ?? z.unknown()
     );
+    return input.description ? schema.describe(input.description) : schema;
   }
 
   const types = Array.isArray(input.type)

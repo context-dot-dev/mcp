@@ -192,6 +192,19 @@ test("lists the public Context API with safety annotations", async () => {
   await client.close();
 
   assert.equal(tools.length, 34);
+  for (const tool of tools) {
+    const properties = (tool.inputSchema.properties ?? {}) as Record<
+      string,
+      { description?: unknown }
+    >;
+    for (const [name, property] of Object.entries(properties)) {
+      assert.ok(
+        typeof property.description === "string" &&
+          property.description.trim().length > 0,
+        `${tool.name}.${name} is missing a parameter description`
+      );
+    }
+  }
   const names = new Set(tools.map((tool) => tool.name));
   for (const requiredName of [
     "parse-document",

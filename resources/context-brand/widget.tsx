@@ -10,6 +10,9 @@ export const widgetMetadata: WidgetMetadata = {
   exposeAsTool: false,
   metadata: {
     prefersBorder: false,
+    domain: "https://mcp.context.dev",
+    widgetDescription:
+      "Shows a live Context brand profile with the company's logo, colors, description, industry, social profiles, and key links.",
     invoking: "Querying Context...",
     invoked: "Brand loaded",
     // Brand logos are served from Context's media CDN.

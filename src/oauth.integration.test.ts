@@ -186,6 +186,26 @@ test("publishes protected-resource metadata and permits anonymous MCP discovery 
   assert.equal(tools.length, 34);
   const { resources } = await anonymousClient.listResources();
   assert.equal(resources.length, 1);
+  const resource = await anonymousClient.readResource({
+    uri: resources[0]!.uri,
+  });
+  assert.equal(resource.contents[0]?.uri, "ui://widget/context-brand.html");
+  assert.match(resource.contents[0]?.mimeType ?? "", /^text\/html/);
+  assert.match(
+    "text" in resource.contents[0]! ? resource.contents[0].text : "",
+    /<!doctype html>/i
+  );
+  assert.equal(
+    (resource.contents[0]?._meta as { ui?: { domain?: string } } | undefined)
+      ?.ui?.domain,
+    "https://mcp.context.dev"
+  );
+  assert.equal(
+    (tools.find((tool) => tool.name === "get-brand")?._meta as
+      | Record<string, unknown>
+      | undefined)?.["openai/widgetDomain"],
+    "https://mcp.context.dev"
+  );
   const { resourceTemplates } = await anonymousClient.listResourceTemplates();
   assert.equal(resourceTemplates.length, 1);
 
