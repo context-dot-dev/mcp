@@ -18,7 +18,7 @@ Connect through OAuth, or send a Context API key in a header (works on both host
 Authorization: Bearer ctxt_secret_...
 ```
 
-`x-api-key` is also accepted. API keys are never accepted in query parameters because URLs commonly leak into logs, browser history, and analytics.
+`x-api-key` is also accepted. The legacy `api_key` query parameter remains available for existing integrations, but OAuth or headers should be used for new connections because URLs commonly leak into logs, browser history, and analytics.
 
 ## Tools
 

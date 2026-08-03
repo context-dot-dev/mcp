@@ -71,6 +71,26 @@ const server = new MCPServer({
 
 server.app.get("/health", (c) => c.json({ status: "ok" }));
 
+const promoteApiKeyCredential = async (
+  context: { req: { header: (name: string) => string | undefined; raw: Request } },
+  next: () => Promise<void>,
+) => {
+  if (!context.req.header("authorization")) {
+    const headerKey = context.req.header("x-api-key")?.trim();
+    const queryKey = new URL(context.req.raw.url).searchParams
+      .get("api_key")
+      ?.trim();
+    const apiKey = headerKey || queryKey;
+    if (apiKey) {
+      context.req.raw.headers.set("Authorization", `Bearer ${apiKey}`);
+    }
+  }
+  await next();
+};
+server.app.use("/mcp/*", promoteApiKeyCredential);
+server.app.use("/sse", promoteApiKeyCredential);
+server.app.use("/sse/*", promoteApiKeyCredential);
+
 // Trusted clients move their callback paths and spin up new subdomains without
 // warning, so match on the registrable domain over HTTPS instead of pinning
 // exact URIs. Each entry covers the domain itself, any subdomain, and any path.
@@ -173,23 +193,6 @@ if (oauthProvider) {
   const secureOAuthCookies =
     new URL(process.env.MCP_URL || "http://localhost:3000").protocol ===
     "https:";
-
-  // The bearer middleware mcp-use mounts at listen() only reads the
-  // Authorization header; promote the documented x-api-key header so API-key
-  // clients that cannot customize Authorization still pass the transport gate.
-  const promoteApiKeyHeader = async (
-    context: { req: { header: (name: string) => string | undefined; raw: Request } },
-    next: () => Promise<void>,
-  ) => {
-    const headerKey = context.req.header("x-api-key");
-    if (headerKey && !context.req.header("authorization")) {
-      context.req.raw.headers.set("Authorization", `Bearer ${headerKey}`);
-    }
-    await next();
-  };
-  server.app.use("/mcp/*", promoteApiKeyHeader);
-  server.app.use("/sse", promoteApiKeyHeader);
-  server.app.use("/sse/*", promoteApiKeyHeader);
 
   server.app.use("/register", async (context, next) => {
     context.header("Access-Control-Allow-Origin", "*");

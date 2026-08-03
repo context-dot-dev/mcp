@@ -10,6 +10,7 @@ type CapturedRequest = {
   url: string;
   body: Buffer;
   idempotencyKey?: string;
+  authorization?: string;
 };
 
 const captured: CapturedRequest[] = [];
@@ -106,6 +107,7 @@ const upstream = createServer((request, response) => {
       idempotencyKey: Array.isArray(idempotencyHeader)
         ? idempotencyHeader[0]
         : idempotencyHeader,
+      authorization: request.headers.authorization,
     });
     const result = batchResponse(request.method ?? "", request.url ?? "");
     response.writeHead(result.status, { "content-type": "application/json" });
@@ -185,6 +187,29 @@ async function connectClient(): Promise<Client> {
   );
   return client;
 }
+
+test("accepts a legacy query API key without OAuth", async () => {
+  captured.length = 0;
+  const client = new Client({
+    name: "query-api-key-test",
+    version: "1.0.0",
+  });
+  await client.connect(
+    new StreamableHTTPClientTransport(
+      new URL(`${mcpBase}/mcp?api_key=ctxt_query_without_oauth`),
+    ),
+  );
+  await client.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await client.close();
+
+  assert.equal(
+    captured.at(-1)?.authorization,
+    "Bearer ctxt_query_without_oauth",
+  );
+});
 
 test("lists the public Context API with safety annotations", async () => {
   const client = await connectClient();

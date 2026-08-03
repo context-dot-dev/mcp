@@ -675,6 +675,107 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     "Bearer ctxt_x_api_key_header"
   );
 
+  const queryClient = new Client({
+    name: "api-key-query-test",
+    version: "1.0.0",
+  });
+  await queryClient.connect(
+    new StreamableHTTPClientTransport(
+      new URL(`${mcpBase}/mcp?api_key=ctxt_query_api_key`),
+    ),
+  );
+  await queryClient.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await queryClient.close();
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_query_api_key",
+  );
+
+  const sseQueryClient = new Client({
+    name: "api-key-query-sse-test",
+    version: "1.0.0",
+  });
+  await sseQueryClient.connect(
+    new StreamableHTTPClientTransport(
+      new URL(`${mcpBase}/sse?api_key=ctxt_query_sse_api_key`),
+    ),
+  );
+  await sseQueryClient.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await sseQueryClient.close();
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_query_sse_api_key",
+  );
+
+  const explicitApiKeyHeaderClient = new Client({
+    name: "api-key-header-precedence-test",
+    version: "1.0.0",
+  });
+  await explicitApiKeyHeaderClient.connect(
+    new StreamableHTTPClientTransport(
+      new URL(`${mcpBase}/mcp?api_key=ctxt_ignored_query_key`),
+      { requestInit: { headers: { "x-api-key": "ctxt_preferred_x_key" } } },
+    ),
+  );
+  await explicitApiKeyHeaderClient.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await explicitApiKeyHeaderClient.close();
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_preferred_x_key",
+  );
+
+  const explicitHeaderClient = new Client({
+    name: "api-key-precedence-test",
+    version: "1.0.0",
+  });
+  await explicitHeaderClient.connect(
+    new StreamableHTTPClientTransport(
+      new URL(`${mcpBase}/mcp?api_key=ctxt_ignored_query_key`),
+      {
+        requestInit: {
+          headers: { Authorization: "Bearer ctxt_preferred_header_key" },
+        },
+      },
+    ),
+  );
+  await explicitHeaderClient.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test" },
+  });
+  await explicitHeaderClient.close();
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_preferred_header_key",
+  );
+
+  const emptyQueryKey = await fetch(`${mcpBase}/mcp?api_key=%20`, {
+    method: "POST",
+    headers: {
+      accept: "application/json, text/event-stream",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "empty-query-key-test", version: "1.0.0" },
+      },
+    }),
+  });
+  assert.equal(emptyQueryKey.status, 401);
+
   const dottedToken = await fetch(`${mcpBase}/mcp`, {
     method: "POST",
     headers: {

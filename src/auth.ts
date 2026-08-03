@@ -83,19 +83,23 @@ export function createOAuthProvider() {
       if (!isOAuthTokenShaped(token)) {
         return { payload: apiKeyAuthPayload(token) };
       }
-      const { payload } = await jwtDecrypt(token, encryptionKey, {
-        issuer,
-        audience,
-        keyManagementAlgorithms: ["dir"],
-        contentEncryptionAlgorithms: ["A256GCM"],
-      });
-      if (
-        typeof payload.sub !== "string" ||
-        typeof payload.context_api_key !== "string"
-      ) {
-        throw new Error("OAuth token is missing required Context claims");
+      try {
+        const { payload } = await jwtDecrypt(token, encryptionKey, {
+          issuer,
+          audience,
+          keyManagementAlgorithms: ["dir"],
+          contentEncryptionAlgorithms: ["A256GCM"],
+        });
+        if (
+          typeof payload.sub !== "string" ||
+          typeof payload.context_api_key !== "string"
+        ) {
+          throw new Error("OAuth token is missing required Context claims");
+        }
+        return { payload: payload as Record<string, unknown> };
+      } catch {
+        throw new Error("Invalid or expired OAuth access token");
       }
-      return { payload: payload as Record<string, unknown> };
     },
     getUserInfo: (payload) => ({
       userId: String(payload.sub),

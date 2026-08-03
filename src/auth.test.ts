@@ -83,7 +83,39 @@ test("OAuth decrypts a Context MCP token and rejects the wrong audience", async 
     .setExpirationTime("5m")
     .encrypt(key);
 
-  await assert.rejects(provider.verifyToken(wrongAudienceToken));
+  await assert.rejects(
+    provider.verifyToken(wrongAudienceToken),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "Invalid or expired OAuth access token");
+      assert.equal("payload" in error, false);
+      assert.equal(JSON.stringify(error).includes("ctxt_secret_test"), false);
+      return true;
+    },
+  );
+
+  const expiredToken = await new EncryptJWT({
+    context_api_key: "ctxt_secret_expired_test",
+    scope: "api.read",
+  })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuer("https://www.context.test")
+    .setAudience("https://mcp.context.test/mcp")
+    .setSubject("user-1")
+    .setIssuedAt(1)
+    .setExpirationTime(2)
+    .encrypt(key);
+
+  await assert.rejects(provider.verifyToken(expiredToken), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, "Invalid or expired OAuth access token");
+    assert.equal("payload" in error, false);
+    assert.equal(
+      JSON.stringify(error).includes("ctxt_secret_expired_test"),
+      false,
+    );
+    return true;
+  });
 });
 
 test("request headers override a private deployment fallback key", () => {
