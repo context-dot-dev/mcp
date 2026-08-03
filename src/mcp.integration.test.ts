@@ -160,6 +160,7 @@ before(async () => {
       MCP_URL: mcpBase,
       CONTEXT_API_BASE: upstreamBase,
       CONTEXT_API_KEY: "ctxt_secret_local_test",
+      OPENAI_APPS_VERIFICATION_TOKEN: "openai-verification-test-token",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -187,6 +188,16 @@ async function connectClient(): Promise<Client> {
   );
   return client;
 }
+
+test("serves the OpenAI domain verification token as plain text", async () => {
+  const response = await fetch(
+    `${mcpBase}/.well-known/openai-apps-challenge`,
+  );
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.equal(await response.text(), "openai-verification-test-token");
+});
 
 test("accepts a legacy query API key without OAuth", async () => {
   captured.length = 0;
