@@ -15,7 +15,6 @@ import {
 import {
   createOAuthProvider,
   MISSING_CREDENTIAL_MESSAGE,
-  PUBLIC_MCP_DISCOVERY_BEARER,
   resolveContextCredential,
 } from "./src/auth";
 import { callContextApi } from "./src/context-client";
@@ -188,46 +187,6 @@ if (oauthProvider) {
     }
     await next();
   };
-  const publicMcpMethods = new Set([
-    "initialize",
-    "notifications/initialized",
-    "ping",
-    "prompts/list",
-    "resources/list",
-    "resources/read",
-    "resources/templates/list",
-    "tools/list",
-  ]);
-  const isPublicMcpMessage = (value: unknown): boolean => {
-    if (Array.isArray(value)) {
-      return value.length > 0 && value.every(isPublicMcpMessage);
-    }
-    if (!value || typeof value !== "object") return false;
-    return publicMcpMethods.has(
-      String((value as Record<string, unknown>).method ?? ""),
-    );
-  };
-  const allowPublicMcpDiscovery = async (
-    context: { req: { method: string; header: (name: string) => string | undefined; raw: Request } },
-    next: () => Promise<void>,
-  ) => {
-    if (context.req.method === "GET" || context.req.method === "DELETE") {
-      context.req.raw.headers.set(
-        "Authorization",
-        `Bearer ${PUBLIC_MCP_DISCOVERY_BEARER}`,
-      );
-    } else if (context.req.method === "POST") {
-      const message = await context.req.raw.clone().json().catch(() => undefined);
-      if (isPublicMcpMessage(message)) {
-        context.req.raw.headers.set(
-          "Authorization",
-          `Bearer ${PUBLIC_MCP_DISCOVERY_BEARER}`,
-        );
-      }
-    }
-    await next();
-  };
-  server.app.use("/mcp/*", allowPublicMcpDiscovery);
   server.app.use("/mcp/*", promoteApiKeyHeader);
   server.app.use("/sse", promoteApiKeyHeader);
   server.app.use("/sse/*", promoteApiKeyHeader);

@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { EncryptJWT } from "jose";
+import { NodeOAuthClientProvider } from "mcp-use/auth/node";
 
 const encryptionKey = crypto.getRandomValues(new Uint8Array(32));
 const authorizationRequests: URL[] = [];
@@ -163,7 +167,7 @@ after(async () => {
   );
 });
 
-test("publishes protected-resource metadata and permits anonymous MCP discovery only", async () => {
+test("publishes protected-resource metadata and challenges unauthenticated MCP clients", async () => {
   const metadataResponse = await fetch(
     `${mcpBase}/.well-known/oauth-protected-resource/mcp`
   );
@@ -175,79 +179,52 @@ test("publishes protected-resource metadata and permits anonymous MCP discovery 
     bearer_methods_supported: ["header"],
   });
 
-  const anonymousClient = new Client({
-    name: "anonymous-discovery-test",
-    version: "1.0.0",
-  });
-  await anonymousClient.connect(
-    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`))
-  );
-  const { tools } = await anonymousClient.listTools();
-  assert.equal(tools.length, 34);
-  const { resources } = await anonymousClient.listResources();
-  assert.equal(resources.length, 1);
-  const resource = await anonymousClient.readResource({
-    uri: resources[0]!.uri,
-  });
-  assert.equal(resource.contents[0]?.uri, "ui://widget/context-brand.html");
-  assert.match(resource.contents[0]?.mimeType ?? "", /^text\/html/);
-  assert.match(
-    "text" in resource.contents[0]! ? resource.contents[0].text : "",
-    /<!doctype html>/i
-  );
-  assert.equal(
-    (resource.contents[0]?._meta as { ui?: { domain?: string } } | undefined)
-      ?.ui?.domain,
-    "https://mcp.context.dev"
-  );
-  assert.equal(
-    (tools.find((tool) => tool.name === "get-brand")?._meta as
-      | Record<string, unknown>
-      | undefined)?.["openai/widgetDomain"],
-    "https://mcp.context.dev"
-  );
-  const { resourceTemplates } = await anonymousClient.listResourceTemplates();
-  assert.equal(resourceTemplates.length, 1);
-
-  const upstreamCallsBeforeUnauthorizedTool =
-    upstreamAuthorizationHeaders.length;
-  await assert.rejects(
-    anonymousClient.callTool({
-      name: "web-scrape-markdown",
-      arguments: { url: "https://example.test" },
-    }),
-    /401|Missing Authorization header/
-  );
-  assert.equal(
-    upstreamAuthorizationHeaders.length,
-    upstreamCallsBeforeUnauthorizedTool
-  );
-  await anonymousClient.close();
-
-  const staleTokenClient = new Client({
-    name: "stale-token-discovery-test",
-    version: "1.0.0",
-  });
-  await staleTokenClient.connect(
-    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
-      requestInit: {
-        headers: { Authorization: "Bearer expired.oauth.token" },
+  const unauthorized = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      accept: "application/json, text/event-stream",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "unauthorized-test", version: "1.0.0" },
       },
-    })
-  );
-  assert.equal((await staleTokenClient.listTools()).tools.length, 34);
-  await assert.rejects(
-    staleTokenClient.callTool({
-      name: "web-scrape-markdown",
-      arguments: { url: "https://example.test" },
     }),
-    /401|Invalid token/
+  });
+  assert.equal(unauthorized.status, 401);
+  assert.match(
+    unauthorized.headers.get("www-authenticate") ?? "",
+    /oauth-protected-resource/
   );
-  assert.equal(
-    upstreamAuthorizationHeaders.length,
-    upstreamCallsBeforeUnauthorizedTool
+
+  const staleToken = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      authorization: "Bearer expired.oauth.token",
+      accept: "application/json, text/event-stream",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "stale-token-test", version: "1.0.0" },
+      },
+    }),
+  });
+  assert.equal(staleToken.status, 401);
+  assert.match(
+    staleToken.headers.get("www-authenticate") ?? "",
+    /oauth-protected-resource/
   );
-  await staleTokenClient.close();
 });
 
 test("limits dynamic registration and authorization redirects", async () => {
@@ -401,6 +378,90 @@ test("labels the upstream consent request with the connecting client", async () 
   }
 });
 
+test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t) => {
+  const providerDirectory = await mkdtemp(join(tmpdir(), "context-mcp-oauth-"));
+  let authorizationUrl: string | undefined;
+  const provider = await NodeOAuthClientProvider.create(`${mcpBase}/mcp`, {
+    baseDir: providerDirectory,
+    authTimeoutMs: 5_000,
+    openBrowser: (url) => {
+      authorizationUrl = url;
+    },
+  });
+  t.after(async () => {
+    provider.dispose();
+    await rm(providerDirectory, { recursive: true, force: true });
+  });
+
+  const initialClient = new Client({
+    name: "manufact-auth-regression-test",
+    version: "1.0.0",
+  });
+  const initialTransport = new StreamableHTTPClientTransport(
+    new URL(`${mcpBase}/mcp`),
+    { authProvider: provider }
+  );
+  await assert.rejects(initialClient.connect(initialTransport), /401|Unauthorized/);
+  assert.ok(authorizationUrl);
+
+  const authorizeResponse = await fetch(authorizationUrl, {
+    redirect: "manual",
+  });
+  assert.equal(authorizeResponse.status, 302);
+  const browserCookie = authorizeResponse.headers.get("set-cookie");
+  assert.ok(browserCookie);
+
+  const upstreamAuthorizeResponse = await fetch(
+    authorizeResponse.headers.get("location")!,
+    { redirect: "manual" }
+  );
+  assert.equal(upstreamAuthorizeResponse.status, 302);
+  const callbackResponse = await fetch(
+    upstreamAuthorizeResponse.headers.get("location")!,
+    {
+      redirect: "manual",
+      headers: { cookie: browserCookie.split(";")[0] },
+    }
+  );
+  assert.equal(callbackResponse.status, 302);
+  const clientCallback = callbackResponse.headers.get("location");
+  assert.ok(clientCallback);
+  const callbackCompletion = await fetch(clientCallback);
+  assert.equal(callbackCompletion.status, 200);
+
+  const authorizationCode = await provider.getAuthorizationCode();
+  await initialTransport.finishAuth(authorizationCode);
+  const tokenRequest = tokenRequests.at(-1)!;
+  assert.equal(tokenRequest.get("client_id"), "context-mcp-fixed");
+  assert.equal(tokenRequest.get("redirect_uri"), `${mcpBase}/oauth/callback`);
+  assert.match(
+    tokenRequest.get("code_verifier") ?? "",
+    /^[A-Za-z0-9._~-]{43,128}$/
+  );
+
+  const authenticatedClient = new Client({
+    name: "manufact-auth-regression-test",
+    version: "1.0.0",
+  });
+  await authenticatedClient.connect(
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+      authProvider: provider,
+    })
+  );
+  const callsBeforeBrand = upstreamAuthorizationHeaders.length;
+  const brandResult = await authenticatedClient.callTool({
+    name: "get-brand",
+    arguments: { domain: "stripe.com" },
+  });
+  assert.equal(brandResult.isError, undefined);
+  assert.equal(upstreamAuthorizationHeaders.length, callsBeforeBrand + 1);
+  assert.equal(
+    upstreamAuthorizationHeaders.at(-1),
+    "Bearer ctxt_secret_embedded_test"
+  );
+  await authenticatedClient.close();
+});
+
 test("completes the authorization proxy flow without passing OAuth tokens upstream", async () => {
   const clientRedirect = "https://claude.ai/api/mcp/auth_callback";
   const authorizeResponse = await fetch(
@@ -498,11 +559,40 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   );
   const { tools } = await client.listTools();
   assert.equal(tools.length, 34);
+  const { resources } = await client.listResources();
+  assert.equal(resources.length, 1);
+  const resource = await client.readResource({
+    uri: resources[0]!.uri,
+  });
+  assert.equal(resource.contents[0]?.uri, "ui://widget/context-brand.html");
+  assert.match(resource.contents[0]?.mimeType ?? "", /^text\/html/);
+  assert.match(
+    "text" in resource.contents[0]! ? resource.contents[0].text : "",
+    /<!doctype html>/i
+  );
+  assert.equal(
+    (resource.contents[0]?._meta as { ui?: { domain?: string } } | undefined)
+      ?.ui?.domain,
+    "https://mcp.context.dev"
+  );
+  assert.equal(
+    (tools.find((tool) => tool.name === "get-brand")?._meta as
+      | Record<string, unknown>
+      | undefined)?.["openai/widgetDomain"],
+    "https://mcp.context.dev"
+  );
+  const { resourceTemplates } = await client.listResourceTemplates();
+  assert.equal(resourceTemplates.length, 1);
   const toolCatalogBytes = Buffer.byteLength(JSON.stringify(tools));
   assert.ok(
     toolCatalogBytes < 130_000,
     `public tool catalog exceeds the release budget: ${toolCatalogBytes} bytes`
   );
+  const brandResult = await client.callTool({
+    name: "get-brand",
+    arguments: { domain: "stripe.com" },
+  });
+  assert.equal(brandResult.isError, undefined);
   await client.callTool({
     name: "web-scrape-markdown",
     arguments: { url: "https://example.test" },
@@ -516,7 +606,8 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   });
   await client.close();
 
-  assert.deepEqual(upstreamAuthorizationHeaders.slice(-2), [
+  assert.deepEqual(upstreamAuthorizationHeaders.slice(-3), [
+    "Bearer ctxt_secret_embedded_test",
     "Bearer ctxt_secret_embedded_test",
     "Bearer ctxt_secret_embedded_test",
   ]);

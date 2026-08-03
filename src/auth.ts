@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { jwtDecrypt } from "jose";
 import { oauthProxy, type EnhancedToolContext } from "mcp-use/server";
 import type { ContextCredential } from "./context-client";
@@ -25,8 +25,6 @@ const REQUIRED_OAUTH_ENVIRONMENT = [
   "CONTEXT_OAUTH_CLIENT_SECRET",
   "CONTEXT_OAUTH_TOKEN_ENCRYPTION_KEY",
 ] as const;
-
-export const PUBLIC_MCP_DISCOVERY_BEARER = randomBytes(32).toString("base64url");
 
 function normalizeBaseUrl(value: string): string {
   return value.replace(/\/+$/, "");
@@ -82,9 +80,6 @@ export function createOAuthProvider() {
     scopes: ["api.read", "api.write"],
     extraAuthorizeParams: { audience },
     verifyToken: async (token) => {
-      if (token === PUBLIC_MCP_DISCOVERY_BEARER) {
-        return { payload: { sub: "anonymous:mcp-discovery" } };
-      }
       if (!isOAuthTokenShaped(token)) {
         return { payload: apiKeyAuthPayload(token) };
       }
