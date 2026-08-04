@@ -71,13 +71,9 @@ const server = new MCPServer({
 
 server.app.get("/health", (c) => c.json({ status: "ok" }));
 
-server.app.get("/.well-known/openai-apps-challenge", (context) => {
-  const verificationToken =
-    process.env.OPENAI_APPS_VERIFICATION_TOKEN?.trim();
-  return verificationToken
-    ? context.text(verificationToken)
-    : context.notFound();
-});
+server.app.get("/.well-known/openai-apps-challenge", (context) =>
+  context.text("-oywG7IJEF_oq8McQYi47HY0QDTdYn36eA_yi5bPysc"),
+);
 
 const promoteApiKeyCredential = async (
   context: { req: { header: (name: string) => string | undefined; raw: Request } },
