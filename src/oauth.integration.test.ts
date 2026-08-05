@@ -327,17 +327,25 @@ test("registers any client and binds authorization to its redirect set", async (
 });
 
 test("keeps the legacy shared-client path gated by the trusted-domain list", async () => {
-  const trustedLegacyAuthorize = await fetch(
-    authorizeUrl("dynamic-client", "https://claude.ai/api/mcp/auth_callback"),
-    { redirect: "manual" }
-  );
-  assert.equal(trustedLegacyAuthorize.status, 302);
+  for (const redirectUri of [
+    "https://claude.ai/api/mcp/auth_callback",
+    "https://oauth.n8n.cloud/oauth2/callback",
+  ]) {
+    const trustedLegacyAuthorize = await fetch(
+      authorizeUrl("dynamic-client", redirectUri),
+      { redirect: "manual" }
+    );
+    assert.equal(trustedLegacyAuthorize.status, 302, redirectUri);
+  }
 
   for (const redirectUri of [
     "https://attacker.example/callback",
     "https://claude.ai.attacker.example/callback",
     "https://notclaude.ai/callback",
     "http://claude.ai/api/mcp/auth_callback",
+    // n8n Cloud customers control endpoints under *.app.n8n.cloud, so only
+    // the vendor-operated oauth.n8n.cloud host is trusted.
+    "https://attacker-workspace.app.n8n.cloud/webhook/steal",
   ]) {
     const rejectedAuthorization = await fetch(
       authorizeUrl("dynamic-client", redirectUri),

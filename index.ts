@@ -112,9 +112,12 @@ server.app.use("/sse/*", promoteApiKeyCredential);
 // branding slug for the upstream consent screen. Trusted clients move their
 // callback paths and spin up new subdomains without warning, so match on the
 // registrable domain over HTTPS instead of pinning exact URIs. Each entry
-// covers the domain itself, any subdomain, and any path. Google is scoped to
-// cloud.google.com rather than the apex: an open redirect on any trusted
-// subdomain is a route for leaking an authorization code on the legacy path.
+// covers the domain itself, any subdomain, and any path. Multi-tenant
+// platforms are scoped to the vendor-operated OAuth host rather than the
+// apex — Google to cloud.google.com, n8n to oauth.n8n.cloud (customers
+// control endpoints under *.app.n8n.cloud): a customer-controlled or open
+// redirect on a trusted subdomain is a route for leaking an authorization
+// code on the legacy path.
 // The client key names the connecting app on the upstream consent screen; it
 // is derived from this list rather than client-supplied registration
 // metadata, which any caller could spoof.
@@ -136,7 +139,7 @@ const TRUSTED_OAUTH_REDIRECT_DOMAINS: ReadonlyArray<{
   { domain: "mistral.ai", client: "le-chat" },
   { domain: "azure-apim.net", client: "copilot-studio" },
   { domain: "cloud.google.com", client: "gemini" },
-  { domain: "n8n.cloud", client: "n8n" },
+  { domain: "oauth.n8n.cloud", client: "n8n" },
   { domain: "mcpjam.com", client: "mcpjam" },
   // The Manufact platform (dashboard, hosted inspector)
   { domain: "manufact.com", client: "manufact" },
