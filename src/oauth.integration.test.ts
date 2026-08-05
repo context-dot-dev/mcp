@@ -330,6 +330,8 @@ test("keeps the legacy shared-client path gated by the trusted-domain list", asy
   for (const redirectUri of [
     "https://claude.ai/api/mcp/auth_callback",
     "https://oauth.n8n.cloud/oauth2/callback",
+    "https://global.consent.azure-apim.net/redirect/context",
+    "https://europe-002.consent.azure-apim.net/redirect/context",
   ]) {
     const trustedLegacyAuthorize = await fetch(
       authorizeUrl("dynamic-client", redirectUri),
@@ -343,9 +345,10 @@ test("keeps the legacy shared-client path gated by the trusted-domain list", asy
     "https://claude.ai.attacker.example/callback",
     "https://notclaude.ai/callback",
     "http://claude.ai/api/mcp/auth_callback",
-    // n8n Cloud customers control endpoints under *.app.n8n.cloud, so only
-    // the vendor-operated oauth.n8n.cloud host is trusted.
+    // Multi-tenant platforms hand every customer a host under the apex, so
+    // only the vendor-operated OAuth hosts are trusted.
     "https://attacker-workspace.app.n8n.cloud/webhook/steal",
+    "https://attacker-instance.azure-apim.net/redirect/context",
   ]) {
     const rejectedAuthorization = await fetch(
       authorizeUrl("dynamic-client", redirectUri),
@@ -457,6 +460,12 @@ test("completes the proxy flow for a registration-bound client on an unlisted do
     upstreamTokenRequest.get("redirect_uri"),
     `${mcpBase}/oauth/callback`
   );
+  // The registration-binding middleware parses the form body before the proxy
+  // handler parses it again; these assertions fail if that ever stops being
+  // safe and the grant reaches the authorization server stripped.
+  assert.equal(upstreamTokenRequest.get("grant_type"), "authorization_code");
+  assert.equal(upstreamTokenRequest.get("code"), "local-authorization-code");
+  assert.equal(upstreamTokenRequest.get("code_verifier"), "local-code-verifier");
 });
 
 test("enforces the registration binding at the token endpoint", async () => {
