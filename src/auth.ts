@@ -37,7 +37,7 @@ function getMcpResourceUrl(): string {
   return `${baseUrl}/mcp`;
 }
 
-function getEncryptionKey(): Uint8Array {
+export function getOAuthTokenEncryptionKey(): Uint8Array {
   const encoded = process.env.CONTEXT_OAUTH_TOKEN_ENCRYPTION_KEY!;
   const key = Buffer.from(encoded, "base64url");
   if (key.byteLength !== 32) {
@@ -69,7 +69,7 @@ export function createOAuthProvider() {
     process.env.CONTEXT_OAUTH_ISSUER ?? "https://www.context.dev"
   );
   const audience = getMcpResourceUrl();
-  const encryptionKey = getEncryptionKey();
+  const encryptionKey = getOAuthTokenEncryptionKey();
 
   return oauthProxy({
     issuer,

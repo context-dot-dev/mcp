@@ -101,13 +101,13 @@ Generate the encryption key once and store the same value in the MCP deployment 
 node -e 'console.log(require("node:crypto").randomBytes(32).toString("base64url"))'
 ```
 
-These redirect targets are allowed by default:
+Any MCP client can connect through open Dynamic Client Registration: `/register` returns a signed `client_id` that embeds the client's redirect URIs, and `/authorize` and `/token` only proceed toward a redirect target bound into that registration. Registrable redirect URIs are HTTPS callbacks on any domain, loopback HTTP (`localhost`, `127.0.0.1`, `[::1]` — any port per RFC 8252, since CLI clients such as Claude Code and Codex bind an ephemeral port per session), and private-use app schemes such as `cursor://`. The Context consent screen labels destinations it does not recognize as unverified and shows the user where the connection's access will be delivered.
 
-- HTTPS callbacks on `claude.ai`, `claude.com`, `anthropic.com`, `chatgpt.com`, `openai.com`, `cursor.com`, `vscode.dev`, `mistral.ai`, `azure-apim.net`, `cloud.google.com`, `n8n.cloud`, `mcpjam.com`, and `manufact.com`, including any subdomain and any path.
-- The `cursor://`, `vscode://`, and `warp://` client schemes.
-- Loopback callbacks on `localhost`, `127.0.0.1`, and `[::1]`, over HTTP or HTTPS, on any port and path. CLI clients such as Claude Code and Codex bind an ephemeral port per session, so the port cannot be pinned.
+Consent-screen branding is reserved for HTTPS callbacks on `claude.ai`, `claude.com`, `anthropic.com`, `chatgpt.com`, `openai.com`, `cursor.com`, `vscode.dev`, `mistral.ai`, `consent.azure-apim.net`, `cloud.google.com`, `oauth.n8n.cloud`, `mcpjam.com`, and `manufact.com` (any subdomain and path) and the `cursor://`, `vscode://`, and `warp://` schemes — see `client-display.ts` in the Context web app. Multi-tenant platforms are scoped to the vendor-operated OAuth host (`cloud.google.com`, `oauth.n8n.cloud`, `consent.azure-apim.net`) rather than the apex, since customers control endpoints on sibling subdomains.
 
-Add another trusted HTTPS client origin only when needed:
+Rotating `CONTEXT_OAUTH_TOKEN_ENCRYPTION_KEY` invalidates every issued `client_id` along with in-flight tokens. Clients receive `invalid_client` at the token endpoint and re-register automatically on their next connection.
+
+Clients that registered before signed client_ids still hold the fixed shared client id; their redirects stay gated by the trusted-domain list above, plus any origin added via:
 
 ```text
 MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS=https://trusted-client.example
