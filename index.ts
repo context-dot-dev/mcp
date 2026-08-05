@@ -14,10 +14,18 @@ import {
 } from "./context-endpoints";
 import {
   createOAuthProvider,
+  getOAuthTokenEncryptionKey,
   MISSING_CREDENTIAL_MESSAGE,
   resolveContextCredential,
 } from "./src/auth";
 import { callContextApi } from "./src/context-client";
+import {
+  decodeDcrClientId,
+  deriveDcrClientSigningKey,
+  isDcrClientId,
+  redirectUriMatchesRegistration,
+  registerDcrClient,
+} from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
 import {
   clearOAuthBrowserCookie,
@@ -95,13 +103,20 @@ server.app.use("/mcp/*", promoteApiKeyCredential);
 server.app.use("/sse", promoteApiKeyCredential);
 server.app.use("/sse/*", promoteApiKeyCredential);
 
-// Trusted clients move their callback paths and spin up new subdomains without
-// warning, so match on the registrable domain over HTTPS instead of pinning
-// exact URIs. Each entry covers the domain itself, any subdomain, and any path.
-// Google is scoped to cloud.google.com rather than the apex: an open redirect
-// on any trusted subdomain is a route for leaking an authorization code.
+// Registration-bound (DCR) clients carry their redirect URI set inside a
+// signed client_id, so any client may connect; the upstream consent screen
+// labels destinations it does not recognize as unverified. This list is no
+// longer a gate for those clients — it serves the legacy shared-client path
+// (clients that registered before signed client_ids and still hold the fixed
+// client id validate their redirects against it) and derives the trusted
+// branding slug for the upstream consent screen. Trusted clients move their
+// callback paths and spin up new subdomains without warning, so match on the
+// registrable domain over HTTPS instead of pinning exact URIs. Each entry
+// covers the domain itself, any subdomain, and any path. Google is scoped to
+// cloud.google.com rather than the apex: an open redirect on any trusted
+// subdomain is a route for leaking an authorization code on the legacy path.
 // The client key names the connecting app on the upstream consent screen; it
-// is derived from this allowlist rather than client-supplied registration
+// is derived from this list rather than client-supplied registration
 // metadata, which any caller could spoof.
 const TRUSTED_OAUTH_REDIRECT_DOMAINS: ReadonlyArray<{
   domain: string;
@@ -194,57 +209,41 @@ function isAllowedOAuthRedirect(value: string): boolean {
 
 if (oauthProvider) {
   const oauthClientSecret = process.env.CONTEXT_OAUTH_CLIENT_SECRET!;
+  const dcrClientSigningKey = deriveDcrClientSigningKey(
+    getOAuthTokenEncryptionKey(),
+  );
   const secureOAuthCookies =
     new URL(process.env.MCP_URL || "http://localhost:3000").protocol ===
     "https:";
 
   server.app.use("/register", async (context, next) => {
     context.header("Access-Control-Allow-Origin", "*");
-    if (context.req.method === "OPTIONS") {
-      await next();
-      return;
-    }
-    const body = await context.req.json().catch(() => undefined);
-    const redirectUris: unknown[] =
-      body &&
-      typeof body === "object" &&
-      Array.isArray((body as Record<string, unknown>).redirect_uris)
-        ? ((body as Record<string, unknown>).redirect_uris as unknown[])
-        : [];
-    if (
-      redirectUris.length === 0 ||
-      redirectUris.some(
-        (redirectUri) =>
-          typeof redirectUri !== "string" ||
-          !isAllowedOAuthRedirect(redirectUri),
-      )
-    ) {
-      console.warn(
-        `[OAuth] Rejected registration, redirect_uris: ${JSON.stringify(redirectUris)}`,
-      );
-      return context.json(
-        {
-          error: "invalid_redirect_uri",
-          error_description: "One or more redirect_uris are not allowed",
-        },
-        400,
-      );
-    }
     await next();
   });
+  // Open dynamic registration: any client may register, receiving a signed
+  // client_id that embeds its redirect URI set. Authorization then only
+  // proceeds toward a redirect target bound into that registration, and the
+  // upstream consent screen labels unrecognized destinations as unverified.
   server.app.post("/register", async (context) => {
     const body = (await context.req.json().catch(() => ({}))) as Record<
       string,
       unknown
     >;
+    const result = registerDcrClient(body, dcrClientSigningKey);
+    if (!result.ok) {
+      console.warn(
+        `[OAuth] Rejected registration, redirect_uris: ${JSON.stringify(body.redirect_uris)}`,
+      );
+      return context.json(
+        { error: result.error, error_description: result.errorDescription },
+        400,
+      );
+    }
     return context.json(
       {
-        client_id: process.env.CONTEXT_OAUTH_CLIENT_ID,
-        client_name:
-          typeof body.client_name === "string"
-            ? body.client_name
-            : "MCP Client",
-        redirect_uris: body.redirect_uris,
+        client_id: result.clientId,
+        client_name: result.registration.clientName ?? "MCP Client",
+        redirect_uris: result.registration.redirectUris,
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],
         token_endpoint_auth_method: "none",
@@ -257,18 +256,28 @@ if (oauthProvider) {
       context.req.method === "POST"
         ? await context.req.parseBody()
         : context.req.query();
+    const clientId = params.client_id;
     const redirectUri = params.redirect_uri;
-    if (
-      typeof redirectUri !== "string" ||
-      !isAllowedOAuthRedirect(redirectUri)
-    ) {
+    // Signed (DCR) client_ids bind the redirect target to the registration;
+    // anything else is a legacy client holding the fixed shared client id and
+    // stays gated by the trusted-domain list.
+    const registration = isDcrClientId(clientId)
+      ? decodeDcrClientId(clientId, dcrClientSigningKey)
+      : undefined;
+    const redirectAllowed =
+      typeof redirectUri === "string" &&
+      (registration !== undefined
+        ? registration !== null &&
+          redirectUriMatchesRegistration(redirectUri, registration)
+        : isAllowedOAuthRedirect(redirectUri));
+    if (!redirectAllowed) {
       console.warn(
         `[OAuth] Rejected authorization, redirect_uri: ${JSON.stringify(redirectUri)}`,
       );
       return context.json(
         {
           error: "invalid_request",
-          error_description: "redirect_uri is not allowed",
+          error_description: "redirect_uri is not allowed for this client",
         },
         400,
       );
@@ -292,6 +301,48 @@ if (oauthProvider) {
         secureOAuthCookies,
       ),
     );
+  });
+  // The proxy overwrites client credentials before the upstream exchange, so
+  // enforce the registration binding for DCR clients here: a bad signature is
+  // invalid_client per RFC 6749 §5.2 (prompting well-behaved clients to
+  // re-register) and a redirect outside the registered set is invalid_grant.
+  // Requests without a signed client_id pass through as before; the upstream
+  // PKCE check remains the binding for the authorization code itself.
+  server.app.use("/token", async (context, next) => {
+    if (context.req.method !== "POST") {
+      await next();
+      return;
+    }
+    const body = await context.req.parseBody();
+    const clientId = body.client_id;
+    if (isDcrClientId(clientId)) {
+      const registration = decodeDcrClientId(clientId, dcrClientSigningKey);
+      if (!registration) {
+        return context.json(
+          {
+            error: "invalid_client",
+            error_description:
+              "The client_id signature is invalid; register again",
+          },
+          401,
+        );
+      }
+      const redirectUri = body.redirect_uri;
+      if (
+        typeof redirectUri === "string" &&
+        !redirectUriMatchesRegistration(redirectUri, registration)
+      ) {
+        return context.json(
+          {
+            error: "invalid_grant",
+            error_description:
+              "redirect_uri does not match the client registration",
+          },
+          400,
+        );
+      }
+    }
+    await next();
   });
   server.app.use("/oauth/callback", async (context, next) => {
     const state = context.req.query("state");

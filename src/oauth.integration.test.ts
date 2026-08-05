@@ -227,125 +227,124 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
   );
 });
 
-test("limits dynamic registration and authorization redirects", async () => {
-  const allowedRegistration = await fetch(`${mcpBase}/register`, {
+async function registerClient(
+  clientName: string,
+  redirectUris: unknown[]
+): Promise<{ status: number; payload: Record<string, unknown> }> {
+  const response = await fetch(`${mcpBase}/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      client_name: "Claude",
-      redirect_uris: [
-        "https://claude.ai/api/mcp/auth_callback",
-        "https://claude.com/api/mcp/auth_callback",
-      ],
+      client_name: clientName,
+      redirect_uris: redirectUris,
     }),
   });
-  assert.equal(allowedRegistration.status, 201);
-  const registrationPayload = await allowedRegistration.json() as {
-    client_id: string;
-    token_endpoint_auth_method: string;
-    client_secret?: string;
-  };
-  assert.equal(registrationPayload.client_id, "context-mcp-fixed");
-  assert.equal(registrationPayload.token_endpoint_auth_method, "none");
-  assert.equal(registrationPayload.client_secret, undefined);
+  const payload = (await response
+    .json()
+    .catch(() => ({}))) as Record<string, unknown>;
+  return { status: response.status, payload };
+}
 
-  const allowedCursorRegistration = await fetch(`${mcpBase}/register`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      client_name: "Cursor",
-      redirect_uris: [
-        "cursor://anysphere.cursor-mcp/oauth/callback",
-        "https://www.cursor.com/agents/mcp/oauth/callback",
-        "http://localhost:8787/callback",
-      ],
-    }),
-  });
-  assert.equal(allowedCursorRegistration.status, 201);
+function authorizeUrl(
+  clientId: string,
+  redirectUri: string,
+  extra: Record<string, string> = {}
+): string {
+  return `${mcpBase}/authorize?${new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    code_challenge: "local-code-challenge",
+    code_challenge_method: "S256",
+    ...extra,
+  })}`;
+}
 
-  const allowedInspectorRegistration = await fetch(`${mcpBase}/register`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      client_name: "mcp-use Inspector",
-      redirect_uris: [
-        "https://inspector.manufact.com/inspector/oauth/callback",
-        "https://manufact.com/cloud/oauth/callback",
-        "https://cloud.manufact.com/oauth/callback",
-      ],
-    }),
-  });
-  assert.equal(allowedInspectorRegistration.status, 201);
+test("registers any client and binds authorization to its redirect set", async () => {
+  const claude = await registerClient("Claude", [
+    "https://claude.ai/api/mcp/auth_callback",
+    "https://claude.com/api/mcp/auth_callback",
+  ]);
+  assert.equal(claude.status, 201);
+  assert.match(String(claude.payload.client_id), /^ctxc_/);
+  assert.equal(claude.payload.token_endpoint_auth_method, "none");
+  assert.equal(claude.payload.client_secret, undefined);
+  assert.deepEqual(claude.payload.redirect_uris, [
+    "https://claude.ai/api/mcp/auth_callback",
+    "https://claude.com/api/mcp/auth_callback",
+  ]);
 
-  const allowedWildcardRegistration = await fetch(`${mcpBase}/register`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      client_name: "Wildcard clients",
-      redirect_uris: [
-        "https://claude.ai/api/organizations/custom-connectors/oauth/callback",
-        "https://api.claude.com/api/mcp/auth_callback",
-        "https://chatgpt.com/connector/oauth/some-connector-id",
-        "https://platform.openai.com/mcp/oauth/callback",
-        "https://preview.manufact.com/oauth/callback",
-      ],
-    }),
-  });
-  assert.equal(allowedWildcardRegistration.status, 201);
+  // Domains outside the trusted list register too: the signed client_id, not
+  // an allowlist, is what scopes where authorization codes may be delivered.
+  const unlisted = await registerClient("Unlisted client", [
+    "https://mcp-client.example/oauth/callback",
+    "http://127.0.0.1:33418/callback",
+    "zed://oauth/callback",
+  ]);
+  assert.equal(unlisted.status, 201);
+  const unlistedClientId = String(unlisted.payload.client_id);
+  assert.match(unlistedClientId, /^ctxc_/);
 
-  const allowedOtherClientRegistration = await fetch(`${mcpBase}/register`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      client_name: "Other MCP clients",
-      redirect_uris: [
-        "https://vscode.dev/redirect",
-        "https://insiders.vscode.dev/redirect",
-        "http://127.0.0.1:33418",
-        "https://localhost:7777/oauth/callback",
-        "vscode://saoudrizwan.claude-dev/mcp/callback",
-        "warp://mcp/oauth/callback",
-        "https://callback.mistral.ai/v1/integrations_auth/oauth2_callback",
-        "https://global.consent.azure-apim.net/redirect/context",
-        "https://vertexaisearch.cloud.google.com/oauth-redirect",
-        "https://oauth.n8n.cloud/oauth2/callback",
-        "https://app.mcpjam.com/oauth/callback",
-      ],
-    }),
-  });
-  assert.equal(allowedOtherClientRegistration.status, 201);
+  const boundAuthorize = await fetch(
+    authorizeUrl(unlistedClientId, "https://mcp-client.example/oauth/callback"),
+    { redirect: "manual" }
+  );
+  assert.equal(boundAuthorize.status, 302);
+
+  const loopbackPortVariance = await fetch(
+    authorizeUrl(unlistedClientId, "http://127.0.0.1:49152/callback"),
+    { redirect: "manual" }
+  );
+  assert.equal(loopbackPortVariance.status, 302);
+
+  const unboundAuthorize = await fetch(
+    authorizeUrl(unlistedClientId, "https://other.example/oauth/callback"),
+    { redirect: "manual" }
+  );
+  assert.equal(unboundAuthorize.status, 400);
+
+  const tamperedClientId =
+    unlistedClientId.slice(0, -2) +
+    (unlistedClientId.endsWith("aa") ? "bb" : "aa");
+  const tamperedAuthorize = await fetch(
+    authorizeUrl(tamperedClientId, "https://mcp-client.example/oauth/callback"),
+    { redirect: "manual" }
+  );
+  assert.equal(tamperedAuthorize.status, 400);
+
+  for (const redirectUris of [
+    [],
+    ["javascript:alert(1)"],
+    ["data:text/html,x"],
+    ["http://claude.ai/api/mcp/auth_callback"],
+    ["not a url"],
+    [42],
+    Array.from({ length: 11 }, (_, i) => `https://ok.example/cb/${i}`),
+  ]) {
+    const rejected = await registerClient("Bad registration", redirectUris);
+    assert.equal(rejected.status, 400, JSON.stringify(redirectUris));
+  }
+});
+
+test("keeps the legacy shared-client path gated by the trusted-domain list", async () => {
+  const trustedLegacyAuthorize = await fetch(
+    authorizeUrl("dynamic-client", "https://claude.ai/api/mcp/auth_callback"),
+    { redirect: "manual" }
+  );
+  assert.equal(trustedLegacyAuthorize.status, 302);
 
   for (const redirectUri of [
     "https://attacker.example/callback",
     "https://claude.ai.attacker.example/callback",
     "https://notclaude.ai/callback",
     "http://claude.ai/api/mcp/auth_callback",
-    "https://google.com/oauth-redirect",
-    "https://accounts.google.com/oauth-redirect",
   ]) {
-    const rejectedRegistration = await fetch(`${mcpBase}/register`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ redirect_uris: [redirectUri] }),
-    });
-    assert.equal(
-      rejectedRegistration.status,
-      400,
-      `expected ${redirectUri} to be rejected`
+    const rejectedAuthorization = await fetch(
+      authorizeUrl("dynamic-client", redirectUri),
+      { redirect: "manual" }
     );
+    assert.equal(rejectedAuthorization.status, 400, redirectUri);
   }
-
-  const rejectedAuthorization = await fetch(
-    `${mcpBase}/authorize?${new URLSearchParams({
-      client_id: "dynamic-client",
-      redirect_uri: "https://attacker.example/callback",
-      response_type: "code",
-      code_challenge: "challenge",
-      code_challenge_method: "S256",
-    })}`,
-    { redirect: "manual" }
-  );
-  assert.equal(rejectedAuthorization.status, 400);
 });
 
 test("labels the upstream consent request with the connecting client", async () => {
@@ -357,13 +356,7 @@ test("labels the upstream consent request with the connecting client", async () 
   ];
   for (const [redirectUri, expectedClient] of labeledRedirects) {
     const authorizeResponse = await fetch(
-      `${mcpBase}/authorize?${new URLSearchParams({
-        client_id: "dynamic-client",
-        redirect_uri: redirectUri,
-        response_type: "code",
-        code_challenge: "local-code-challenge",
-        code_challenge_method: "S256",
-      })}`,
+      authorizeUrl("dynamic-client", redirectUri),
       { redirect: "manual" }
     );
     assert.equal(authorizeResponse.status, 302, redirectUri);
@@ -375,7 +368,129 @@ test("labels the upstream consent request with the connecting client", async () 
       expectedClient,
       redirectUri
     );
+
+    // Contract with brand-dev-webapp: the consent screen derives its client
+    // labeling from the upstream `state`, a base64url JSON transaction whose
+    // `redirectUri` is where the proxy callback forwards the authorization
+    // code. If this shape changes (e.g. an mcp-use upgrade), the consent
+    // screen degrades to generic unverified wording — update it in step.
+    const upstreamState = upstreamLocation.searchParams.get("state")!;
+    const transaction = JSON.parse(
+      Buffer.from(upstreamState, "base64url").toString("utf8")
+    ) as { redirectUri: string };
+    assert.equal(transaction.redirectUri, redirectUri, redirectUri);
   }
+});
+
+test("completes the proxy flow for a registration-bound client on an unlisted domain", async () => {
+  const clientRedirect = "https://mcp-client.example/oauth/callback";
+  const registration = await registerClient("Unlisted flow client", [
+    clientRedirect,
+  ]);
+  assert.equal(registration.status, 201);
+  const clientId = String(registration.payload.client_id);
+
+  const authorizeResponse = await fetch(
+    authorizeUrl(clientId, clientRedirect, {
+      state: "unlisted-client-state",
+      scope: "api.read api.write",
+    }),
+    { redirect: "manual" }
+  );
+  assert.equal(authorizeResponse.status, 302);
+  const browserCookie = authorizeResponse.headers.get("set-cookie");
+  assert.ok(browserCookie);
+  const upstreamLocation = new URL(authorizeResponse.headers.get("location")!);
+  assert.equal(upstreamLocation.searchParams.get("mcp_client"), "mcp-client");
+  const upstreamState = upstreamLocation.searchParams.get("state")!;
+  const transaction = JSON.parse(
+    Buffer.from(upstreamState, "base64url").toString("utf8")
+  ) as { redirectUri: string };
+  assert.equal(transaction.redirectUri, clientRedirect);
+
+  const upstreamAuthorizeResponse = await fetch(upstreamLocation, {
+    redirect: "manual",
+  });
+  assert.equal(upstreamAuthorizeResponse.status, 302);
+  const callbackResponse = await fetch(
+    upstreamAuthorizeResponse.headers.get("location")!,
+    {
+      redirect: "manual",
+      headers: { cookie: browserCookie.split(";")[0] },
+    }
+  );
+  assert.equal(callbackResponse.status, 302);
+  const finalRedirect = new URL(callbackResponse.headers.get("location")!);
+  assert.equal(finalRedirect.origin + finalRedirect.pathname, clientRedirect);
+  assert.equal(
+    finalRedirect.searchParams.get("code"),
+    "local-authorization-code"
+  );
+  assert.equal(
+    finalRedirect.searchParams.get("state"),
+    "unlisted-client-state"
+  );
+
+  const tokenResponse = await fetch(`${mcpBase}/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: "local-authorization-code",
+      code_verifier: "local-code-verifier",
+      redirect_uri: clientRedirect,
+      client_id: clientId,
+    }),
+  });
+  assert.equal(tokenResponse.status, 200);
+  const upstreamTokenRequest = tokenRequests.at(-1)!;
+  assert.equal(upstreamTokenRequest.get("client_id"), "context-mcp-fixed");
+  assert.equal(
+    upstreamTokenRequest.get("redirect_uri"),
+    `${mcpBase}/oauth/callback`
+  );
+});
+
+test("enforces the registration binding at the token endpoint", async () => {
+  const registration = await registerClient("Token binding client", [
+    "https://token-binding.example/oauth/callback",
+  ]);
+  assert.equal(registration.status, 201);
+  const clientId = String(registration.payload.client_id);
+
+  const mismatchedRedirect = await fetch(`${mcpBase}/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: "local-authorization-code",
+      code_verifier: "local-code-verifier",
+      redirect_uri: "https://other.example/oauth/callback",
+      client_id: clientId,
+    }),
+  });
+  assert.equal(mismatchedRedirect.status, 400);
+  const mismatchPayload = (await mismatchedRedirect.json()) as {
+    error: string;
+  };
+  assert.equal(mismatchPayload.error, "invalid_grant");
+
+  const forgedClientId =
+    clientId.slice(0, -2) + (clientId.endsWith("aa") ? "bb" : "aa");
+  const forgedClient = await fetch(`${mcpBase}/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code: "local-authorization-code",
+      code_verifier: "local-code-verifier",
+      redirect_uri: "https://token-binding.example/oauth/callback",
+      client_id: forgedClientId,
+    }),
+  });
+  assert.equal(forgedClient.status, 401);
+  const forgedPayload = (await forgedClient.json()) as { error: string };
+  assert.equal(forgedPayload.error, "invalid_client");
 });
 
 test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t) => {
@@ -403,6 +518,10 @@ test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t)
   );
   await assert.rejects(initialClient.connect(initialTransport), /401|Unauthorized/);
   assert.ok(authorizationUrl);
+  assert.match(
+    new URL(authorizationUrl).searchParams.get("client_id") ?? "",
+    /^ctxc_/
+  );
 
   const authorizeResponse = await fetch(authorizationUrl, {
     redirect: "manual",
