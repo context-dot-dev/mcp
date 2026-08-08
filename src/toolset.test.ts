@@ -61,7 +61,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     openWorldHint: true,
   });
   assert.deepEqual(tools.get("delete-batch")?.annotations, {
@@ -82,12 +82,12 @@ test("every public tool has annotations that match its most privileged behavior"
     "web-scrape-markdown",
     "web-scrape-images",
   ]);
-  const nonDestructiveExternalTools = new Set([
+  const destructiveExternalTools = new Set([
     "create-monitor",
     "run-monitor-now",
     "submit-batch",
+    "update-monitor",
   ]);
-  const destructiveExternalTools = new Set(["update-monitor"]);
   const destructivePrivateTools = new Set([
     "delete-monitor",
     "cancel-batch",
@@ -101,29 +101,23 @@ test("every public tool has annotations that match its most privileged behavior"
           destructiveHint: true,
           openWorldHint: true,
         }
-      : nonDestructiveExternalTools.has(tool.name)
+      : destructiveExternalTools.has(tool.name)
         ? {
             readOnlyHint: false,
-            destructiveHint: false,
+            destructiveHint: true,
             openWorldHint: true,
           }
-        : destructiveExternalTools.has(tool.name)
+        : destructivePrivateTools.has(tool.name)
           ? {
               readOnlyHint: false,
               destructiveHint: true,
-              openWorldHint: true,
+              openWorldHint: false,
             }
-          : destructivePrivateTools.has(tool.name)
-            ? {
-                readOnlyHint: false,
-                destructiveHint: true,
-                openWorldHint: false,
-              }
-            : {
-                readOnlyHint: true,
-                destructiveHint: false,
-                openWorldHint: false,
-              };
+          : {
+              readOnlyHint: true,
+              destructiveHint: false,
+              openWorldHint: false,
+            };
     assert.deepEqual(tool.annotations, expected, tool.name);
   }
 });

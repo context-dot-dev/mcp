@@ -408,7 +408,7 @@ test("lists the public Context API with safety annotations", async () => {
 
   const createMonitor = tools.find((tool) => tool.name === "create-monitor");
   assert.equal(createMonitor?.annotations?.readOnlyHint, false);
-  assert.equal(createMonitor?.annotations?.destructiveHint, false);
+  assert.equal(createMonitor?.annotations?.destructiveHint, true);
   const webSearch = tools.find((tool) => tool.name === "web-search");
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);
@@ -428,7 +428,7 @@ test("lists the public Context API with safety annotations", async () => {
 
   const submitBatch = tools.find((tool) => tool.name === "submit-batch");
   assert.equal(submitBatch?.annotations?.readOnlyHint, false);
-  assert.equal(submitBatch?.annotations?.destructiveHint, false);
+  assert.equal(submitBatch?.annotations?.destructiveHint, true);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
 });
