@@ -152,15 +152,9 @@ const server = new MCPServer({
 
 server.app.get("/health", (c) => c.json({ status: "ok" }));
 
-server.app.use("*", async (context, next) => {
-  if (
-    context.req.method === "GET" &&
-    context.req.path === "/.well-known/openai-apps-challenge"
-  ) {
-    return context.text("-oywG7IJEF_oq8McQYi47HY0QDTdYn36eA_yi5bPysc");
-  }
-  await next();
-});
+server.app.get("/.well-known/openai-apps-challenge", (context) =>
+  context.text("-oywG7IJEF_oq8McQYi47HY0QDTdYn36eA_yi5bPysc"),
+);
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const BUILT_IN_MCP_CLIENT_ORIGINS = [
