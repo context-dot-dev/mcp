@@ -86,67 +86,132 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-scrape-html": {
     title: "Scrape raw HTML",
     description:
-      "Fetch the raw HTML of one known URL. Use this only when DOM structure, attributes, scripts, or markup are required; prefer web-scrape-markdown when the goal is to read, summarize, or answer questions from a page. Supports selectors, dynamic-page waits, and browser actions.",
+      "Fetch the raw HTML of one known URL. Use this only when DOM structure, attributes, scripts, or markup are required; prefer web-scrape-markdown when the goal is to read, summarize, or answer questions from a page. Supports selectors, dynamic-page waits, and optional browser actions. Browser actions can interact with third-party pages and may cause external side effects, so use them only with explicit user direction.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    },
   },
   "web-scrape-markdown": {
     title: "Scrape a page to Markdown",
     description:
-      "Turn one known URL into clean, LLM-ready Markdown. This is the default tool for reading or analyzing a page and supports main-content filtering, selectors, links, images, PDF page ranges, dynamic-page waits, and browser actions. Use web-search when the URL is unknown, web-crawl for several linked pages, or submit-batch for large asynchronous jobs.",
+      "Turn one known URL into clean, LLM-ready Markdown. This is the default tool for reading or analyzing a page and supports main-content filtering, selectors, links, images, PDF page ranges, dynamic-page waits, and optional browser actions. Browser actions can interact with third-party pages and may cause external side effects, so use them only with explicit user direction. Use web-search when the URL is unknown, web-crawl for several linked pages, or submit-batch for large asynchronous jobs.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    },
   },
   "web-scrape-images": {
     title: "Find images on a page",
     description:
-      "Find image assets on one web page, including responsive sources, CSS backgrounds, inline SVGs, video posters, and available metadata. Use this for asset discovery, brand libraries, catalog work, or visual audits; use web-screenshot when a rendered picture of the whole page is needed.",
+      "Find image assets on one web page, including responsive sources, CSS backgrounds, inline SVGs, video posters, and available metadata. Optional browser actions can interact with third-party pages and may cause external side effects, so use them only with explicit user direction. Use this for asset discovery, brand libraries, catalog work, or visual audits; use web-screenshot when a rendered picture of the whole page is needed.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    },
   },
   "web-scrape-sitemap": {
     title: "Discover website URLs",
     description:
       "Discover URLs from a website's sitemap without fetching every page body. Use this to inventory a site or locate relevant pages cheaply. Use web-scrape-markdown for one page, web-crawl to collect content from several pages, or submit-batch for large asynchronous collection.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-crawl": {
     title: "Crawl a website",
     description:
       "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Use this for focused multi-page research when results are needed immediately. Use web-scrape-sitemap for URLs only or submit-batch for large jobs that should run asynchronously.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-extract": {
     title: "Extract structured web data",
     description:
       "Crawl the relevant pages of a website and return data shaped by the supplied JSON Schema and instructions. Use this when the requested output has defined fields, such as pricing, locations, jobs, or company facts. Use web-scrape-markdown when readable page content is more useful than structured JSON.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-search": {
     title: "Search the live web",
     description:
       "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape-markdown instead.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "brand-retrieve-unified": {
     title: "Get brand intelligence",
     description:
       "Retrieve machine-readable company and brand intelligence—logos, colors, descriptions, socials, links, industry, location, and more—from one domain, company name, work email, stock ticker, ISIN, transaction descriptor, or direct URL. Use get-brand for a visual card from a domain; use this tool for raw structured data or non-domain lookups.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-styleguide": {
     title: "Extract a website style guide",
     description:
       "Extract a website's design system, including colors, typography, spacing, shadows, and interface cues. Use this to reproduce a brand accurately in generated UI, design audits, or creative workflows.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-fonts": {
     title: "Inspect website fonts",
     description:
       "Identify the font families used by a website, with fallbacks and usage statistics. Use this when typography must be matched or audited; use web-styleguide for the broader visual system.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-screenshot": {
     title: "Capture a website screenshot",
     description:
       "Capture a rendered PNG screenshot of a web page with viewport and full-page controls. Use this for visual QA, previews, audits, or design reference; use web-scrape-markdown when the page's textual content is needed.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-naics": {
     title: "Classify a company by NAICS",
     description:
       "Classify a company into 2022 NAICS industry codes from its domain or name. Use this for standardized segmentation, routing, market analysis, or CRM enrichment.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "web-sic": {
     title: "Classify a company by SIC",
     description:
       "Classify a company into SIC industry codes from its domain or name. Choose the original SIC taxonomy or the latest SEC-maintained list. Use this for finance, compliance, segmentation, or company enrichment.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   "list-monitors": {
     title: "List monitors",
@@ -181,7 +246,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "update-monitor": {
     title: "Update a monitor",
     description:
-      "Update an existing monitor's configuration. Changes affect future runs, and changing the target or change-detection definition creates a new baseline. Use get-monitor first when the current configuration must be preserved.",
+      "Update an existing monitor's configuration, including its optional external webhook. Changes affect future runs, and changing the target or change-detection definition creates a new baseline. Use get-monitor first when the current configuration must be preserved.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
@@ -268,7 +333,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "run-monitor-now": {
     title: "Run a monitor now",
     description:
-      "Queue an immediate check for a monitor outside its regular schedule. This starts an asynchronous network run and returns the queued run; use get-monitor-run or list-monitor-runs to follow its outcome.",
+      "Queue an immediate check for a monitor outside its regular schedule. This starts an asynchronous network run and can notify the monitor's configured external webhook when a change is detected. Use get-monitor-run or list-monitor-runs to follow its outcome.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -278,7 +343,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "submit-batch": {
     title: "Submit a large scraping batch",
     description:
-      "Start an asynchronous job to scrape up to 25,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. The call returns a batch ID, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
+      "Start an asynchronous job to scrape up to 25,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhookUrl is supplied, Context sends a completion request to that external endpoint. The call returns a batch ID, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,

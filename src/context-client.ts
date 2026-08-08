@@ -3,6 +3,12 @@ import type { Endpoint } from "../context-endpoints";
 
 type ToolArguments = Record<string, unknown>;
 const DEFAULT_MAX_RESPONSE_CHARS = 40_000;
+const OMITTED_RESPONSE_FIELDS = new Set([
+  "key_metadata",
+  "request_id",
+  "trace_id",
+  "debug",
+]);
 
 export type ContextCredential = {
   apiKey: string;
@@ -53,7 +59,6 @@ function buildRequestBody(
 
 function contextErrorMessage(
   status: number,
-  raw: string,
   parsed: unknown
 ): string {
   const payload =
@@ -65,10 +70,22 @@ function contextErrorMessage(
       ? payload.message
       : typeof payload.error === "string"
         ? payload.error
-        : raw.slice(0, 600);
+        : typeof payload.error_description === "string"
+          ? payload.error_description
+          : "Request failed";
   const code =
     typeof payload.error_code === "string" ? ` [${payload.error_code}]` : "";
   return `Context API ${status}${code}: ${message || "Request failed"}`;
+}
+
+function minimizeContextResponse(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([name]) => !OMITTED_RESPONSE_FIELDS.has(name),
+    ),
+  );
 }
 
 function maxResponseChars(): number {
@@ -249,10 +266,13 @@ export async function callContextApi({
   }
 
   if (!response.ok) {
-    return error(contextErrorMessage(response.status, raw, parsed));
+    return error(contextErrorMessage(response.status, parsed));
   }
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    return boundedObject(parsed as Record<string, unknown>, raw.length);
+    const minimized = minimizeContextResponse(
+      parsed as Record<string, unknown>,
+    );
+    return boundedObject(minimized, JSON.stringify(minimized).length);
   }
   const resultText = parsed === undefined ? raw : JSON.stringify(parsed);
   const limit = maxResponseChars();

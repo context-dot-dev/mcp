@@ -711,6 +711,18 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
       ?.ui?.domain,
     "https://mcp.context.dev"
   );
+  const resourceMetadata = resource.contents[0]?._meta as
+    | {
+        ui?: { csp?: { resourceDomains?: string[] } };
+        "openai/widgetCSP"?: { resource_domains?: string[] };
+      }
+    | undefined;
+  const resourceDomains =
+    resourceMetadata?.ui?.csp?.resourceDomains ??
+    resourceMetadata?.["openai/widgetCSP"]?.resource_domains ??
+    [];
+  assert.ok(resourceDomains.includes("https://media.brand.dev"));
+  assert.equal(resourceDomains.some((domain) => domain.includes("*")), false);
   assert.equal(
     (tools.find((tool) => tool.name === "get-brand")?._meta as
       | Record<string, unknown>

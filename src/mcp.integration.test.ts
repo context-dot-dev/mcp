@@ -20,6 +20,37 @@ let mcpProcess: ChildProcess;
 
 function batchResponse(method: string, requestUrl: string) {
   const path = new URL(requestUrl, "http://context.test").pathname;
+  if (method === "POST" && path === "/brand/retrieve") {
+    return {
+      status: 200,
+      body: {
+        brand: {
+          domain: "https://example.test/path",
+          title: "Example",
+          logos: [
+            { type: "logo", url: "javascript:alert(1)" },
+            {
+              type: "icon",
+              url: "https://media.brand.dev/example/icon.png",
+            },
+          ],
+          colors: [
+            { hex: "url(https://attacker.test/pixel)" },
+            { hex: "#2564EA", name: "Blue" },
+          ],
+          socials: [
+            { type: "x", url: "javascript:alert(1)" },
+            { type: "linkedin", url: "https://linkedin.com/company/example" },
+          ],
+          links: {
+            pricing: "https://example.test/pricing",
+            contact: "data:text/html,unsafe",
+          },
+        },
+        key_metadata: { credits_remaining: 100 },
+      },
+    };
+  }
   if (method === "POST" && path === "/batch/submit") {
     return {
       status: 202,
@@ -201,6 +232,62 @@ test("serves the OpenAI domain verification token as plain text", async () => {
   );
 });
 
+test("rejects untrusted browser origins and allows known MCP clients", async () => {
+  const payload = JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-11-25",
+      capabilities: {},
+      clientInfo: { name: "origin-test", version: "1.0.0" },
+    },
+  });
+  const requestHeaders = {
+    Accept: "application/json, text/event-stream",
+    "Content-Type": "application/json",
+  };
+
+  const rejected = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: { ...requestHeaders, Origin: "https://attacker.example" },
+    body: payload,
+  });
+  assert.equal(rejected.status, 403);
+  assert.equal(
+    (await rejected.json()).error.message,
+    "Forbidden: invalid Origin header",
+  );
+
+  const accepted = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: { ...requestHeaders, Origin: "https://chatgpt.com" },
+    body: payload,
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(
+    accepted.headers.get("access-control-allow-origin"),
+    "https://chatgpt.com",
+  );
+});
+
+test("rejects malformed JSON-RPC requests with a protocol error", async () => {
+  const response = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: 42 }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(payload.jsonrpc, "2.0");
+  assert.equal(payload.error.code, -32700);
+  assert.equal(payload.id, null);
+});
+
 test("accepts a legacy query API key without OAuth", async () => {
   captured.length = 0;
   const client = new Client({
@@ -230,6 +317,7 @@ test("lists the public Context API with safety annotations", async () => {
   await client.close();
 
   assert.equal(tools.length, 34);
+  const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
     path: string,
@@ -242,18 +330,45 @@ test("lists the public Context API with safety annotations", async () => {
     >;
     for (const [name, property] of Object.entries(properties)) {
       const propertyPath = `${path}.${name}`;
-      assert.ok(
-        typeof property.description === "string" &&
-          property.description.trim().length > 0,
-        `${propertyPath} is missing a parameter description`
-      );
+      if (
+        typeof property.description !== "string" ||
+        property.description.trim().length === 0
+      ) {
+        missingPropertyDescriptions.push(propertyPath);
+      }
       assertPropertiesDescribed(property, propertyPath);
     }
-    if (record.items) assertPropertiesDescribed(record.items, `${path}[]`);
+    for (const [name, value] of Object.entries(record)) {
+      if (name === "properties") continue;
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) =>
+          assertPropertiesDescribed(entry, `${path}.${name}[${index}]`),
+        );
+      } else if (value && typeof value === "object") {
+        assertPropertiesDescribed(value, `${path}.${name}`);
+      }
+    }
   };
   for (const tool of tools) {
+    assert.ok(tool.title?.trim(), `${tool.name} is missing a title`);
+    assert.ok(
+      tool.description?.trim(),
+      `${tool.name} is missing a description`,
+    );
     assertPropertiesDescribed(tool.inputSchema, tool.name);
+    for (const key of [
+      "readOnlyHint",
+      "destructiveHint",
+      "openWorldHint",
+    ] as const) {
+      assert.equal(
+        typeof tool.annotations?.[key],
+        "boolean",
+        `${tool.name}.${key}`,
+      );
+    }
   }
+  assert.deepEqual(missingPropertyDescriptions, []);
   const names = new Set(tools.map((tool) => tool.name));
   for (const requiredName of [
     "parse-document",
@@ -297,6 +412,19 @@ test("lists the public Context API with safety annotations", async () => {
   const webSearch = tools.find((tool) => tool.name === "web-search");
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);
+  assert.equal(webSearch?.annotations?.openWorldHint, false);
+
+  const markdown = tools.find(
+    (tool) => tool.name === "web-scrape-markdown",
+  );
+  assert.equal(markdown?.annotations?.readOnlyHint, false);
+  assert.equal(markdown?.annotations?.destructiveHint, true);
+  assert.equal(markdown?.annotations?.openWorldHint, true);
+
+  const brand = tools.find((tool) => tool.name === "get-brand");
+  assert.equal(brand?.annotations?.readOnlyHint, true);
+  assert.equal(brand?.annotations?.destructiveHint, false);
+  assert.equal(brand?.annotations?.openWorldHint, false);
 
   const submitBatch = tools.find((tool) => tool.name === "submit-batch");
   assert.equal(submitBatch?.annotations?.readOnlyHint, false);
@@ -521,14 +649,14 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
       fileBase64: Buffer.from("hello parser").toString("base64"),
     },
   });
-  await client.callTool({
+  const brandCardResult = await client.callTool({
     name: "get-brand",
     arguments: {
       domain: "https://example.test/path",
       maxSpeed: true,
     },
   });
-  await client.callTool({
+  const rawBrandResult = await client.callTool({
     name: "brand-retrieve-unified",
     arguments: {
       body: {
@@ -570,4 +698,26 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
     type: "by_domain",
     domain: "example.test",
   });
+  const brandCard = brandCardResult.structuredContent as {
+    brand: Record<string, unknown>;
+  };
+  assert.equal(brandCard.brand.domain, "example.test");
+  assert.equal(
+    brandCard.brand.logo,
+    "https://media.brand.dev/example/icon.png",
+  );
+  assert.deepEqual(brandCard.brand.colors, [
+    { hex: "#2564EA", name: "Blue" },
+  ]);
+  assert.deepEqual(brandCard.brand.socials, [
+    {
+      type: "linkedin",
+      url: "https://linkedin.com/company/example",
+    },
+  ]);
+  assert.deepEqual(brandCard.brand.links, [
+    { label: "Pricing", url: "https://example.test/pricing" },
+  ]);
+  assert.equal("creditsRemaining" in brandCard.brand, false);
+  assert.equal("key_metadata" in resultObject(rawBrandResult), false);
 });

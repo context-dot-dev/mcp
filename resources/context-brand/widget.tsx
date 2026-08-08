@@ -165,9 +165,6 @@ const ContextBrand: React.FC = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderTop: `1px solid ${C.border}`, background: C.surface }}>
           <img src={LOGO} alt="Context" width={16} height={16} style={{ borderRadius: 4 }} />
           <span style={{ fontSize: 11.5, color: C.faint }}>Powered by Context</span>
-          {typeof brand.creditsRemaining === "number" && (
-            <span style={{ marginLeft: "auto", fontSize: 11, color: C.faint, fontFamily: MONO }}>{brand.creditsRemaining} credits left</span>
-          )}
         </div>
       </div>
     </McpUseProvider>

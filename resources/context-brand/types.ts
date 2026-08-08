@@ -42,7 +42,6 @@ export const brandSchema = z.object({
   phone: z.string().optional(),
   location: z.string().optional(),
   stockTicker: z.string().optional(),
-  creditsRemaining: z.number().optional(),
 });
 
 export const propSchema = z.object({ brand: brandSchema });

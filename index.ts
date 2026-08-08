@@ -11,6 +11,7 @@ import {
   COMPONENT_SCHEMAS,
   ENDPOINTS,
   type Endpoint,
+  type JsonSchema,
 } from "./context-endpoints";
 import {
   createOAuthProvider,
@@ -35,22 +36,94 @@ import {
 import { selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
-const monitorIntervalSchedule = COMPONENT_SCHEMAS.MonitorsIntervalSchedule!;
+const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  action: "Browser action.",
+  confidence_threshold: "Minimum confidence, 0 to 1.",
+  force_language: "Brand-data language code.",
+  follow_subdomains: "Include target subdomains.",
+  timeMs: "Wait in milliseconds.",
+  url: "Target URL.",
+};
+
+function mcpSchemaPropertyDescription(
+  name: string,
+  schema: JsonSchema,
+): string | undefined {
+  const discriminatorValue =
+    schema.const ?? (schema.enum?.length === 1 ? schema.enum[0] : undefined);
+  if (
+    (name === "type" || name === "do") &&
+    discriminatorValue !== undefined
+  ) {
+    return `Use \`${String(discriminatorValue)}\`.`;
+  }
+  return MCP_SCHEMA_PROPERTY_DESCRIPTIONS[name];
+}
+
+function withMcpSchemaDescriptions(schema: JsonSchema): JsonSchema {
+  const properties = schema.properties
+    ? Object.fromEntries(
+        Object.entries(schema.properties).map(([name, property]) => {
+          const describedProperty = withMcpSchemaDescriptions(property);
+          return [
+            name,
+            describedProperty.description
+              ? describedProperty
+              : {
+                  ...describedProperty,
+                  description: mcpSchemaPropertyDescription(
+                    name,
+                    describedProperty,
+                  ),
+                },
+          ];
+        }),
+      )
+    : undefined;
+  const items = schema.items
+    ? withMcpSchemaDescriptions(schema.items)
+    : undefined;
+  const oneOf = schema.oneOf?.map(withMcpSchemaDescriptions);
+  const anyOf = schema.anyOf?.map(withMcpSchemaDescriptions);
+  const allOf = schema.allOf?.map(withMcpSchemaDescriptions);
+  const additionalProperties =
+    schema.additionalProperties &&
+    typeof schema.additionalProperties === "object"
+      ? withMcpSchemaDescriptions(schema.additionalProperties)
+      : schema.additionalProperties;
+  return {
+    ...schema,
+    ...(properties ? { properties } : {}),
+    ...(items ? { items } : {}),
+    ...(oneOf ? { oneOf } : {}),
+    ...(anyOf ? { anyOf } : {}),
+    ...(allOf ? { allOf } : {}),
+    ...(additionalProperties !== undefined ? { additionalProperties } : {}),
+  };
+}
+
+const describedComponentSchemas = Object.fromEntries(
+  Object.entries(COMPONENT_SCHEMAS).map(([name, schema]) => [
+    name,
+    withMcpSchemaDescriptions(schema),
+  ]),
+);
+const monitorIntervalSchedule =
+  describedComponentSchemas.MonitorsIntervalSchedule!;
 const monitorIntervalProperties = monitorIntervalSchedule.properties!;
 const MCP_COMPONENT_SCHEMAS = {
-  ...COMPONENT_SCHEMAS,
+  ...describedComponentSchemas,
   MonitorsIntervalSchedule: {
     ...monitorIntervalSchedule,
     properties: {
       ...monitorIntervalProperties,
       type: {
         ...monitorIntervalProperties.type!,
-        description: "Schedule strategy. Must be `interval`.",
+        description: "Use `interval`.",
       },
       unit: {
         ...monitorIntervalProperties.unit!,
-        description:
-          "Time unit used with `frequency`: `minutes`, `hours`, or `days`.",
+        description: "Unit: minutes, hours, or days.",
       },
     },
   },
@@ -83,6 +156,82 @@ server.app.get("/.well-known/openai-apps-challenge", (context) =>
   context.text("-oywG7IJEF_oq8McQYi47HY0QDTdYn36eA_yi5bPysc"),
 );
 
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const BUILT_IN_MCP_CLIENT_ORIGINS = [
+  "https://chatgpt.com",
+  "https://platform.openai.com",
+  "https://claude.ai",
+  "https://claude.com",
+  "https://cursor.com",
+  "https://inspector.manufact.com",
+  "https://manufact.com",
+  "https://mcpjam.com",
+  "https://inspector.modelcontextprotocol.io",
+];
+
+function configuredMcpOrigins(): Set<string> {
+  const origins = new Set(BUILT_IN_MCP_CLIENT_ORIGINS);
+  for (const origin of (process.env.MCP_ALLOWED_ORIGINS ?? "").split(",")) {
+    const trimmed = origin.trim();
+    if (!trimmed) continue;
+    try {
+      origins.add(new URL(trimmed).origin);
+    } catch {
+      continue;
+    }
+  }
+  try {
+    origins.add(new URL(process.env.MCP_URL || "http://localhost:3000").origin);
+  } catch {
+    origins.add("http://localhost:3000");
+  }
+  return origins;
+}
+
+const allowedMcpOrigins = configuredMcpOrigins();
+
+function isAllowedMcpOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      LOOPBACK_HOSTNAMES.has(url.hostname)
+    ) {
+      return true;
+    }
+    return allowedMcpOrigins.has(url.origin);
+  } catch {
+    return false;
+  }
+}
+
+const validateMcpOrigin = async (
+  context: {
+    req: { header: (name: string) => string | undefined };
+    header: (name: string, value: string) => void;
+  },
+  next: () => Promise<void>,
+) => {
+  const origin = context.req.header("origin")?.trim();
+  if (origin && !isAllowedMcpOrigin(origin)) {
+    return new Response(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Forbidden: invalid Origin header" },
+      }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+  await next();
+  if (origin) {
+    context.header("Access-Control-Allow-Origin", new URL(origin).origin);
+    context.header("Vary", "Origin");
+  }
+};
+
 const promoteApiKeyCredential = async (
   context: { req: { header: (name: string) => string | undefined; raw: Request } },
   next: () => Promise<void>,
@@ -99,7 +248,10 @@ const promoteApiKeyCredential = async (
   }
   await next();
 };
+server.app.use("/mcp/*", validateMcpOrigin);
 server.app.use("/mcp/*", promoteApiKeyCredential);
+server.app.use("/sse", validateMcpOrigin);
+server.app.use("/sse/*", validateMcpOrigin);
 server.app.use("/sse", promoteApiKeyCredential);
 server.app.use("/sse/*", promoteApiKeyCredential);
 
@@ -157,8 +309,6 @@ const TRUSTED_OAUTH_REDIRECT_SCHEMES = new Map([
 
 // CLI and editor clients bind an ephemeral loopback port per RFC 8252, so the
 // port and path vary per session and cannot be pinned.
-const LOOPBACK_REDIRECT_HOSTNAMES = ["localhost", "127.0.0.1", "[::1]"];
-
 function trustedOAuthClientForHost(hostname: string): string | undefined {
   const host = hostname.toLowerCase();
   return TRUSTED_OAUTH_REDIRECT_DOMAINS.find(
@@ -175,7 +325,7 @@ function resolveOAuthClientKey(redirectUri: string): string {
     if (schemeClient) return schemeClient;
     const hostClient = trustedOAuthClientForHost(url.hostname);
     if (hostClient) return hostClient;
-    if (LOOPBACK_REDIRECT_HOSTNAMES.includes(url.hostname)) return "local";
+    if (LOOPBACK_HOSTNAMES.has(url.hostname)) return "local";
   } catch {
     // fall through to the generic slug
   }
@@ -205,7 +355,7 @@ function isAllowedOAuthRedirect(value: string): boolean {
     }
     return (
       (url.protocol === "http:" || url.protocol === "https:") &&
-      LOOPBACK_REDIRECT_HOSTNAMES.includes(url.hostname)
+      LOOPBACK_HOSTNAMES.has(url.hostname)
     );
   } catch {
     return false;
@@ -389,29 +539,73 @@ const LINK_LABELS: Record<string, string> = {
   pricing: "Pricing",
 };
 
+function safeHttpUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.toString()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function safeBrandDomain(value: unknown): string {
+  if (typeof value !== "string") return "";
+  try {
+    const url = new URL(
+      value.includes("://") ? value : `https://${value}`,
+    );
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.hostname
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function safeBrandLogo(value: unknown): string | undefined {
+  const url = safeHttpUrl(value);
+  if (!url) return undefined;
+  return new URL(url).origin === "https://media.brand.dev" ? url : undefined;
+}
+
 function normalizeBrand(payload: any): Brand {
   const b = payload?.brand ?? {};
+  const domain = safeBrandDomain(b.domain);
   const logos: any[] = Array.isArray(b.logos) ? b.logos : [];
   const bestLogo =
-    logos.find((l) => l?.type === "logo")?.url ||
-    logos.find((l) => l?.type === "icon")?.url ||
-    logos[0]?.url ||
+    safeBrandLogo(logos.find((l) => l?.type === "logo")?.url) ||
+    safeBrandLogo(logos.find((l) => l?.type === "icon")?.url) ||
+    safeBrandLogo(logos[0]?.url) ||
     undefined;
   const colors = (Array.isArray(b.colors) ? b.colors : [])
-    .filter((c: any) => c?.hex)
+    .filter(
+      (c: any) =>
+        typeof c?.hex === "string" && /^#[0-9a-f]{6}$/i.test(c.hex),
+    )
     .map((c: any) => ({ hex: c.hex, name: c.name }));
   const socials = (Array.isArray(b.socials) ? b.socials : [])
-    .filter((s: any) => s?.url)
-    .map((s: any) => ({ type: String(s.type ?? "link"), url: s.url }));
+    .map((s: any) => ({
+      type: String(s?.type ?? "link"),
+      url: safeHttpUrl(s?.url),
+    }))
+    .filter(
+      (s: { type: string; url: string | undefined }): s is {
+        type: string;
+        url: string;
+      } => !!s.url,
+    );
   const industries = (b.industries?.eic ?? [])
     .filter((i: any) => i?.industry)
     .map((i: any) => ({ industry: i.industry, subindustry: i.subindustry }));
   const links = Object.entries(b.links ?? {})
-    .filter(([, url]) => typeof url === "string" && url)
     .map(([key, url]) => ({
       label: LINK_LABELS[key] ?? key,
-      url: url as string,
-    }));
+      url: safeHttpUrl(url),
+    }))
+    .filter((link): link is { label: string; url: string } => !!link.url);
   const addr = b.address ?? {};
   const location =
     [
@@ -425,8 +619,8 @@ function normalizeBrand(payload: any): Brand {
     ? [b.stock.exchange, b.stock.ticker].filter(Boolean).join(": ")
     : undefined;
   return {
-    domain: b.domain ?? "",
-    title: b.title ?? b.domain ?? "Unknown",
+    domain,
+    title: b.title || domain || "Unknown",
     slogan: b.slogan || undefined,
     description: b.description || undefined,
     logo: bestLogo,
@@ -438,7 +632,6 @@ function normalizeBrand(payload: any): Brand {
     phone: b.phone || undefined,
     location,
     stockTicker,
-    creditsRemaining: payload?.key_metadata?.credits_remaining,
   };
 }
 
@@ -494,7 +687,7 @@ server.tool(
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     outputSchema: z.object({ brand: brandSchema }),
     widget: {
@@ -550,7 +743,10 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
     if (parameter.in === "cookie") {
       continue;
     }
-    let parameterSchema = schemaToZod(parameter.schema, MCP_COMPONENT_SCHEMAS);
+    let parameterSchema = schemaToZod(
+      withMcpSchemaDescriptions(parameter.schema),
+      MCP_COMPONENT_SCHEMAS,
+    );
     const parameterDescription =
       parameter.description ?? mcpParameterDescription(endpoint.name, parameter.name);
     if (parameterDescription) {
@@ -567,7 +763,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
       .describe("Base64-encoded file bytes. Maximum decoded size: 25 MiB.");
   } else if (endpoint.requestBody) {
     const bodyObject = resolveObjectSchema(
-      endpoint.requestBody.schema,
+      withMcpSchemaDescriptions(endpoint.requestBody.schema),
       MCP_COMPONENT_SCHEMAS,
     );
     const bodyProperties = Object.keys(bodyObject?.properties ?? {});
@@ -590,7 +786,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
       }
     } else {
       let bodySchema = schemaToZod(
-        endpoint.requestBody.schema,
+        withMcpSchemaDescriptions(endpoint.requestBody.schema),
         MCP_COMPONENT_SCHEMAS,
       );
       if (endpoint.requestBody.description) {

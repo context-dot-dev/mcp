@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { ENDPOINTS } from "../context-endpoints";
 import { selectEndpoints } from "./toolset";
@@ -73,4 +74,106 @@ test("tool descriptions route agents between overlapping workflows", () => {
     destructiveHint: false,
     openWorldHint: false,
   });
+});
+
+test("every public tool has annotations that match its most privileged behavior", () => {
+  const interactiveExternalTools = new Set([
+    "web-scrape-html",
+    "web-scrape-markdown",
+    "web-scrape-images",
+  ]);
+  const nonDestructiveExternalTools = new Set([
+    "create-monitor",
+    "run-monitor-now",
+    "submit-batch",
+  ]);
+  const destructiveExternalTools = new Set(["update-monitor"]);
+  const destructivePrivateTools = new Set([
+    "delete-monitor",
+    "cancel-batch",
+    "delete-batch",
+  ]);
+
+  for (const tool of selectEndpoints(ENDPOINTS)) {
+    const expected = interactiveExternalTools.has(tool.name)
+      ? {
+          readOnlyHint: false,
+          destructiveHint: true,
+          openWorldHint: true,
+        }
+      : nonDestructiveExternalTools.has(tool.name)
+        ? {
+            readOnlyHint: false,
+            destructiveHint: false,
+            openWorldHint: true,
+          }
+        : destructiveExternalTools.has(tool.name)
+          ? {
+              readOnlyHint: false,
+              destructiveHint: true,
+              openWorldHint: true,
+            }
+          : destructivePrivateTools.has(tool.name)
+            ? {
+                readOnlyHint: false,
+                destructiveHint: true,
+                openWorldHint: false,
+              }
+            : {
+                readOnlyHint: true,
+                destructiveHint: false,
+                openWorldHint: false,
+              };
+    assert.deepEqual(tool.annotations, expected, tool.name);
+  }
+});
+
+test("submission annotations and justifications match the published tools", () => {
+  const submission = JSON.parse(
+    readFileSync(
+      new URL("../chatgpt-app-submission.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    tools: Record<
+      string,
+      {
+        annotations: Record<string, unknown>;
+        justifications: Record<string, unknown>;
+      }
+    >;
+  };
+  const publishedAnnotations = new Map(
+    selectEndpoints(ENDPOINTS).map((tool) => [tool.name, tool.annotations]),
+  );
+  publishedAnnotations.set("get-brand", {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  });
+
+  assert.deepEqual(
+    new Set(Object.keys(submission.tools)),
+    new Set(publishedAnnotations.keys()),
+  );
+  for (const [name, annotations] of publishedAnnotations) {
+    const submittedTool = submission.tools[name];
+    assert.ok(submittedTool, `missing submission metadata for ${name}`);
+    assert.deepEqual(submittedTool.annotations, annotations, name);
+    for (const key of [
+      "read_only_justification",
+      "destructive_justification",
+      "open_world_justification",
+    ]) {
+      assert.equal(
+        typeof submittedTool.justifications[key],
+        "string",
+        `${name}.${key}`,
+      );
+      assert.ok(
+        (submittedTool.justifications[key] as string).trim().length > 0,
+        `${name}.${key}`,
+      );
+    }
+  }
 });
