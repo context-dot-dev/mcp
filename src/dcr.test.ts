@@ -91,9 +91,14 @@ test("tampered or foreign client_ids do not decode", () => {
   );
   assert.ok(result.ok);
 
-  const flipped =
-    result.clientId.slice(0, -1) +
-    (result.clientId.endsWith("A") ? "B" : "A");
+  const [payload, signature] = result.clientId
+    .slice(DCR_CLIENT_ID_PREFIX.length)
+    .split(".");
+  assert.ok(payload);
+  assert.ok(signature);
+  const tamperedSignature = Buffer.from(signature, "base64url");
+  tamperedSignature[0] ^= 1;
+  const flipped = `${DCR_CLIENT_ID_PREFIX}${payload}.${tamperedSignature.toString("base64url")}`;
   assert.equal(decodeDcrClientId(flipped, signingKey), null);
 
   const otherKey = deriveDcrClientSigningKey(

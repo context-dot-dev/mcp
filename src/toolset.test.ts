@@ -35,6 +35,13 @@ test("toolset exposes the curated public API surface", () => {
   assert.equal(names.has("brand-ai-query"), false);
   assert.equal(names.has("brand-retrieve"), false);
   assert.equal(names.has("get-monitor-limits"), false);
+  for (const endpoint of selected) {
+    assert.equal(
+      endpoint.parameters.some((parameter) => parameter.name === "headers"),
+      false,
+      endpoint.name,
+    );
+  }
 });
 
 test("tool descriptions route agents between overlapping workflows", () => {

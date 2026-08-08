@@ -404,7 +404,13 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
 
 function applyToolOverride(endpoint: Endpoint): Endpoint {
   const override = TOOL_OVERRIDES[endpoint.name];
-  return override ? { ...endpoint, ...override } : endpoint;
+  return {
+    ...endpoint,
+    ...override,
+    parameters: endpoint.parameters.filter(
+      (parameter) => parameter.name !== "headers",
+    ),
+  };
 }
 
 export function selectEndpoints(endpoints: Endpoint[]): Endpoint[] {

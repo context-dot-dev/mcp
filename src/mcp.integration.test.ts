@@ -619,7 +619,6 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
     name: "web-scrape-markdown",
     arguments: {
       url: "https://example.test/page",
-      headers: { "X-Custom": "hello" },
       pdf: { start: 2, end: 4 },
       includeSelectors: ["main", "article"],
     },
@@ -668,7 +667,7 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
   await client.close();
 
   const markdownUrl = new URL(captured[0]!.url, upstreamBase);
-  assert.equal(markdownUrl.searchParams.get("headers[X-Custom]"), "hello");
+  assert.equal(markdownUrl.searchParams.has("headers[X-Custom]"), false);
   assert.equal(markdownUrl.searchParams.get("pdf[start]"), "2");
   assert.deepEqual(markdownUrl.searchParams.getAll("includeSelectors"), [
     "main",
