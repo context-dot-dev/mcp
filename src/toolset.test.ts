@@ -89,6 +89,18 @@ test("every public tool has annotations that match its most privileged behavior"
     "web-scrape-markdown",
     "web-scrape-images",
   ]);
+  const readOnlyExternalTools = new Set([
+    "web-scrape-sitemap",
+    "web-crawl",
+    "web-extract",
+    "web-search",
+    "brand-retrieve-unified",
+    "web-styleguide",
+    "web-fonts",
+    "web-screenshot",
+    "web-naics",
+    "web-sic",
+  ]);
   const destructiveExternalTools = new Set([
     "create-monitor",
     "run-monitor-now",
@@ -108,7 +120,13 @@ test("every public tool has annotations that match its most privileged behavior"
           destructiveHint: true,
           openWorldHint: true,
         }
-      : destructiveExternalTools.has(tool.name)
+      : readOnlyExternalTools.has(tool.name)
+        ? {
+            readOnlyHint: true,
+            destructiveHint: false,
+            openWorldHint: true,
+          }
+        : destructiveExternalTools.has(tool.name)
         ? {
             readOnlyHint: false,
             destructiveHint: true,
@@ -150,7 +168,7 @@ test("submission annotations and justifications match the published tools", () =
   publishedAnnotations.set("get-brand", {
     readOnlyHint: true,
     destructiveHint: false,
-    openWorldHint: false,
+    openWorldHint: true,
   });
 
   assert.deepEqual(

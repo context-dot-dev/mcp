@@ -687,7 +687,7 @@ server.tool(
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
     outputSchema: z.object({ brand: brandSchema }),
     widget: {

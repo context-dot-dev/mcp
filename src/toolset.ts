@@ -120,7 +120,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-crawl": {
@@ -130,7 +130,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-extract": {
@@ -140,7 +140,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-search": {
@@ -150,7 +150,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "brand-retrieve-unified": {
@@ -160,7 +160,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-styleguide": {
@@ -170,7 +170,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-fonts": {
@@ -180,7 +180,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-screenshot": {
@@ -190,7 +190,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-naics": {
@@ -200,7 +200,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "web-sic": {
@@ -210,7 +210,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
     },
   },
   "list-monitors": {
