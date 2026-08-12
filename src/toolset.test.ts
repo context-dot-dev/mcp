@@ -159,6 +159,7 @@ test("submission annotations and justifications match the published tools", () =
       "utf8",
     ),
   ) as {
+    $schema: string;
     tools: Record<
       string,
       {
@@ -167,6 +168,10 @@ test("submission annotations and justifications match the published tools", () =
       }
     >;
   };
+  assert.equal(
+    submission.$schema,
+    "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  );
   const publishedAnnotations = new Map(
     selectEndpoints(ENDPOINTS).map((tool) => [tool.name, tool.annotations]),
   );
