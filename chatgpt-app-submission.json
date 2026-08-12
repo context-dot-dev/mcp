@@ -172,12 +172,12 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Creates a new asynchronous scraping job in the authenticated account that will fetch up to 25,000 URLs.",
         "open_world_justification": "When webhookUrl is supplied, the batch sends a completion request to a user-selected external endpoint; without a webhook it only writes private Context batch state and reads public pages.",
-        "destructive_justification": "When webhookUrl is supplied, the completion request sent to the external endpoint cannot be recalled; marking this destructive lets the client require confirmation for that irreversible side effect."
+        "destructive_justification": "Creates new batch state and results without deleting or overwriting existing user data, so its updates are additive rather than destructive."
       }
     },
     "list-monitors": {
@@ -196,12 +196,12 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Creates a new recurring monitor record in the authenticated account and immediately triggers a baseline network request to the target URL.",
         "open_world_justification": "A monitor can be configured with an external webhook that Context will call when later runs detect changes; without a webhook it only writes private Context monitor state and reads the target.",
-        "destructive_justification": "A configured webhook can receive future change notifications that cannot be recalled; marking this destructive lets the client require confirmation before creating that external side effect."
+        "destructive_justification": "Creates a new monitor and baseline without deleting or overwriting existing user data, so its updates are additive rather than destructive."
       }
     },
     "delete-monitor": {
@@ -285,7 +285,7 @@
       "justifications": {
         "read_only_justification": "Queues an immediate out-of-schedule network check for a monitor in the authenticated account, creating a new run record.",
         "open_world_justification": "Running a monitor can send a change notification to the monitor's configured external webhook; without a webhook it only writes private Context run state and reads the target.",
-        "destructive_justification": "If the monitor has a webhook, this run can send a change notification that cannot be recalled; marking this destructive lets the client require confirmation for that irreversible side effect."
+        "destructive_justification": "A successful run may replace the monitor's stored comparison baseline with the newly observed state, overwriting data used by future comparisons."
       }
     },
     "web-scrape-html": {

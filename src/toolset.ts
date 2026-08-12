@@ -229,7 +229,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       "Create a recurring monitor for a page, sitemap, or structured extraction target. Use this when the user wants ongoing change detection, not a one-time scrape. Configure the target, schedule, change detection, and optional webhook; Context immediately runs an initial baseline and returns the monitor.",
     annotations: {
       readOnlyHint: false,
-      destructiveHint: true,
+      destructiveHint: false,
       openWorldHint: true,
     },
   },
@@ -333,7 +333,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "run-monitor-now": {
     title: "Run a monitor now",
     description:
-      "Queue an immediate check for a monitor outside its regular schedule. This starts an asynchronous network run and can notify the monitor's configured external webhook when a change is detected. Use get-monitor-run or list-monitor-runs to follow its outcome.",
+      "Queue an immediate check for a monitor outside its regular schedule. This starts an asynchronous network run, may advance the monitor's stored comparison baseline, and can notify its configured external webhook when a change is detected. Use get-monitor-run or list-monitor-runs to follow its outcome.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
@@ -346,7 +346,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       "Start an asynchronous job to scrape up to 25,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhookUrl is supplied, Context sends a completion request to that external endpoint. The call returns a batch ID, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
     annotations: {
       readOnlyHint: false,
-      destructiveHint: true,
+      destructiveHint: false,
       openWorldHint: true,
     },
   },

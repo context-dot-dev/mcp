@@ -68,7 +68,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
-    destructiveHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   });
   assert.deepEqual(tools.get("delete-batch")?.annotations, {
@@ -101,10 +101,9 @@ test("every public tool has annotations that match its most privileged behavior"
     "web-naics",
     "web-sic",
   ]);
+  const additiveExternalTools = new Set(["create-monitor", "submit-batch"]);
   const destructiveExternalTools = new Set([
-    "create-monitor",
     "run-monitor-now",
-    "submit-batch",
     "update-monitor",
   ]);
   const destructivePrivateTools = new Set([
@@ -126,6 +125,12 @@ test("every public tool has annotations that match its most privileged behavior"
             destructiveHint: false,
             openWorldHint: true,
           }
+        : additiveExternalTools.has(tool.name)
+          ? {
+              readOnlyHint: false,
+              destructiveHint: false,
+              openWorldHint: true,
+            }
         : destructiveExternalTools.has(tool.name)
         ? {
             readOnlyHint: false,
