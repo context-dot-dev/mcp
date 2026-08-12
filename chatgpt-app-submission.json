@@ -3,12 +3,12 @@
     "web-sic": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Classifies a company into SIC industry codes from its domain or name without modifying any records.",
-        "open_world_justification": "Only reads company and classification data and cannot publish, submit, message, or otherwise change any external system.",
+        "open_world_justification": "Queries public company and classification information outside the user's private Context account, so its interaction domain includes external public-web entities even though it does not modify them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -27,48 +27,48 @@
     "get-brand": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Fetches live brand intelligence for a domain from the Context API and returns it without modifying any stored data.",
-        "open_world_justification": "Only reads public brand information and cannot publish, submit, message, or otherwise change the source website or another external system.",
+        "open_world_justification": "Retrieves live public brand information for an arbitrary domain outside the user's private Context account, so it interacts with external public-web entities without modifying them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
     "web-crawl": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Follows links from a start URL and returns Markdown content for multiple pages without modifying any source site or account data.",
-        "open_world_justification": "Only reads public pages and follows links; it cannot publish, submit, message, or otherwise change the crawled website or another external system.",
+        "open_world_justification": "Visits and follows links across public pages outside the user's private Context account, so it interacts with an open world of external websites while remaining read-only.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
     "web-fonts": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Identifies font families used by a website without modifying the site or account data.",
-        "open_world_justification": "Only reads typography resources and cannot publish, submit, message, or otherwise change the inspected website or another external system.",
+        "open_world_justification": "Fetches typography resources from an arbitrary public website outside the user's private Context account, so its interaction domain includes external public-web entities without modifying them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
     "web-naics": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Classifies a company into NAICS industry codes from its domain or name without modifying any records.",
-        "open_world_justification": "Only reads company and classification data and cannot publish, submit, message, or otherwise change any external system.",
+        "open_world_justification": "Queries public company and classification information outside the user's private Context account, so its interaction domain includes external public-web entities even though it does not modify them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -87,12 +87,12 @@
     "web-search": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Issues a live web search and returns ranked results without modifying any search index or account data.",
-        "open_world_justification": "Only reads search results and optional result-page content; it cannot publish, submit, message, or otherwise change any external system.",
+        "open_world_justification": "Searches the live public web and can fetch arbitrary result pages outside the user's private Context account, which is an open-world interaction even though it does not modify those pages.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -111,12 +111,12 @@
     "web-extract": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Crawls a website and returns structured JSON shaped by the supplied schema without writing to the site or modifying account data.",
-        "open_world_justification": "Only reads public pages to produce structured data and cannot publish, submit, message, or otherwise change any external system.",
+        "open_world_justification": "Crawls and reads arbitrary public website pages outside the user's private Context account to produce structured data, so it interacts with external public-web entities without modifying them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -243,24 +243,24 @@
     "web-screenshot": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Captures a rendered PNG screenshot of a web page without writing to the target site or modifying account data.",
-        "open_world_justification": "Only renders and reads the requested page and cannot publish, submit, message, or otherwise change the page or another external system.",
+        "open_world_justification": "Loads and renders an arbitrary public web page outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
     "web-styleguide": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Extracts a website's design system data including colors, typography, and spacing without writing to the site or account data.",
-        "open_world_justification": "Only reads visual design data and cannot publish, submit, message, or otherwise change the inspected website or another external system.",
+        "open_world_justification": "Fetches visual design data from an arbitrary public website outside the user's private Context account, so its interaction domain includes external public-web entities without modifying them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -351,12 +351,12 @@
     "web-scrape-sitemap": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Retrieves discovered URLs from a website's sitemap without modifying the site or the user's account.",
-        "open_world_justification": "Only reads sitemap and page URL data and cannot publish, submit, message, or otherwise change the website or another external system.",
+        "open_world_justification": "Fetches sitemap and URL data from an arbitrary public website outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -387,12 +387,12 @@
     "brand-retrieve-unified": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
         "read_only_justification": "Retrieves raw brand intelligence data by domain, name, email, ticker, ISIN, or transaction descriptor without modifying any records.",
-        "open_world_justification": "Only reads public brand information and cannot publish, submit, message, or otherwise change the source website or another external system.",
+        "open_world_justification": "Retrieves public brand and company information for arbitrary external identifiers outside the user's private Context account, so it interacts with external public-web entities without modifying them.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },

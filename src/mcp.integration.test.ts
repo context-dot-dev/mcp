@@ -412,7 +412,7 @@ test("lists the public Context API with safety annotations", async () => {
   const webSearch = tools.find((tool) => tool.name === "web-search");
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);
-  assert.equal(webSearch?.annotations?.openWorldHint, false);
+  assert.equal(webSearch?.annotations?.openWorldHint, true);
 
   const markdown = tools.find(
     (tool) => tool.name === "web-scrape-markdown",
@@ -424,7 +424,7 @@ test("lists the public Context API with safety annotations", async () => {
   const brand = tools.find((tool) => tool.name === "get-brand");
   assert.equal(brand?.annotations?.readOnlyHint, true);
   assert.equal(brand?.annotations?.destructiveHint, false);
-  assert.equal(brand?.annotations?.openWorldHint, false);
+  assert.equal(brand?.annotations?.openWorldHint, true);
 
   const submitBatch = tools.find((tool) => tool.name === "submit-batch");
   assert.equal(submitBatch?.annotations?.readOnlyHint, false);
