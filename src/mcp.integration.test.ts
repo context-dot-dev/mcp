@@ -409,6 +409,10 @@ test("lists the public Context API with safety annotations", async () => {
   const createMonitor = tools.find((tool) => tool.name === "create-monitor");
   assert.equal(createMonitor?.annotations?.readOnlyHint, false);
   assert.equal(createMonitor?.annotations?.destructiveHint, false);
+  const parseDocument = tools.find((tool) => tool.name === "parse-document");
+  assert.equal(parseDocument?.annotations?.readOnlyHint, false);
+  assert.equal(parseDocument?.annotations?.destructiveHint, false);
+  assert.equal(parseDocument?.annotations?.openWorldHint, false);
   const webSearch = tools.find((tool) => tool.name === "web-search");
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);

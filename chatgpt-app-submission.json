@@ -218,14 +218,14 @@
     },
     "parse-document": {
       "annotations": {
-        "readOnlyHint": true,
+        "readOnlyHint": false,
         "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Converts supplied file bytes to Markdown through the Context API without creating or modifying any stored records.",
-        "open_world_justification": "Processes file bytes through the Context API without accessing or altering any external internet state beyond the API call itself.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+        "read_only_justification": "Sends user-supplied file bytes to the Context API and transforms their content into new Markdown, so it is not classified as read-only for OpenAI review.",
+        "open_world_justification": "Processes the supplied file within the authenticated Context service and does not access public websites, external accounts, or public platforms.",
+        "destructive_justification": "Creates a converted Markdown response without deleting, overwriting, or altering the user's original file."
       }
     },
     "update-monitor": {

@@ -125,6 +125,12 @@ test("every public tool has annotations that match its most privileged behavior"
             destructiveHint: false,
             openWorldHint: true,
           }
+        : tool.name === "parse-document"
+          ? {
+              readOnlyHint: false,
+              destructiveHint: false,
+              openWorldHint: false,
+            }
         : additiveExternalTools.has(tool.name)
           ? {
               readOnlyHint: false,

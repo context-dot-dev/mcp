@@ -76,9 +76,9 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "parse-document": {
     title: "Parse a file to Markdown",
     description:
-      "Convert PDF, Office, spreadsheet, presentation, image, code, data, or text file bytes into clean Markdown for agents, analysis, and RAG. Use this when the source is a file rather than a URL. Pass the file as base64 with its extension; the response contains the parsed Markdown.",
+      "Send PDF, Office, spreadsheet, presentation, image, code, data, or text file bytes to Context and convert them into clean Markdown for agents, analysis, and RAG. Use this when the source is a file rather than a URL. This transformation consumes Context credits but does not alter the original file.",
     annotations: {
-      readOnlyHint: true,
+      readOnlyHint: false,
       destructiveHint: false,
       openWorldHint: false,
     },
