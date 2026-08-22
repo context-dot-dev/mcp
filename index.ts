@@ -151,6 +151,7 @@ const server = new MCPServer({
   websiteUrl: "https://context.dev",
   icons: [{ src: "icon.png", mimeType: "image/png", sizes: ["128x128"] }],
   publicLandingPage: true,
+  stateless: true,
   ...(oauthProvider ? { oauth: oauthProvider } : {}),
 });
 
