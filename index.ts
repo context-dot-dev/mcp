@@ -33,6 +33,10 @@ import {
   createOAuthBrowserCookie,
   hasValidOAuthBrowserCookie,
 } from "./src/oauth-browser-transaction";
+import {
+  createNativeAuthorizationRedirect,
+  createNativeCallbackRedirect,
+} from "./src/native-oauth-redirect";
 import { selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
@@ -457,6 +461,33 @@ if (oauthProvider) {
       ),
     );
   });
+  const mcpBaseUrl = (process.env.MCP_URL || "http://localhost:3000").replace(
+    /\/+$/,
+    "",
+  );
+  server.app.on(["GET", "POST"], "/authorize", async (context, next) => {
+    const params =
+      context.req.method === "POST"
+        ? await context.req.parseBody()
+        : context.req.query();
+    const result = createNativeAuthorizationRedirect(params, {
+      authEndpoint: oauthProvider.getAuthEndpoint(),
+      callbackUri: `${mcpBaseUrl}/oauth/callback`,
+      clientId: process.env.CONTEXT_OAUTH_CLIENT_ID!,
+      audience: `${mcpBaseUrl}/mcp`,
+    });
+    if (!result.handled) {
+      await next();
+      return;
+    }
+    if ("error" in result) {
+      return context.json(
+        { error: "invalid_request", error_description: result.error },
+        400,
+      );
+    }
+    return context.redirect(result.location, 302);
+  });
   // The proxy overwrites client credentials before the upstream exchange, so
   // enforce the registration binding for DCR clients here: a bad signature is
   // invalid_client per RFC 6749 §5.2 (prompting well-behaved clients to
@@ -523,6 +554,20 @@ if (oauthProvider) {
       clearOAuthBrowserCookie(state, secureOAuthCookies),
     );
     await next();
+  });
+  server.app.get("/oauth/callback", async (context, next) => {
+    const result = createNativeCallbackRedirect(context.req.query());
+    if (!result.handled) {
+      await next();
+      return;
+    }
+    if ("error" in result) {
+      return context.json(
+        { error: "invalid_request", error_description: result.error },
+        400,
+      );
+    }
+    return context.redirect(result.location, 302);
   });
 }
 
