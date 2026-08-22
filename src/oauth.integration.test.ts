@@ -332,6 +332,7 @@ test("keeps the legacy shared-client path gated by the trusted-domain list", asy
     "https://oauth.n8n.cloud/oauth2/callback",
     "https://global.consent.azure-apim.net/redirect/context",
     "https://europe-002.consent.azure-apim.net/redirect/context",
+    "cursor://anysphere.cursor-mcp/oauth/callback",
   ]) {
     const trustedLegacyAuthorize = await fetch(
       authorizeUrl("dynamic-client", redirectUri),
@@ -349,6 +350,7 @@ test("keeps the legacy shared-client path gated by the trusted-domain list", asy
     // only the vendor-operated OAuth hosts are trusted.
     "https://attacker-workspace.app.n8n.cloud/webhook/steal",
     "https://attacker-instance.azure-apim.net/redirect/context",
+    "com.attacker.app:/oauth/callback",
   ]) {
     const rejectedAuthorization = await fetch(
       authorizeUrl("dynamic-client", redirectUri),
@@ -466,6 +468,51 @@ test("completes the proxy flow for a registration-bound client on an unlisted do
   assert.equal(upstreamTokenRequest.get("grant_type"), "authorization_code");
   assert.equal(upstreamTokenRequest.get("code"), "local-authorization-code");
   assert.equal(upstreamTokenRequest.get("code_verifier"), "local-code-verifier");
+});
+
+test("completes the proxy flow for a registered native app callback", async () => {
+  const clientRedirect = "com.xai.grok:/oauth/callback";
+  const registration = await registerClient("Grok mobile", [clientRedirect]);
+  assert.equal(registration.status, 201);
+
+  const authorizeResponse = await fetch(
+    authorizeUrl(String(registration.payload.client_id), clientRedirect, {
+      state: "native-client-state",
+      scope: "api.read api.write",
+    }),
+    { redirect: "manual" },
+  );
+  assert.equal(authorizeResponse.status, 302);
+  const browserCookie = authorizeResponse.headers.get("set-cookie");
+  assert.ok(browserCookie);
+  const upstreamLocation = new URL(authorizeResponse.headers.get("location")!);
+  assert.equal(
+    upstreamLocation.searchParams.get("redirect_uri"),
+    `${mcpBase}/oauth/callback`,
+  );
+
+  const upstreamAuthorizeResponse = await fetch(upstreamLocation, {
+    redirect: "manual",
+  });
+  assert.equal(upstreamAuthorizeResponse.status, 302);
+  const callbackResponse = await fetch(
+    upstreamAuthorizeResponse.headers.get("location")!,
+    {
+      redirect: "manual",
+      headers: { cookie: browserCookie.split(";")[0] },
+    },
+  );
+  assert.equal(callbackResponse.status, 302);
+  const finalRedirect = new URL(callbackResponse.headers.get("location")!);
+  assert.equal(
+    `${finalRedirect.protocol}${finalRedirect.pathname}`,
+    "com.xai.grok:/oauth/callback",
+  );
+  assert.equal(
+    finalRedirect.searchParams.get("code"),
+    "local-authorization-code",
+  );
+  assert.equal(finalRedirect.searchParams.get("state"), "native-client-state");
 });
 
 test("enforces the registration binding at the token endpoint", async () => {
