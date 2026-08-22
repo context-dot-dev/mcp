@@ -288,6 +288,38 @@ test("rejects malformed JSON-RPC requests with a protocol error", async () => {
   assert.equal(payload.id, null);
 });
 
+test("does not allocate sessions for stream-capable clients", async () => {
+  const responses = await Promise.all(
+    Array.from({ length: 25 }, (_, index) =>
+      fetch(`${mcpBase}/mcp`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/event-stream",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: index + 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-11-25",
+            capabilities: {},
+            clientInfo: { name: "stateless-test", version: "1.0.0" },
+          },
+        }),
+      }),
+    ),
+  );
+
+  for (const response of responses) {
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("mcp-session-id"), null);
+    assert.match(response.headers.get("content-type") ?? "", /^application\/json/);
+    const payload = await response.json();
+    assert.equal(payload.result.serverInfo.name, "context");
+  }
+});
+
 test("accepts a legacy query API key without OAuth", async () => {
   captured.length = 0;
   const client = new Client({
