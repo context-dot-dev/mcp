@@ -96,6 +96,18 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
+    "get-news-search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches live and historical public company news and returns matching articles without modifying source sites or account records.",
+        "open_world_justification": "Queries news about an arbitrary company from public publishers outside the user's private Context account, so it interacts with external public-web data while remaining read-only.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
     "get-monitor": {
       "annotations": {
         "readOnlyHint": true,
@@ -413,7 +425,7 @@
   "app_info": {
     "category": "DEVELOPER_TOOLS",
     "subtitle": "Live web data for AI agents",
-    "description": "Context turns the live web and files into clean, agent-ready data inside ChatGPT. Search for current information, read a known page as Markdown, crawl websites, extract schema-shaped JSON, parse documents, retrieve company and brand intelligence, inspect visual design systems, run asynchronous scraping batches across thousands of URLs, and monitor websites for meaningful changes over time. Some scraping tools can perform explicitly requested browser actions to reveal content. Context does not provide general messaging, calendar, account-management, or social-publishing integrations.",
+    "description": "Context turns the live web and files into clean, agent-ready data inside ChatGPT. Search for current information and company news, read a known page as Markdown, crawl websites, extract schema-shaped JSON, parse documents, retrieve company and brand intelligence, inspect visual design systems, run asynchronous scraping batches across thousands of URLs, and monitor websites for meaningful changes over time. Some scraping tools can perform explicitly requested browser actions to reveal content. Context does not provide general messaging, calendar, account-management, or social-publishing integrations.",
     "display_name": "Context.dev"
   },
   "test_cases": [
@@ -430,6 +442,14 @@
       "user_prompt": "Find recent official announcements about the Model Context Protocol from the past 30 days. Give me the title, publisher, publication date, and URL for each result, and clearly say if there are no matching official announcements.",
       "expected_output": "Returns relevant recent results from official sources with titles, publishers, dates, and URLs, or clearly states that no matching official announcements were found.",
       "tools_triggered": "web-search",
+      "expected_output_url": null,
+      "file_attachment_urls": null
+    },
+    {
+      "description": "Search company-specific news by ticker with recency and article-type filters.",
+      "user_prompt": "Find the newest verified editorial coverage and press releases about Apple (ticker AAPL) from the past 30 days. Return each story's title, publisher, publication date, article type, and URL, and clearly say if there are no matches.",
+      "expected_output": "Uses the company-news search with ticker AAPL, a newest-first date filter, and editorial and press-release article types; returns only matching stories with the requested source details or clearly states that none were found.",
+      "tools_triggered": "get-news-search",
       "expected_output_url": null,
       "file_attachment_urls": null
     },

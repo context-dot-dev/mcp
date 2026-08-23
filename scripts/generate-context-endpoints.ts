@@ -14,6 +14,7 @@ const CORE_TOOL_NAMES: Record<string, string> = {
   "POST /web/crawl": "web-crawl",
   "POST /web/extract": "web-extract",
   "POST /web/search": "web-search",
+  "GET /news/search": "get-news-search",
   "GET /web/competitors": "web-competitors",
   "POST /people/retrieve": "people-retrieve",
   "GET /brand/retrieve": "brand-retrieve",

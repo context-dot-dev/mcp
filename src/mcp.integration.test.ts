@@ -51,6 +51,22 @@ function batchResponse(method: string, requestUrl: string) {
       },
     };
   }
+  if (method === "GET" && path === "/news/search") {
+    return {
+      status: 200,
+      body: {
+        data: [
+          {
+            id: "story_demo",
+            title: "Example company announcement",
+            url: "https://news.example.test/story",
+          },
+        ],
+        has_more: false,
+        next_cursor: null,
+      },
+    };
+  }
   if (method === "POST" && path === "/batch/submit") {
     return {
       status: 202,
@@ -348,7 +364,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 34);
+  assert.equal(tools.length, 35);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -406,6 +422,7 @@ test("lists the public Context API with safety annotations", async () => {
     "parse-document",
     "web-scrape-html",
     "web-scrape-sitemap",
+    "get-news-search",
     "brand-retrieve-unified",
     "web-fonts",
     "web-naics",
@@ -449,6 +466,18 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);
   assert.equal(webSearch?.annotations?.openWorldHint, true);
+  const newsSearch = tools.find((tool) => tool.name === "get-news-search");
+  assert.equal(newsSearch?.annotations?.readOnlyHint, true);
+  assert.equal(newsSearch?.annotations?.destructiveHint, false);
+  assert.equal(newsSearch?.annotations?.openWorldHint, true);
+  const newsProperties = (newsSearch?.inputSchema.properties ?? {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assert.equal(newsProperties.source_domain?.type, "array");
+  assert.equal(newsProperties.source_domain?.anyOf, undefined);
+  assert.equal(newsProperties.from?.type, "number");
+  assert.equal(newsProperties.from?.anyOf, undefined);
 
   const markdown = tools.find(
     (tool) => tool.name === "web-scrape-markdown",
@@ -467,6 +496,59 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(submitBatch?.annotations?.destructiveHint, false);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+});
+
+test("searches company news with entity, source, date, and article filters", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "get-news-search",
+    arguments: {
+      ticker: "AAPL",
+      source_domain: ["reuters.com", "apple.com"],
+      language: ["en"],
+      article_type: ["editorial", "press_release"],
+      sort: "newest",
+      from: 1_725_148_800_000,
+      to: 1_725_235_200_000,
+      limit: 10,
+      include_unverified: false,
+      tags: ["mcp", "news"],
+    },
+  });
+  await client.close();
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.method, "GET");
+  const url = new URL(captured[0]!.url, upstreamBase);
+  assert.equal(url.pathname, "/news/search");
+  assert.equal(url.searchParams.get("ticker"), "AAPL");
+  assert.deepEqual(url.searchParams.getAll("source_domain"), [
+    "reuters.com",
+    "apple.com",
+  ]);
+  assert.deepEqual(url.searchParams.getAll("language"), ["en"]);
+  assert.deepEqual(url.searchParams.getAll("article_type"), [
+    "editorial",
+    "press_release",
+  ]);
+  assert.equal(url.searchParams.get("sort"), "newest");
+  assert.equal(url.searchParams.get("from"), "1725148800000");
+  assert.equal(url.searchParams.get("to"), "1725235200000");
+  assert.equal(url.searchParams.get("limit"), "10");
+  assert.equal(url.searchParams.get("include_unverified"), "false");
+  assert.deepEqual(url.searchParams.getAll("tags"), ["mcp", "news"]);
+  assert.deepEqual(resultObject(result), {
+    data: [
+      {
+        id: "story_demo",
+        title: "Example company announcement",
+        url: "https://news.example.test/story",
+      },
+    ],
+    has_more: false,
+    next_cursor: null,
+  });
 });
 
 test("executes the complete batch lifecycle with headers, bodies, paths, and queries", async () => {

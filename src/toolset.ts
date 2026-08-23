@@ -9,6 +9,7 @@ const PUBLIC_API_TOOLS = new Set([
   "web-crawl",
   "web-extract",
   "web-search",
+  "get-news-search",
   "brand-retrieve-unified",
   "web-styleguide",
   "web-fonts",
@@ -147,6 +148,16 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     title: "Search the live web",
     description:
       "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape-markdown instead.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+  },
+  "get-news-search": {
+    title: "Search company news",
+    description:
+      "Search news by exactly one company name, domain, ticker, or ISIN. Filter by publisher, language, date, or article type; paginate results with verified relevance and quality signals. Use web-search for broader topics.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
