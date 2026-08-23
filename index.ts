@@ -688,20 +688,6 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
     "Human-readable monitor name used to identify it in lists, runs, changes, and notifications.",
   "create-monitor.webhook":
     "Optional webhook configuration for delivering monitor change notifications.",
-  "get-news-search.company": "Company name (choose one ID).",
-  "get-news-search.company_domain": "Company domain (choose one ID).",
-  "get-news-search.ticker": "Stock ticker (choose one ID).",
-  "get-news-search.isin": "ISIN (choose one ID).",
-  "get-news-search.source_domain": "Publisher domains.",
-  "get-news-search.language": "Language codes.",
-  "get-news-search.article_type": "Article types.",
-  "get-news-search.sort": "Result order.",
-  "get-news-search.from": "Start, epoch ms.",
-  "get-news-search.to": "End, epoch ms.",
-  "get-news-search.limit": "Page size.",
-  "get-news-search.cursor": "Pagination cursor.",
-  "get-news-search.include_unverified": "Include unverified company matches.",
-  "get-news-search.tags": "Usage tags.",
   "submit-batch.input":
     "Batch job definition. Choose a scrape or crawl mode and provide the URLs, output format, and processing options for that mode.",
   "update-monitor.name": "New human-readable name for the monitor.",
@@ -723,6 +709,9 @@ function mcpParameterDescription(
   }
   if (parameterName === "change_id") {
     return "Unique change ID returned by a monitor changes endpoint, for example `chg_123`.";
+  }
+  if (parameterName === "run_id") {
+    return "Unique monitor run ID returned by run-monitor-now or list-monitor-runs, for example `run_123`.";
   }
   return undefined;
 }

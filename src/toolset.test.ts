@@ -172,6 +172,9 @@ test("submission annotations and justifications match the published tools", () =
     ),
   ) as {
     $schema: string;
+    schema_version: number;
+    test_cases: unknown[];
+    negative_test_cases: unknown[];
     tools: Record<
       string,
       {
@@ -184,6 +187,9 @@ test("submission annotations and justifications match the published tools", () =
     submission.$schema,
     "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
   );
+  assert.equal(submission.schema_version, 1);
+  assert.equal(submission.test_cases.length, 5);
+  assert.equal(submission.negative_test_cases.length, 3);
   const publishedAnnotations = new Map(
     selectEndpoints(ENDPOINTS).map((tool) => [tool.name, tool.annotations]),
   );

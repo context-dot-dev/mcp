@@ -58,193 +58,217 @@ export const ENDPOINTS: Endpoint[] = [
   {
     "name": "get-news-search",
     "title": "Search company news",
-    "method": "GET",
+    "method": "POST",
     "path": "/news/search",
-    "description": "Search company news — Searches live and historical company news by exactly one company name, company domain, ticker, or ISIN. Results can be filtered by source domain, language, date, and article type, and include stable story IDs, source metadata, verified entity relevance, cursor pagination, and an explicit quality signal.",
-    "parameters": [
-      {
-        "name": "company",
-        "in": "query",
-        "required": false,
-        "description": "Company name. Provide exactly one entity identifier.",
-        "schema": {
-          "type": "string",
-          "description": "Company name. Provide exactly one entity identifier."
-        }
-      },
-      {
-        "name": "company_domain",
-        "in": "query",
-        "required": false,
-        "description": "Company website domain, such as apple.com. Provide exactly one entity identifier.",
-        "schema": {
-          "type": "string",
-          "description": "Company website domain, such as apple.com. Provide exactly one entity identifier."
-        }
-      },
-      {
-        "name": "ticker",
-        "in": "query",
-        "required": false,
-        "description": "Public-company ticker. Provide exactly one entity identifier.",
-        "schema": {
-          "type": "string",
-          "description": "Public-company ticker. Provide exactly one entity identifier."
-        }
-      },
-      {
-        "name": "isin",
-        "in": "query",
-        "required": false,
-        "description": "International Securities Identification Number. Provide exactly one entity identifier.",
-        "schema": {
-          "type": "string",
-          "description": "International Securities Identification Number. Provide exactly one entity identifier."
-        }
-      },
-      {
-        "name": "source_domain",
-        "in": "query",
-        "required": false,
-        "description": "Publisher domains to include. Repeat the parameter or use comma-separated values.",
-        "schema": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
+    "description": "Search company news — Searches live and historical company news for one company, identified in searchBy by name, domain, ticker (optionally disambiguated by exchange), or ISIN. Results can be filtered by publisher domain, publisher country, article language, article type, and published-at date, and include stable story IDs, source metadata, verified entity relevance, and cursor pagination.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "searchBy": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "entity"
+                ],
+                "description": "How to search. Only entity search is supported."
+              },
+              "entity": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/NewsSearchEntityByName"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NewsSearchEntityByDomain"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NewsSearchEntityByTicker"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NewsSearchEntityByIsin"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "name": "#/components/schemas/NewsSearchEntityByName",
+                    "domain": "#/components/schemas/NewsSearchEntityByDomain",
+                    "ticker": "#/components/schemas/NewsSearchEntityByTicker",
+                    "isin": "#/components/schemas/NewsSearchEntityByIsin"
+                  }
+                },
+                "description": "The company to search news for, identified by name, domain, ticker, or ISIN."
+              }
+            },
+            "required": [
+              "type",
+              "entity"
+            ],
+            "additionalProperties": false,
+            "description": "What to search for."
           },
-          "maxItems": 50,
-          "description": "Publisher domains to include. Repeat the parameter or use comma-separated values."
-        }
-      },
-      {
-        "name": "language",
-        "in": "query",
-        "required": false,
-        "description": "Language tags to include. Repeat the parameter or use comma-separated values.",
-        "schema": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string",
-            "pattern": "^[a-z]{2,3}$"
+          "filterBy": {
+            "type": "object",
+            "properties": {
+              "sourceDomain": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Publisher domains to include. Up to 3."
+              },
+              "sourceCountry": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ae",
+                    "ar",
+                    "au",
+                    "ca",
+                    "cg",
+                    "ch",
+                    "cl",
+                    "cz",
+                    "de",
+                    "fi",
+                    "fr",
+                    "gb",
+                    "hk",
+                    "il",
+                    "in",
+                    "jp",
+                    "kr",
+                    "mx",
+                    "ng",
+                    "nl",
+                    "qa",
+                    "sa",
+                    "se",
+                    "sg",
+                    "us",
+                    "za"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Publisher countries to include, as lowercase ISO 3166-1 alpha-2 codes. Up to 3."
+              },
+              "articleLanguage": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ar",
+                    "de",
+                    "en",
+                    "es",
+                    "fr",
+                    "hi",
+                    "it",
+                    "ja",
+                    "ko",
+                    "nl",
+                    "pt",
+                    "ru",
+                    "zh"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Article languages to include. Up to 3."
+              },
+              "articleType": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "editorial",
+                    "press_release",
+                    "regulatory_filing",
+                    "advisory"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Article types to include. Up to 3."
+              },
+              "date": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "integer",
+                    "description": "Inclusive start of the published-at window, in epoch milliseconds."
+                  },
+                  "to": {
+                    "type": "integer",
+                    "description": "Inclusive end of the published-at window, in epoch milliseconds."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Published-at window in epoch milliseconds."
+              }
+            },
+            "default": {},
+            "additionalProperties": false,
+            "description": "Optional result filters."
           },
-          "maxItems": 20,
-          "description": "Language tags to include. Repeat the parameter or use comma-separated values."
-        }
-      },
-      {
-        "name": "article_type",
-        "in": "query",
-        "required": false,
-        "description": "Article types to include. Repeat the parameter or use comma-separated values.",
-        "schema": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string",
-            "enum": [
-              "editorial",
-              "press_release",
-              "regulatory_filing",
-              "advisory"
-            ]
+          "sortBy": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "relevance",
+                  "newest"
+                ],
+                "description": "Result ordering."
+              }
+            },
+            "default": {
+              "type": "newest"
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false,
+            "description": "Result ordering. Defaults to newest."
           },
-          "maxItems": 4,
-          "description": "Article types to include. Repeat the parameter or use comma-separated values."
-        }
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10,
+            "description": "Maximum results to return. Defaults to 10."
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 300,
+            "description": "Opaque next_cursor from the previous response, or null for the first page."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "required": [
+          "searchBy"
+        ],
+        "additionalProperties": false
       },
-      {
-        "name": "sort",
-        "in": "query",
-        "required": false,
-        "description": "Result ordering.",
-        "schema": {
-          "type": "string",
-          "enum": [
-            "relevance",
-            "newest"
-          ],
-          "default": "relevance",
-          "description": "Result ordering."
-        }
-      },
-      {
-        "name": "from",
-        "in": "query",
-        "required": false,
-        "description": "Inclusive start time as ISO 8601, YYYY-MM-DD, or epoch milliseconds.",
-        "schema": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "description": "Inclusive start time as ISO 8601, YYYY-MM-DD, or epoch milliseconds."
-        }
-      },
-      {
-        "name": "to",
-        "in": "query",
-        "required": false,
-        "description": "Inclusive end time as ISO 8601, YYYY-MM-DD, or epoch milliseconds.",
-        "schema": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "description": "Inclusive end time as ISO 8601, YYYY-MM-DD, or epoch milliseconds."
-        }
-      },
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum results to return.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum results to return."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Opaque next_cursor from the previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Opaque next_cursor from the previous response."
-        }
-      },
-      {
-        "name": "include_unverified",
-        "in": "query",
-        "required": false,
-        "description": "Include candidates that could not be entity-verified. Defaults to false.",
-        "schema": {
-          "type": "boolean",
-          "default": false,
-          "description": "Include candidates that could not be entity-verified. Defaults to false."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
+      "contentType": "application/json",
+      "binary": false
+    },
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -346,18 +370,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Preserve hyperlinks in Markdown output",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": true,
           "description": "Preserve hyperlinks in Markdown output"
         }
@@ -368,18 +381,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Include image references in Markdown output",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Include image references in Markdown output"
         }
@@ -390,18 +392,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Shorten base64-encoded image data in the Markdown output",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": true,
           "description": "Shorten base64-encoded image data in the Markdown output"
         }
@@ -412,18 +403,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Extract only the main content from HTML-like inputs",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Extract only the main content from HTML-like inputs"
         }
@@ -432,22 +412,11 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "ocr",
         "in": "query",
         "required": false,
-        "description": "When true for PDF inputs, detect and OCR images embedded in the selected pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. pdf.start/pdf.end limit the inclusive page range. When false, all OCR is disabled, including the automatic scanned-PDF fallback.",
+        "description": "When true for PDF inputs, OCR the selected pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. pdf.start/pdf.end limit the inclusive page range. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
-          "description": "When true for PDF inputs, detect and OCR images embedded in the selected pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. pdf.start/pdf.end limit the inclusive page range. When false, all OCR is disabled, including the automatic scanned-PDF fallback."
+          "description": "When true for PDF inputs, OCR the selected pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. pdf.start/pdf.end limit the inclusive page range. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
         }
       },
       {
@@ -555,20 +524,9 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "object",
           "properties": {
             "shouldParse": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": true,
-              "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 WEBSITE_ACCESS_ERROR is returned."
+              "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
             },
             "start": {
               "type": "integer",
@@ -581,20 +539,9 @@ export const ENDPOINTS: Endpoint[] = [
               "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
             },
             "ocr": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": false,
-              "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+              "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
             }
           },
           "default": {
@@ -610,18 +557,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When true, iframes are rendered inline into the returned HTML.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When true, iframes are rendered inline into the returned HTML."
         }
@@ -632,18 +568,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When true, return only the page's main content in the HTML response, excluding headers, footers, sidebars, and navigation when detectable.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When true, return only the page's main content in the HTML response, excluding headers, footers, sidebars, and navigation when detectable."
         }
@@ -723,18 +648,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When true, waits briefly for CSS and transition animations to settle before extracting HTML. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When true, waits briefly for CSS and transition animations to settle before extracting HTML. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages."
         }
@@ -825,7 +739,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Scrape Markdown",
     "method": "GET",
     "path": "/web/scrape/markdown",
-    "description": "Scrape Markdown — Scrapes the given URL into LLM usable Markdown. Inspect key_metadata on JSON responses from a recognized API key; use error_code to distinguish stable failure categories. ### Billing & errors | HTTP status | Billed? | Meaning | | --- | --- | --- | | 200 | Yes — 1 credit, or 2 credits with actions | Successful scrape, including a zero-length result when includeSelectors matched nothing | | 400 | No | Invalid input, skipped PDF, or the page could not be scraped | | 401 / 403 | No | Invalid/disabled key, insufficient permissions, or credits exhausted; inspect error_code | | 404 | No | Target page returned or fingerprinted as not found | | 408 | No | Request timed out | | 415 | No | Unsupported content type | | 429 | No | Per-minute rate limit exceeded; honor Retry-After | | 500 | No | Internal error |",
+    "description": "Scrape Markdown — Scrapes the given URL into LLM usable Markdown. Inspect key_metadata on JSON responses from a recognized API key; use error_code to distinguish stable failure categories. ### YouTube YouTube URLs return the video or channel itself rather than the surrounding player and navigation chrome. A URL addressing a single video (`/watch`, `youtu.be`, `/shorts`, `/embed`, `/live`) returns its title, channel, duration, view count, keywords, full description, and the transcript when the video has captions that can be retrieved; videos without captions return everything except the transcript. A channel URL (`/channel/UC…`, `/@handle`, `/c/…`, `/user/…`) returns its name, handle, subscriber count, video count, and full description. When `includeImages=true`, video responses also include the thumbnail and channel responses include the avatar. Costs the same as any other scrape. ### Billing & errors | HTTP status | Billed? | Meaning | | --- | --- | --- | | 200 | Yes — 1 credit, or 2 credits with actions | Successful scrape, including a zero-length result when includeSelectors matched nothing | | 400 | No | Invalid input, skipped PDF, or the page could not be scraped. error_code WEBSITE_BLOCKED specifically means the site answered with an anti-bot challenge, CAPTCHA wall, or login shell instead of the page (even when the site returned HTTP 200) — retrying later or from anothe…",
     "parameters": [
       {
         "name": "url",
@@ -845,18 +759,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Preserve hyperlinks in Markdown output",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": true,
           "description": "Preserve hyperlinks in Markdown output"
         }
@@ -867,18 +770,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Include image references in Markdown output",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Include image references in Markdown output"
         }
@@ -889,18 +781,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Shorten base64-encoded image data in the Markdown output",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": true,
           "description": "Shorten base64-encoded image data in the Markdown output"
         }
@@ -911,20 +792,20 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Extract only the main content of the page, excluding headers, footers, sidebars, and navigation",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Extract only the main content of the page, excluding headers, footers, sidebars, and navigation"
+        }
+      },
+      {
+        "name": "includeHTML",
+        "in": "query",
+        "required": false,
+        "description": "When true, the response also includes an `html` field with the page HTML the Markdown was converted from — the same body the Scrape HTML endpoint returns for the equivalent request.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, the response also includes an `html` field with the page HTML the Markdown was converted from — the same body the Scrape HTML endpoint returns for the equivalent request."
         }
       },
       {
@@ -936,20 +817,9 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "object",
           "properties": {
             "shouldParse": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": true,
-              "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 WEBSITE_ACCESS_ERROR is returned."
+              "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
             },
             "start": {
               "type": "integer",
@@ -962,20 +832,9 @@ export const ENDPOINTS: Endpoint[] = [
               "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
             },
             "ocr": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": false,
-              "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+              "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
             }
           },
           "default": {
@@ -991,18 +850,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When true, the contents of iframes are rendered to Markdown.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When true, the contents of iframes are rendered to Markdown."
         }
@@ -1082,18 +930,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When true, waits briefly for CSS and transition animations to settle before converting to Markdown. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When true, waits briefly for CSS and transition animations to settle before converting to Markdown. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages."
         }
@@ -1226,50 +1063,17 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "properties": {
             "resolution": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": false,
               "description": "Measure image width and height when possible."
             },
             "hostedUrl": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": false,
               "description": "Host materializable images on the Brand.dev CDN and return their URL and MIME type."
             },
             "classification": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "true",
-                    "false"
-                  ]
-                }
-              ],
+              "type": "boolean",
               "default": false,
               "description": "Classify each image by visual asset type."
             },
@@ -1291,18 +1095,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When true, visually duplicate images are removed: every image is loaded and perceptually hashed, and only the highest-resolution copy of each duplicate group is kept. Images that cannot be downloaded or hashed are kept. Default: false.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When true, visually duplicate images are removed: every image is loaded and perceptually hashed, and only the highest-resolution copy of each duplicate group is kept. Images that cannot be downloaded or hashed are kept. Default: false."
         }
@@ -1384,7 +1177,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Crawl Sitemap",
     "method": "GET",
     "path": "/web/scrape/sitemap",
-    "description": "Crawl Sitemap — Crawl an entire website's sitemap and return all discovered page URLs.",
+    "description": "Crawl Sitemap — Crawl an entire website's sitemap and return all discovered page URLs. Pass `search` to have the crawled sitemap filtered down to the pages about a phrase (for example `pricing and plans` or `api authentication docs`), most relevant first — a searched crawl scans the whole sitemap and costs 2 credits instead of 1.",
     "parameters": [
       {
         "name": "domain",
@@ -1431,6 +1224,19 @@ export const ENDPOINTS: Endpoint[] = [
           "maxLength": 256,
           "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
           "example": "^https?://[^/]+/blog/"
+        }
+      },
+      {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+        "schema": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200,
+          "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+          "example": "help center and troubleshooting articles"
         }
       },
       {
@@ -1519,7 +1325,7 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "urlRegex": {
             "type": "string",
-            "description": "Regex pattern. Only URLs matching this pattern will be followed and scraped.",
+            "description": "Regex pattern. Only URLs matching this pattern will be followed and scraped. An automatic prefix scope in the form ^<starting URL> follows a redirect of the starting page.",
             "example": "^https?://[^/]+/blog/"
           },
           "includeLinks": {
@@ -1558,7 +1364,7 @@ export const ENDPOINTS: Endpoint[] = [
               "ocr": {
                 "type": "boolean",
                 "default": false,
-                "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost."
               },
               "start": {
                 "type": "integer",
@@ -1612,7 +1418,8 @@ export const ENDPOINTS: Endpoint[] = [
             "type": "integer",
             "minimum": 0,
             "maximum": 30000,
-            "description": "Optional browser wait time in milliseconds after initial page load for each crawled page. Min: 0. Max: 30000 (30 seconds). "
+            "default": 3500,
+            "description": "Browser wait time in milliseconds after initial page load for each crawled page. Defaults to 3500 (3.5 seconds). Min: 0. Max: 30000 (30 seconds)."
           },
           "settleAnimations": {
             "type": "boolean",
@@ -1677,7 +1484,7 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "schema": {
             "type": "object",
-            "description": "JSON Schema for the returned data object. TypeScript Zod users can pass a JSON Schema generated from a Zod object; Python users can pass the equivalent JSON Schema object.",
+            "description": "JSON Schema for the returned data object. Image fields such as `image_urls` or `product_photos` automatically make page image references available to extraction, so product data and photos can be returned in one call. TypeScript Zod users can pass a JSON Schema generated from a Zod object; Python users can pass the equivalent JSON Schema object.",
             "additionalProperties": true,
             "example": {
               "type": "object",
@@ -1787,12 +1594,20 @@ export const ENDPOINTS: Endpoint[] = [
             "default": false,
             "description": "When true, waits briefly for CSS and transition animations to settle before extracting each crawled page. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages."
           },
+          "actions": {
+            "type": "array",
+            "maxItems": 5,
+            "description": "Optional browser actions executed in order on the requested page after it loads and before extraction. Requires a paid plan. When actions are provided and stopAfterMs is omitted, the crawl budget defaults to 110000 ms.",
+            "items": {
+              "$ref": "#/components/schemas/WebScrapeAction"
+            }
+          },
           "stopAfterMs": {
             "type": "integer",
             "minimum": 10000,
             "maximum": 110000,
             "default": 80000,
-            "description": "Soft time budget for the crawl in milliseconds. Min: 10000 (10s). Max: 110000 (110s). Default: 80000 (80s)."
+            "description": "Soft time budget for the crawl in milliseconds. Min: 10000 (10s). Max: 110000 (110s). Defaults to 80000 (80s), or 110000 (110s) when browser actions are provided."
           },
           "timeoutMS": {
             "$ref": "#/components/schemas/TimeoutMS"
@@ -2270,11 +2085,32 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "post-people-enrich",
+    "title": "Enrich Person",
+    "method": "POST",
+    "path": "/people/enrich",
+    "description": "Enrich Person — Finds and normalizes the best available person candidate from additive identity clues, then assigns an identity match score from 0 to 100. Available on all paid plans. Successful requests cost 20 credits. Disposable and free email addresses (like gmail.com, yahoo.com) will throw a 422 error.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/PersonEnrichmentRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "people-retrieve",
     "title": "Retrieve Person",
     "method": "POST",
     "path": "/people/retrieve",
-    "description": "Retrieve Person — Retrieve and normalize a person profile from identifiers.",
+    "description": "Retrieve Person — Retrieve and normalize a person profile from identifiers. Education and experience entries include LinkedIn-derived organization data (website, logo, employee counts, followers, headquarters, and Context.dev industry classification) when available.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -2367,18 +2203,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data. Works with all three lookup methods.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data. Works with all three lookup methods."
         }
@@ -2487,18 +2312,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
         }
@@ -2533,6 +2347,87 @@ export const ENDPOINTS: Endpoint[] = [
         "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
         "schema": {
           "$ref": "#/components/schemas/TimeoutMS"
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestTags"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "get-brand-search",
+    "title": "Brand Search",
+    "method": "GET",
+    "path": "/brand/search",
+    "description": "Brand Search — Search indexed brands by name or domain",
+    "parameters": [
+      {
+        "name": "query",
+        "in": "query",
+        "required": true,
+        "description": "Search term, matched against the fields selected by queryBy (e.g. 'nike', 'nike.com', 'nik').",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Search term, matched against the fields selected by queryBy (e.g. 'nike', 'nike.com', 'nik')."
+        }
+      },
+      {
+        "name": "autocomplete",
+        "in": "query",
+        "required": false,
+        "description": "Whether the search term matches by prefix, so partial words match as they are typed (e.g. 'nik' matches Nike). Set to false to match whole words only.",
+        "schema": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the search term matches by prefix, so partial words match as they are typed (e.g. 'nik' matches Nike). Set to false to match whole words only."
+        }
+      },
+      {
+        "name": "queryBy",
+        "in": "query",
+        "required": false,
+        "description": "Fields to match the search term against, as a comma-separated list or repeated parameter: 'name', 'domain', or both. Defaults to both.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "name",
+              "domain"
+            ]
+          },
+          "minItems": 1,
+          "default": [
+            "name",
+            "domain"
+          ],
+          "description": "Fields to match the search term against, as a comma-separated list or repeated parameter: 'name', 'domain', or both. Defaults to both."
+        }
+      },
+      {
+        "name": "typoTolerance",
+        "in": "query",
+        "required": false,
+        "description": "Maximum number of typos tolerated when matching, from 0 to 2. Defaults to 0 (no typo tolerance).",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0,
+          "description": "Maximum number of typos tolerated when matching, from 0 to 2. Defaults to 0 (no typo tolerance)."
         }
       },
       {
@@ -2595,18 +2490,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
         }
@@ -2704,18 +2588,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
         }
@@ -2804,18 +2677,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
         }
@@ -2903,18 +2765,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
         }
@@ -2987,18 +2838,7 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "When set to true, the API will perform an additional verification steps to ensure the identified brand matches the transaction with high confidence.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "When set to true, the API will perform an additional verification steps to ensure the identified brand matches the transaction with high confidence."
         }
@@ -3355,20 +3195,20 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Optional parameter to control cookie/consent popup handling. If 'true', we dismiss cookie banner before capture. If 'false' or not provided, captures the page without that step.",
         "schema": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
-              "enum": [
-                "true",
-                "false"
-              ]
-            }
-          ],
+          "type": "boolean",
           "default": false,
           "description": "Optional parameter to control cookie/consent popup handling. If 'true', we dismiss cookie banner before capture. If 'false' or not provided, captures the page without that step."
+        }
+      },
+      {
+        "name": "clearPopups",
+        "in": "query",
+        "required": false,
+        "description": "Optional parameter for comprehensive popup cleanup. If 'true', the browser dismisses detected cookie/consent UI and clears other detected obstructive popups and overlays before capture. If 'false' or not provided, this parameter requests no cleanup; handleCookiePopup can still request cookie/consent handling independently.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Optional parameter for comprehensive popup cleanup. If 'true', the browser dismisses detected cookie/consent UI and clears other detected obstructive popups and overlays before capture. If 'false' or not provided, this parameter requests no cleanup; handleCookiePopup can still request cookie/consent handling independently."
         }
       },
       {
@@ -3975,10 +3815,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "utility-prefetch",
-    "title": "Prefetch brand data",
+    "title": "Prefetch data",
     "method": "POST",
     "path": "/utility/prefetch",
-    "description": "Prefetch brand data — Signal that you may fetch brand data soon to improve latency. The type field selects what to prefetch (currently only 'brand') and identifier carries exactly one lookup key: a domain, or an email whose domain is extracted and validated (free email providers and disposable email addresses are not allowed).",
+    "description": "Prefetch data — Signal that you may fetch data soon to improve latency. The type field selects what to prefetch ('brand' queues a brand data fetch, 'styleguide' queues a styleguide extraction) and identifier carries exactly one lookup key: a domain, or an email whose domain is extracted and validated (free email providers and disposable email addresses are not allowed).",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -3992,9 +3832,10 @@ export const ENDPOINTS: Endpoint[] = [
           "type": {
             "type": "string",
             "enum": [
-              "brand"
+              "brand",
+              "styleguide"
             ],
-            "description": "What to prefetch. Currently only 'brand' is supported."
+            "description": "What to prefetch: 'brand' warms the brand data cache, 'styleguide' warms the styleguide cache."
           },
           "identifier": {
             "$ref": "#/components/schemas/UtilityPrefetchIdentifier"
@@ -4327,6 +4168,38 @@ export const ENDPOINTS: Endpoint[] = [
         "schema": {
           "type": "string",
           "description": "Opaque pagination cursor from a previous response."
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "get-monitor-run",
+    "title": "Retrieve a monitor run",
+    "method": "GET",
+    "path": "/monitors/{monitor_id}/runs/{run_id}",
+    "description": "Retrieve a monitor run — Fetches one run for a monitor, including lifecycle status, timing, credits charged, and any detected change.",
+    "parameters": [
+      {
+        "name": "monitor_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "mon_123"
+        }
+      },
+      {
+        "name": "run_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "run_123"
         }
       }
     ],
@@ -5942,10 +5815,220 @@ export const ENDPOINTS: Endpoint[] = [
       "destructiveHint": true,
       "openWorldHint": true
     }
+  },
+  {
+    "name": "post-company-funding",
+    "title": "Retrieve company funding",
+    "method": "POST",
+    "path": "/company/funding",
+    "description": "Retrieve company funding — Retrieve the structured funding history (rounds, dates, amounts) for a company by its domain. Served from Context's continuously updated company graph, which aggregates funding rounds observed across company data sources and global business news. Domains with no known funding data return an empty rounds list and are not charged.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name of the company to retrieve funding history for."
+          },
+          "timeoutMS": {
+            "$ref": "#/components/schemas/TimeoutMS"
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        }
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
   }
 ];
 
 export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
+  "NewsSearchEntityByName": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "name"
+        ]
+      },
+      "name": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 200,
+        "description": "Company name."
+      }
+    },
+    "required": [
+      "type",
+      "name"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by name.",
+    "title": "By Name"
+  },
+  "NewsSearchEntityByDomain": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "domain"
+        ]
+      },
+      "domain": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 253,
+        "description": "Company website domain, such as apple.com."
+      }
+    },
+    "required": [
+      "type",
+      "domain"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by website domain.",
+    "title": "By Domain"
+  },
+  "NewsSearchEntityByTicker": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "ticker"
+        ]
+      },
+      "ticker": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20,
+        "pattern": "^[A-Za-z0-9.-]+$",
+        "description": "Public-company ticker."
+      },
+      "exchange": {
+        "type": "string",
+        "enum": [
+          "AMEX",
+          "AMS",
+          "AQS",
+          "ASX",
+          "ATH",
+          "BER",
+          "BME",
+          "BRU",
+          "BSE",
+          "BUD",
+          "BUE",
+          "BVC",
+          "CBOE",
+          "CNQ",
+          "CPH",
+          "DFM",
+          "DOH",
+          "DUB",
+          "DUS",
+          "DXE",
+          "EGX",
+          "FSX",
+          "HAM",
+          "HEL",
+          "HKSE",
+          "HOSE",
+          "ICE",
+          "IOB",
+          "IST",
+          "JKT",
+          "JNB",
+          "JPX",
+          "KLS",
+          "KOE",
+          "KSC",
+          "KUW",
+          "LIS",
+          "LSE",
+          "MCX",
+          "MEX",
+          "MIL",
+          "MUN",
+          "NASDAQ",
+          "NEO",
+          "NSE",
+          "NYSE",
+          "NZE",
+          "OSL",
+          "OTC",
+          "PAR",
+          "PNK",
+          "PRA",
+          "RIS",
+          "SAO",
+          "SAU",
+          "SES",
+          "SET",
+          "SGO",
+          "SHH",
+          "SHZ",
+          "SIX",
+          "STO",
+          "STU",
+          "TAI",
+          "TAL",
+          "TLV",
+          "TSX",
+          "TSXV",
+          "TWO",
+          "VIE",
+          "WSE",
+          "XETRA"
+        ],
+        "description": "Stock exchange the ticker trades on, used to disambiguate tickers listed on multiple exchanges."
+      }
+    },
+    "required": [
+      "type",
+      "ticker"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by stock ticker, optionally scoped to an exchange.",
+    "title": "By Ticker"
+  },
+  "NewsSearchEntityByIsin": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "isin"
+        ]
+      },
+      "isin": {
+        "type": "string",
+        "pattern": "^[A-Za-z]{2}[A-Za-z0-9]{9}[0-9]$",
+        "description": "International Securities Identification Number."
+      }
+    },
+    "required": [
+      "type",
+      "isin"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by International Securities Identification Number.",
+    "title": "By ISIN"
+  },
   "RequestTags": {
     "type": "array",
     "items": {
@@ -6200,6 +6283,128 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "minimum": 1000,
     "maximum": 300000,
     "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes)."
+  },
+  "PersonEnrichmentRequest": {
+    "type": "object",
+    "properties": {
+      "social_urls": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "uri"
+        },
+        "minItems": 1,
+        "maxItems": 20
+      },
+      "name": {
+        "type": "object",
+        "properties": {
+          "first": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "last": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "additionalProperties": false
+      },
+      "email": {
+        "type": "string",
+        "maxLength": 320,
+        "format": "email"
+      },
+      "company": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253
+          }
+        },
+        "additionalProperties": false
+      },
+      "education": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "institution": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "domain": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253
+                }
+              },
+              "additionalProperties": false
+            },
+            "degree": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "field_of_study": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "graduation_year": {
+              "type": "integer",
+              "minimum": 1900,
+              "maximum": 2200
+            }
+          },
+          "additionalProperties": false
+        },
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "location": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "country": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "timeoutMS": {
+        "$ref": "#/components/schemas/TimeoutMS"
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Identity clues for one person. Provide a person email, a person-profile social URL, or both first and last name with company, education, or location. All supplied clues are considered together."
   },
   "PersonRetrieveRequest": {
     "type": "object",
@@ -6720,7 +6925,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "$ref": "#/components/schemas/UtilityPrefetchEmailIdentifier"
       }
     ],
-    "description": "Identifier of the brand to prefetch. Provide exactly one of domain or email."
+    "description": "Identifier of the target to prefetch. Provide exactly one of domain or email."
   },
   "MonitorsCreateMonitorRequest": {
     "type": "object",
@@ -7429,24 +7634,18 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "default": false,
                             "description": "Return the main content without navigation or footers."
                           },
+                          "includeHTML": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Also include each page's HTML in its result record, as an `html` field alongside the Markdown."
+                          },
                           "pdf": {
                             "type": "object",
                             "properties": {
                               "shouldParse": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 WEBSITE_ACCESS_ERROR is returned."
+                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
                               },
                               "start": {
                                 "type": "integer",
@@ -7459,20 +7658,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                 "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
                               },
                               "ocr": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": false,
-                                "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
                               }
                             },
                             "default": {
@@ -7537,6 +7725,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "includeImages": false,
                           "shortenBase64Images": true,
                           "useMainContentOnly": false,
+                          "includeHTML": false,
                           "pdf": {
                             "shouldParse": true,
                             "ocr": false
@@ -7612,20 +7801,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "type": "object",
                             "properties": {
                               "shouldParse": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 WEBSITE_ACCESS_ERROR is returned."
+                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
                               },
                               "start": {
                                 "type": "integer",
@@ -7638,20 +7816,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                 "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
                               },
                               "ocr": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": false,
-                                "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
                               }
                             },
                             "default": {
@@ -7910,24 +8077,18 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "default": false,
                             "description": "Return the main content without navigation or footers."
                           },
+                          "includeHTML": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Also include each page's HTML in its result record, as an `html` field alongside the Markdown."
+                          },
                           "pdf": {
                             "type": "object",
                             "properties": {
                               "shouldParse": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 WEBSITE_ACCESS_ERROR is returned."
+                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
                               },
                               "start": {
                                 "type": "integer",
@@ -7940,20 +8101,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                 "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
                               },
                               "ocr": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": false,
-                                "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
                               }
                             },
                             "default": {
@@ -8018,6 +8168,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "includeImages": false,
                           "shortenBase64Images": true,
                           "useMainContentOnly": false,
+                          "includeHTML": false,
                           "pdf": {
                             "shouldParse": true,
                             "ocr": false
@@ -8176,20 +8327,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "type": "object",
                             "properties": {
                               "shouldParse": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 WEBSITE_ACCESS_ERROR is returned."
+                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
                               },
                               "start": {
                                 "type": "integer",
@@ -8202,20 +8342,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                 "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
                               },
                               "ocr": {
-                                "anyOf": [
-                                  {
-                                    "type": "boolean"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "true",
-                                      "false"
-                                    ]
-                                  }
-                                ],
+                                "type": "boolean",
                                 "default": false,
-                                "description": "When true, detect and OCR images embedded in the selected PDF pages, inserting recognized text at each image's position in page reading order while preserving the PDF text layer. This is separate from automatic scanned-PDF OCR fallback."
+                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
                               }
                             },
                             "default": {
@@ -8724,7 +8853,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "domain": {
         "type": "string",
         "minLength": 3,
-        "description": "Domain name to prefetch brand data for"
+        "description": "Domain name to prefetch data for"
       }
     },
     "required": [
@@ -8732,7 +8861,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     ],
     "additionalProperties": false,
     "title": "By domain",
-    "description": "Prefetch brand data by domain."
+    "description": "Prefetch by domain."
   },
   "UtilityPrefetchEmailIdentifier": {
     "type": "object",
@@ -8741,7 +8870,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "minLength": 1,
         "format": "email",
-        "description": "Email address to prefetch brand data for. The domain will be extracted from the email. Free email providers (gmail.com, yahoo.com, etc.) and disposable email addresses are not allowed."
+        "description": "Email address to prefetch data for. The domain will be extracted from the email. Free email providers (gmail.com, yahoo.com, etc.) and disposable email addresses are not allowed."
       }
     },
     "required": [
@@ -8749,7 +8878,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     ],
     "additionalProperties": false,
     "title": "By email",
-    "description": "Prefetch brand data by email. The domain will be extracted and validated."
+    "description": "Prefetch by email. The domain will be extracted and validated."
   },
   "MonitorsMode": {
     "type": "string",

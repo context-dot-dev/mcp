@@ -468,14 +468,6 @@
       "tools_triggered": "web-extract",
       "expected_output_url": null,
       "file_attachment_urls": null
-    },
-    {
-      "description": "Discover a small set of relevant URLs from a public website sitemap without crawling every page body.",
-      "user_prompt": "Find up to 10 API reference URLs from the docs.context.dev sitemap. Return only page titles when available and absolute URLs.",
-      "expected_output": "Uses the sitemap tool and returns no more than 10 relevant API-reference URLs from docs.context.dev without inventing pages.",
-      "tools_triggered": "web-scrape-sitemap",
-      "expected_output_url": null,
-      "file_attachment_urls": null
     }
   ],
   "schema_version": 1,

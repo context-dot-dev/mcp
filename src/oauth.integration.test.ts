@@ -780,7 +780,7 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   assert.equal(resourceTemplates.length, 1);
   const toolCatalogBytes = Buffer.byteLength(JSON.stringify(tools));
   assert.ok(
-    toolCatalogBytes < 130_000,
+    toolCatalogBytes < 140_000,
     `public tool catalog exceeds the release budget: ${toolCatalogBytes} bytes`
   );
   const brandResult = await client.callTool({

@@ -51,7 +51,7 @@ function batchResponse(method: string, requestUrl: string) {
       },
     };
   }
-  if (method === "GET" && path === "/news/search") {
+  if (method === "POST" && path === "/news/search") {
     return {
       status: 200,
       body: {
@@ -474,10 +474,14 @@ test("lists the public Context API with safety annotations", async () => {
     string,
     Record<string, unknown>
   >;
-  assert.equal(newsProperties.source_domain?.type, "array");
-  assert.equal(newsProperties.source_domain?.anyOf, undefined);
-  assert.equal(newsProperties.from?.type, "number");
-  assert.equal(newsProperties.from?.anyOf, undefined);
+  assert.deepEqual(newsSearch?.inputSchema.required, ["searchBy"]);
+  assert.equal(newsProperties.searchBy?.type, "object");
+  assert.equal(newsProperties.filterBy?.type, "object");
+  assert.equal(newsProperties.sortBy?.type, "object");
+  assert.equal(newsProperties.limit?.type, "integer");
+  assert.equal(newsProperties.cursor?.type, undefined);
+  assert.equal(newsProperties.cursor?.anyOf instanceof Array, true);
+  assert.equal(newsProperties.tags?.type, "array");
 
   const markdown = tools.find(
     (tool) => tool.name === "web-scrape-markdown",
@@ -504,40 +508,59 @@ test("searches company news with entity, source, date, and article filters", asy
   const result = await client.callTool({
     name: "get-news-search",
     arguments: {
-      ticker: "AAPL",
-      source_domain: ["reuters.com", "apple.com"],
-      language: ["en"],
-      article_type: ["editorial", "press_release"],
-      sort: "newest",
-      from: 1_725_148_800_000,
-      to: 1_725_235_200_000,
+      searchBy: {
+        type: "entity",
+        entity: {
+          type: "ticker",
+          ticker: "AAPL",
+          exchange: "NASDAQ",
+        },
+      },
+      filterBy: {
+        sourceDomain: ["reuters.com", "apple.com"],
+        sourceCountry: ["us"],
+        articleLanguage: ["en"],
+        articleType: ["editorial", "press_release"],
+        date: {
+          from: 1_725_148_800_000,
+          to: 1_725_235_200_000,
+        },
+      },
+      sortBy: { type: "newest" },
       limit: 10,
-      include_unverified: false,
       tags: ["mcp", "news"],
     },
   });
   await client.close();
 
   assert.equal(captured.length, 1);
-  assert.equal(captured[0]!.method, "GET");
+  assert.equal(captured[0]!.method, "POST");
   const url = new URL(captured[0]!.url, upstreamBase);
   assert.equal(url.pathname, "/news/search");
-  assert.equal(url.searchParams.get("ticker"), "AAPL");
-  assert.deepEqual(url.searchParams.getAll("source_domain"), [
-    "reuters.com",
-    "apple.com",
-  ]);
-  assert.deepEqual(url.searchParams.getAll("language"), ["en"]);
-  assert.deepEqual(url.searchParams.getAll("article_type"), [
-    "editorial",
-    "press_release",
-  ]);
-  assert.equal(url.searchParams.get("sort"), "newest");
-  assert.equal(url.searchParams.get("from"), "1725148800000");
-  assert.equal(url.searchParams.get("to"), "1725235200000");
-  assert.equal(url.searchParams.get("limit"), "10");
-  assert.equal(url.searchParams.get("include_unverified"), "false");
-  assert.deepEqual(url.searchParams.getAll("tags"), ["mcp", "news"]);
+  assert.equal(url.search, "");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    searchBy: {
+      type: "entity",
+      entity: {
+        type: "ticker",
+        ticker: "AAPL",
+        exchange: "NASDAQ",
+      },
+    },
+    filterBy: {
+      sourceDomain: ["reuters.com", "apple.com"],
+      sourceCountry: ["us"],
+      articleLanguage: ["en"],
+      articleType: ["editorial", "press_release"],
+      date: {
+        from: 1_725_148_800_000,
+        to: 1_725_235_200_000,
+      },
+    },
+    sortBy: { type: "newest" },
+    limit: 10,
+    tags: ["mcp", "news"],
+  });
   assert.deepEqual(resultObject(result), {
     data: [
       {
