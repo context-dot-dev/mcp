@@ -140,10 +140,10 @@ const server = new MCPServer({
   title: "Context",
   version: "1.0.0",
   description:
-    "Turn the live web and files into reliable, agent-ready context. Search, scrape, crawl, extract structured data, parse documents, enrich brands, run large batches, and monitor meaningful changes.",
+    "Turn the live web, company news, and files into reliable, agent-ready context. Search, scrape, crawl, extract structured data, parse documents, enrich brands, run large batches, and monitor meaningful changes.",
   instructions:
-    "Use Context when a task needs current web data, clean content from a URL, structured facts from a site, document parsing, brand intelligence, large-scale collection, or recurring change detection.\n\n" +
-    "Choose the smallest suitable tool: `web-search` discovers sources; `web-scrape-markdown` reads one known page; `web-scrape-sitemap` discovers a site's URLs; `web-crawl` reads several linked pages synchronously; `submit-batch` handles large asynchronous jobs; and `web-extract` returns schema-shaped JSON. Use `parse-document` for file bytes.\n\n" +
+    "Use Context when a task needs current web data, company news, clean content from a URL, structured facts from a site, document parsing, brand intelligence, large-scale collection, or recurring change detection.\n\n" +
+    "Choose the smallest suitable tool: `get-news-search` finds verified news about one company; `web-search` discovers sources or researches broader topics; `web-scrape-markdown` reads one known page; `web-scrape-sitemap` discovers a site's URLs; `web-crawl` reads several linked pages synchronously; `submit-batch` handles large asynchronous jobs; and `web-extract` returns schema-shaped JSON. Use `parse-document` for file bytes.\n\n" +
     "Use `get-brand` for a visual domain profile and `brand-retrieve-unified` for raw brand data or non-domain identifiers. Monitors are for recurring checks, not one-time scraping. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
     "Connect with Context OAuth. API-key authentication is available for private integrations through the Authorization header; never put API keys in URLs. Some operations consume Context credits, so avoid unnecessary duplicate calls and use idempotency keys for retried batch submissions.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
@@ -688,6 +688,20 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
     "Human-readable monitor name used to identify it in lists, runs, changes, and notifications.",
   "create-monitor.webhook":
     "Optional webhook configuration for delivering monitor change notifications.",
+  "get-news-search.company": "Company name (choose one ID).",
+  "get-news-search.company_domain": "Company domain (choose one ID).",
+  "get-news-search.ticker": "Stock ticker (choose one ID).",
+  "get-news-search.isin": "ISIN (choose one ID).",
+  "get-news-search.source_domain": "Publisher domains.",
+  "get-news-search.language": "Language codes.",
+  "get-news-search.article_type": "Article types.",
+  "get-news-search.sort": "Result order.",
+  "get-news-search.from": "Start, epoch ms.",
+  "get-news-search.to": "End, epoch ms.",
+  "get-news-search.limit": "Page size.",
+  "get-news-search.cursor": "Pagination cursor.",
+  "get-news-search.include_unverified": "Include unverified company matches.",
+  "get-news-search.tags": "Usage tags.",
   "submit-batch.input":
     "Batch job definition. Choose a scrape or crawl mode and provide the URLs, output format, and processing options for that mode.",
   "update-monitor.name": "New human-readable name for the monitor.",
@@ -711,6 +725,19 @@ function mcpParameterDescription(
     return "Unique change ID returned by a monitor changes endpoint, for example `chg_123`.";
   }
   return undefined;
+}
+
+function withoutRedundantQueryNull(schema: JsonSchema): JsonSchema {
+  // The request serializer already omits null query values; optional parameters
+  // express the same unset state without widening every published tool schema.
+  if (!Array.isArray(schema.type) || !schema.type.includes("null")) {
+    return schema;
+  }
+  const types = schema.type.filter((type) => type !== "null");
+  return {
+    ...schema,
+    type: types.length === 1 ? types[0] : types,
+  };
 }
 
 server.tool(
@@ -789,12 +816,17 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
     if (parameter.in === "cookie") {
       continue;
     }
+    const parameterJsonSchema =
+      parameter.in === "query" && !parameter.required
+        ? withoutRedundantQueryNull(parameter.schema)
+        : parameter.schema;
     let parameterSchema = schemaToZod(
-      withMcpSchemaDescriptions(parameter.schema),
+      withMcpSchemaDescriptions(parameterJsonSchema),
       MCP_COMPONENT_SCHEMAS,
     );
     const parameterDescription =
-      parameter.description ?? mcpParameterDescription(endpoint.name, parameter.name);
+      mcpParameterDescription(endpoint.name, parameter.name) ??
+      parameter.description;
     if (parameterDescription) {
       parameterSchema = parameterSchema.describe(parameterDescription);
     }

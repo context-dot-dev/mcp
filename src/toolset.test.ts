@@ -8,10 +8,11 @@ test("toolset exposes the curated public API surface", () => {
   const selected = selectEndpoints(ENDPOINTS);
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 33);
+  assert.equal(selected.length, 34);
   assert.ok(names.has("web-scrape-html"));
   assert.ok(names.has("web-scrape-markdown"));
   assert.ok(names.has("web-scrape-sitemap"));
+  assert.ok(names.has("get-news-search"));
   assert.ok(names.has("brand-retrieve-unified"));
   assert.ok(names.has("web-fonts"));
   assert.ok(names.has("web-naics"));
@@ -65,6 +66,10 @@ test("tool descriptions route agents between overlapping workflows", () => {
     tools.get("brand-retrieve-unified")?.description ?? "",
     /get-brand.*raw structured data/i,
   );
+  assert.match(
+    tools.get("get-news-search")?.description ?? "",
+    /exactly one.*web-search.*broader topics/i,
+  );
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
@@ -94,6 +99,7 @@ test("every public tool has annotations that match its most privileged behavior"
     "web-crawl",
     "web-extract",
     "web-search",
+    "get-news-search",
     "brand-retrieve-unified",
     "web-styleguide",
     "web-fonts",
