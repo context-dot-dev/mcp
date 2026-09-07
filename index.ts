@@ -37,6 +37,7 @@ import {
   createNativeAuthorizationRedirect,
   createNativeCallbackRedirect,
 } from "./src/native-oauth-redirect";
+import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
 import { selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
@@ -555,6 +556,13 @@ if (oauthProvider) {
       clearOAuthBrowserCookie(state, secureOAuthCookies),
     );
     await next();
+    const location = context.res.headers.get("location");
+    if (location) {
+      context.res.headers.set(
+        "location",
+        withAuthorizationServerIssuer(location, mcpBaseUrl),
+      );
+    }
   });
   server.app.get("/oauth/callback", async (context, next) => {
     const result = createNativeCallbackRedirect(context.req.query());
