@@ -443,6 +443,7 @@ test("completes the proxy flow for a registration-bound client on an unlisted do
     finalRedirect.searchParams.get("state"),
     "unlisted-client-state"
   );
+  assert.equal(finalRedirect.searchParams.get("iss"), mcpBase);
 
   const tokenResponse = await fetch(`${mcpBase}/token`, {
     method: "POST",
@@ -513,6 +514,7 @@ test("completes the proxy flow for a registered native app callback", async () =
     "local-authorization-code",
   );
   assert.equal(finalRedirect.searchParams.get("state"), "native-client-state");
+  assert.equal(finalRedirect.searchParams.get("iss"), mcpBase);
 });
 
 test("enforces the registration binding at the token endpoint", async () => {
@@ -711,6 +713,7 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   assert.equal(finalRedirect.origin + finalRedirect.pathname, clientRedirect);
   assert.equal(finalRedirect.searchParams.get("code"), "local-authorization-code");
   assert.equal(finalRedirect.searchParams.get("state"), "client-state");
+  assert.equal(finalRedirect.searchParams.get("iss"), mcpBase);
 
   const tokenResponse = await fetch(`${mcpBase}/token`, {
     method: "POST",
