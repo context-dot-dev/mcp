@@ -8,7 +8,7 @@ test("toolset exposes the curated public API surface", () => {
   const selected = selectEndpoints(ENDPOINTS);
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 34);
+  assert.equal(selected.length, 36);
   assert.ok(names.has("web-scrape-html"));
   assert.ok(names.has("web-scrape-markdown"));
   assert.ok(names.has("web-scrape-sitemap"));
@@ -17,6 +17,8 @@ test("toolset exposes the curated public API surface", () => {
   assert.ok(names.has("web-fonts"));
   assert.ok(names.has("web-naics"));
   assert.ok(names.has("web-sic"));
+  assert.ok(names.has("list-logs"));
+  assert.ok(names.has("get-log"));
   assert.ok(names.has("create-monitor"));
   assert.ok(names.has("get-monitor-run"));
   assert.ok(names.has("list-monitor-changes"));
@@ -70,6 +72,10 @@ test("tool descriptions route agents between overlapping workflows", () => {
     tools.get("get-news-search")?.description ?? "",
     /exactly one.*web-search.*broader topics/i,
   );
+  assert.match(
+    tools.get("list-logs")?.description ?? "",
+    /errors_only.*request_id.*get-log/i,
+  );
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
@@ -82,6 +88,11 @@ test("tool descriptions route agents between overlapping workflows", () => {
     openWorldHint: false,
   });
   assert.deepEqual(tools.get("list-batches")?.annotations, {
+    readOnlyHint: true,
+    destructiveHint: false,
+    openWorldHint: false,
+  });
+  assert.deepEqual(tools.get("list-logs")?.annotations, {
     readOnlyHint: true,
     destructiveHint: false,
     openWorldHint: false,
