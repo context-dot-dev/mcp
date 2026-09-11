@@ -16,6 +16,8 @@ const PUBLIC_API_TOOLS = new Set([
   "web-screenshot",
   "web-naics",
   "web-sic",
+  "list-logs",
+  "get-log",
   "list-monitors",
   "create-monitor",
   "get-monitor",
@@ -222,6 +224,26 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       readOnlyHint: true,
       destructiveHint: false,
       openWorldHint: true,
+    },
+  },
+  "list-logs": {
+    title: "List API request logs",
+    description:
+      "List recent API requests from the authenticated Context account, newest first. Filter by time, endpoint path, API key ID, HTTP status, error code, tags, or request content. Use errors_only to investigate failures, then pass the request_id from a data entry to get-log for the retained request and response. Defaults to the last 24 hours and does not create another usage-log entry.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "get-log": {
+    title: "Get an API request log",
+    description:
+      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
     },
   },
   "list-monitors": {

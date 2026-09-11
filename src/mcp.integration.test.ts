@@ -20,6 +20,40 @@ let mcpProcess: ChildProcess;
 
 function batchResponse(method: string, requestUrl: string) {
   const path = new URL(requestUrl, "http://context.test").pathname;
+  if (method === "GET" && path === "/logs") {
+    return {
+      status: 200,
+      body: {
+        data: [
+          {
+            request_id: "4f2c1a1e-1111-4222-8333-444455556666",
+            path: "/v1/web/scrape/markdown",
+            status_code: 500,
+            error_code: "WEBSITE_ACCESS_ERROR",
+          },
+        ],
+        page: 1,
+        limit: 10,
+        has_more: false,
+        request_id: "8d13e8f0-1111-4222-8333-444455556666",
+      },
+    };
+  }
+  if (method === "GET" && path.startsWith("/logs/")) {
+    return {
+      status: 200,
+      body: {
+        data: {
+          request_id: path.slice("/logs/".length),
+          path: "/v1/web/scrape/markdown",
+          status_code: 500,
+          input: { query: { url: "https://example.test" }, body: {} },
+          response: { error_code: "WEBSITE_ACCESS_ERROR" },
+        },
+        request_id: "9d13e8f0-1111-4222-8333-444455556666",
+      },
+    };
+  }
   if (method === "POST" && path === "/brand/retrieve") {
     return {
       status: 200,
@@ -364,7 +398,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 35);
+  assert.equal(tools.length, 37);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -500,6 +534,45 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(submitBatch?.annotations?.destructiveHint, false);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+});
+
+test("lists and retrieves account logs through the MCP tools", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+
+  const listed = resultObject(
+    await client.callTool({
+      name: "list-logs",
+      arguments: {
+        errors_only: true,
+        path: "/web/scrape/markdown",
+        limit: 10,
+      },
+    }),
+  );
+  const logRequestId = (
+    listed.data as Array<Record<string, unknown>>
+  )[0]?.request_id;
+  const detail = resultObject(
+    await client.callTool({
+      name: "get-log",
+      arguments: { request_id: logRequestId },
+    }),
+  );
+  await client.close();
+
+  const listUrl = new URL(captured[0]!.url, upstreamBase);
+  assert.equal(listUrl.pathname, "/logs");
+  assert.equal(listUrl.searchParams.get("errors_only"), "true");
+  assert.equal(listUrl.searchParams.get("path"), "/web/scrape/markdown");
+  assert.equal(listUrl.searchParams.get("limit"), "10");
+  assert.equal(captured[1]!.url, `/logs/${logRequestId}`);
+  assert.equal(
+    (detail.data as Record<string, unknown>).request_id,
+    logRequestId,
+  );
+  assert.equal(listed.request_id, "8d13e8f0-1111-4222-8333-444455556666");
+  assert.equal(detail.request_id, "9d13e8f0-1111-4222-8333-444455556666");
 });
 
 test("searches company news with entity, source, date, and article filters", async () => {

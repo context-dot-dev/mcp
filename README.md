@@ -2,7 +2,7 @@
 
 A remote MCP server that gives AI agents reliable context from the live web, company news, and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
 
-The server exposes a curated 35-tool surface from the public [Context API](https://context.dev). Internal and legacy endpoints are never registered. Public endpoints that do not improve an agent workflow, such as cache prefetching, dedicated product extraction, and webhook-secret rotation, are intentionally omitted to keep tool selection clear.
+The server exposes a curated 37-tool surface from the public [Context API](https://context.dev). Internal and legacy endpoints are never registered. Public endpoints that do not improve an agent workflow, such as cache prefetching, dedicated product extraction, and webhook-secret rotation, are intentionally omitted to keep tool selection clear.
 
 ## Connect
 
@@ -29,6 +29,7 @@ Authorization: Bearer ctxt_secret_...
 | Extract and search | `web-extract`, `web-search`, `web-naics`, `web-sic` |
 | Company news | `get-news-search` |
 | Brand and design | `get-brand`, `brand-retrieve-unified`, `web-styleguide`, `web-fonts` |
+| API debugging | `list-logs`, `get-log` |
 | Batches | `submit-batch`, `list-batches`, `get-batch`, `get-batch-results`, `cancel-batch`, `delete-batch` |
 | Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `run-monitor-now`, run and change history, and credit usage |
 
