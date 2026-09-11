@@ -56,6 +56,473 @@ export type Endpoint = {
 
 export const ENDPOINTS: Endpoint[] = [
   {
+    "name": "list-logs",
+    "title": "List request logs",
+    "method": "GET",
+    "path": "/logs",
+    "description": "List request logs — List your organization's API requests, newest first. Defaults to the last 24 hours. Use `errors_only`, `error_code`, `path`, `tags` or `search` to narrow down to the calls you are debugging, then fetch a single entry for its full response.",
+    "parameters": [
+      {
+        "name": "from",
+        "in": "query",
+        "required": false,
+        "description": "Only include requests at or after this ISO 8601 timestamp. Defaults to 24 hours before `to`.",
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Only include requests at or after this ISO 8601 timestamp. Defaults to 24 hours before `to`.",
+          "example": "2026-09-10T00:00:00Z"
+        }
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false,
+        "description": "Only include requests at or before this ISO 8601 timestamp. Defaults to now.",
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Only include requests at or before this ISO 8601 timestamp. Defaults to now.",
+          "example": "2026-09-11T00:00:00Z"
+        }
+      },
+      {
+        "name": "path",
+        "in": "query",
+        "required": false,
+        "description": "Filter by endpoint path, with or without the /v1 prefix.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^\\/",
+          "description": "Filter by endpoint path, with or without the /v1 prefix.",
+          "example": "/brand/retrieve"
+        }
+      },
+      {
+        "name": "key_id",
+        "in": "query",
+        "required": false,
+        "description": "Filter by the API key that made the request.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Filter by the API key that made the request."
+        }
+      },
+      {
+        "name": "status_code",
+        "in": "query",
+        "required": false,
+        "description": "Filter by exact HTTP status code.",
+        "schema": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599,
+          "description": "Filter by exact HTTP status code.",
+          "example": 500
+        }
+      },
+      {
+        "name": "error_code",
+        "in": "query",
+        "required": false,
+        "description": "Filter by the `error_code` returned in the response.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+          "description": "Filter by the `error_code` returned in the response.",
+          "example": "WEBSITE_ACCESS_ERROR"
+        }
+      },
+      {
+        "name": "errors_only",
+        "in": "query",
+        "required": false,
+        "description": "Only include requests that returned a 4xx or 5xx status.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only include requests that returned a 4xx or 5xx status."
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated request tags. Matches requests carrying any of them. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "type": "string",
+          "description": "Comma-separated request tags. Matches requests carrying any of them. Up to 20 tags, each 1-50 characters.",
+          "example": "nightly-import,team-alpha"
+        }
+      },
+      {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "description": "Case-insensitive substring match against the request query and body, e.g. a domain.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Case-insensitive substring match against the request query and body, e.g. a domain.",
+          "example": "acme.com"
+        }
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Page number, starting at 1.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 1,
+          "description": "Page number, starting at 1."
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Number of log entries per page.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50,
+          "description": "Number of log entries per page."
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "get-log",
+    "title": "Get a request log",
+    "method": "GET",
+    "path": "/logs/{request_id}",
+    "description": "Get a request log — Get one logged API call, including the request input and the response body that was returned.",
+    "parameters": [
+      {
+        "name": "request_id",
+        "in": "path",
+        "required": true,
+        "description": "The request ID of the logged API call.",
+        "schema": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The request ID of the logged API call."
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "list-webhook-deliveries",
+    "title": "List webhook deliveries",
+    "method": "POST",
+    "path": "/webhooks/deliveries",
+    "description": "List webhook deliveries — List your batch or monitor webhook deliveries, newest first.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "batch"
+                ],
+                "description": "Delivery source."
+              },
+              "batch_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[\\w-]+$",
+                "description": "Filter by batch ID."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "delivering",
+                  "retrying",
+                  "delivered",
+                  "failed",
+                  "cancelled"
+                ],
+                "description": "Filter by delivery status."
+              },
+              "created_after": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Only include events created after this ISO 8601 timestamp.",
+                "example": "2026-09-01T00:00:00Z"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25,
+                "description": "Number of deliveries to return."
+              },
+              "cursor": {
+                "type": "string",
+                "pattern": "^whd_[a-f0-9]{32}$",
+                "description": "The next_cursor from the previous response."
+              },
+              "tags": {
+                "$ref": "#/components/schemas/RequestTags"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false,
+            "title": "By Batch"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "monitor"
+                ],
+                "description": "Delivery source."
+              },
+              "monitor_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[\\w-]+$",
+                "description": "Filter by monitor ID."
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[\\w-]+$",
+                "description": "Filter by monitor run ID."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "delivering",
+                  "retrying",
+                  "delivered",
+                  "failed",
+                  "cancelled"
+                ],
+                "description": "Filter by delivery status."
+              },
+              "created_after": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Only include events created after this ISO 8601 timestamp.",
+                "example": "2026-09-01T00:00:00Z"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 25,
+                "description": "Number of deliveries to return."
+              },
+              "cursor": {
+                "type": "string",
+                "pattern": "^whd_[a-f0-9]{32}$",
+                "description": "The next_cursor from the previous response."
+              },
+              "tags": {
+                "$ref": "#/components/schemas/RequestTags"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false,
+            "title": "By Monitor"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "get-webhook-delivery",
+    "title": "Get a webhook delivery",
+    "method": "GET",
+    "path": "/webhooks/deliveries/{delivery_id}",
+    "description": "Get a webhook delivery — Get a webhook delivery, including its status and latest attempt.",
+    "parameters": [
+      {
+        "name": "delivery_id",
+        "in": "path",
+        "required": true,
+        "description": "Delivery ID.",
+        "schema": {
+          "type": "string",
+          "pattern": "^whd_[a-f0-9]{32}$",
+          "description": "Delivery ID."
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestTags"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "list-webhook-delivery-attempts",
+    "title": "List webhook delivery attempts",
+    "method": "GET",
+    "path": "/webhooks/deliveries/{delivery_id}/attempts",
+    "description": "List webhook delivery attempts — List delivery attempts, newest first.",
+    "parameters": [
+      {
+        "name": "delivery_id",
+        "in": "path",
+        "required": true,
+        "description": "Delivery ID.",
+        "schema": {
+          "type": "string",
+          "pattern": "^whd_[a-f0-9]{32}$",
+          "description": "Delivery ID."
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Number of attempts to return.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25,
+          "description": "Number of attempts to return."
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "The next_cursor from the previous response.",
+        "schema": {
+          "type": "string",
+          "pattern": "^wha_[a-f0-9]{32}$",
+          "description": "The next_cursor from the previous response."
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestTags"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "retry-webhook-delivery",
+    "title": "Retry a webhook delivery",
+    "method": "POST",
+    "path": "/webhooks/deliveries/{delivery_id}/retry",
+    "description": "Retry a webhook delivery — Retry a webhook delivery within seven days of creation.",
+    "parameters": [
+      {
+        "name": "delivery_id",
+        "in": "path",
+        "required": true,
+        "description": "Delivery ID.",
+        "schema": {
+          "type": "string",
+          "pattern": "^whd_[a-f0-9]{32}$",
+          "description": "Delivery ID."
+        }
+      },
+      {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "Unique key to prevent duplicate retry requests.",
+        "schema": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Unique key to prevent duplicate retry requests."
+        }
+      }
+    ],
+    "requestBody": {
+      "required": false,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "description": "Resend a delivery that already succeeded."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "additionalProperties": false
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "get-news-search",
     "title": "Search company news",
     "method": "POST",
@@ -217,7 +684,6 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Published-at window in epoch milliseconds."
               }
             },
-            "default": {},
             "additionalProperties": false,
             "description": "Optional result filters."
           },
@@ -438,7 +904,6 @@ export const ENDPOINTS: Endpoint[] = [
               "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
             }
           },
-          "default": {},
           "additionalProperties": false,
           "description": "PDF page-range options as a JSON object, e.g. {\"start\": 2, \"end\": 5}."
         }
@@ -474,7 +939,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -631,7 +1096,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds).",
+        "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -639,7 +1104,7 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "minimum": 0,
           "maximum": 30000,
-          "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds)."
+          "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -722,7 +1187,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -913,7 +1378,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds).",
+        "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -921,7 +1386,7 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "minimum": 0,
           "maximum": 30000,
-          "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds)."
+          "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -1004,7 +1469,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -1104,7 +1569,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds).",
+        "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -1112,7 +1577,7 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "minimum": 0,
           "maximum": 30000,
-          "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds)."
+          "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -1160,7 +1625,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -1177,7 +1642,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Crawl Sitemap",
     "method": "GET",
     "path": "/web/scrape/sitemap",
-    "description": "Crawl Sitemap — Crawl an entire website's sitemap and return all discovered page URLs. Pass `search` to have the crawled sitemap filtered down to the pages about a phrase (for example `pricing and plans` or `api authentication docs`), most relevant first — a searched crawl scans the whole sitemap and costs 2 credits instead of 1.",
+    "description": "Crawl Sitemap — Crawl an entire website's sitemap and return all discovered page URLs. Set `includeSubdomains=true` to also discover public pages and sitemaps on child hosts such as `docs.example.com` or `brand.example.com`. Pass `search` to have the discovered URLs filtered down to the pages about a phrase (for example `pricing and plans` or `api authentication docs`), most relevant first — a searched crawl scans the whole sitemap and costs 2 credits instead of 1.",
     "parameters": [
       {
         "name": "domain",
@@ -1188,6 +1653,17 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "string",
           "minLength": 3,
           "description": "Domain to build a sitemap for"
+        }
+      },
+      {
+        "name": "includeSubdomains",
+        "in": "query",
+        "required": false,
+        "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false."
         }
       },
       {
@@ -1282,7 +1758,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -1597,7 +2073,7 @@ export const ENDPOINTS: Endpoint[] = [
           "actions": {
             "type": "array",
             "maxItems": 5,
-            "description": "Optional browser actions executed in order on the requested page after it loads and before extraction. Requires a paid plan. When actions are provided and stopAfterMs is omitted, the crawl budget defaults to 110000 ms.",
+            "description": "Optional browser actions executed in order on the requested page after it loads, before links are discovered or additional pages are crawled. Requires a paid plan. When actions are provided and stopAfterMs is omitted, the crawl budget defaults to 110000 ms.",
             "items": {
               "$ref": "#/components/schemas/WebScrapeAction"
             }
@@ -2072,7 +2548,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2235,7 +2711,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2353,7 +2829,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2434,7 +2910,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2522,7 +2998,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2620,7 +3096,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2709,7 +3185,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2847,7 +3323,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2918,7 +3394,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3000,7 +3476,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3068,7 +3544,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3147,7 +3623,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted.",
+        "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -3156,7 +3632,7 @@ export const ENDPOINTS: Endpoint[] = [
           "minimum": 0,
           "maximum": 30000,
           "default": 3000,
-          "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted."
+          "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -3293,7 +3769,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3362,7 +3838,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3446,7 +3922,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4606,7 +5082,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4661,7 +5137,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4728,7 +5204,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4762,7 +5238,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4917,7 +5393,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4984,7 +5460,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5051,7 +5527,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5085,7 +5561,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5130,7 +5606,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5186,7 +5662,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5235,7 +5711,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5269,7 +5745,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5314,7 +5790,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5369,7 +5845,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5436,7 +5912,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5492,7 +5968,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5558,7 +6034,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Optional comma-separated caller-defined tags for tracking this request. Tags are recorded on the request's usage log and can be used to filter usage on the dashboard usage page. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5855,6 +6331,20 @@ export const ENDPOINTS: Endpoint[] = [
 ];
 
 export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
+  "RequestTags": {
+    "type": "array",
+    "items": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "maxItems": 20,
+    "description": "Optional tags for tracking usage. Up to 20 tags, each 1 to 50 characters.",
+    "example": [
+      "production",
+      "team-alpha"
+    ]
+  },
   "NewsSearchEntityByName": {
     "type": "object",
     "properties": {
@@ -6029,20 +6519,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "description": "Identify the company by International Securities Identification Number.",
     "title": "By ISIN"
   },
-  "RequestTags": {
-    "type": "array",
-    "items": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 50
-    },
-    "maxItems": 20,
-    "description": "Optional tags for tracking usage. Up to 20 tags, each 1 to 50 characters.",
-    "example": [
-      "production",
-      "team-alpha"
-    ]
-  },
   "WebScrapeAction": {
     "oneOf": [
       {
@@ -6050,13 +6526,17 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       {
         "$ref": "#/components/schemas/WebScrapePerformAction"
+      },
+      {
+        "$ref": "#/components/schemas/WebScrapeScrollAction"
       }
     ],
     "discriminator": {
       "propertyName": "do",
       "mapping": {
         "wait": "#/components/schemas/WebScrapeWaitAction",
-        "perform": "#/components/schemas/WebScrapePerformAction"
+        "perform": "#/components/schemas/WebScrapePerformAction",
+        "scroll": "#/components/schemas/WebScrapeScrollAction"
       }
     },
     "description": "Browser action discriminated by `do`. Each variant exposes only its applicable fields."
@@ -8450,7 +8930,24 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "webhookUrl": {
         "type": "string",
-        "description": "URL notified when the batch finishes."
+        "description": "Legacy URL notified when the batch finishes. Preserves one best-effort attempt. Cannot be combined with webhook."
+      },
+      "webhook": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/WebhookRetry"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false,
+        "description": "Completion webhook settings. Cannot be combined with webhookUrl. Omitting retry preserves legacy delivery; retry: {} opts into durable retries."
       },
       "tags": {
         "type": "array",
@@ -8518,6 +9015,62 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "additionalProperties": false,
     "description": "Resolve and perform one natural-language browser action.",
     "title": "Perform"
+  },
+  "WebScrapeScrollAction": {
+    "type": "object",
+    "properties": {
+      "do": {
+        "type": "string",
+        "enum": [
+          "scroll"
+        ]
+      },
+      "direction": {
+        "type": "string",
+        "enum": [
+          "up",
+          "down",
+          "left",
+          "right"
+        ],
+        "description": "Direction to scroll. Defaults to down."
+      },
+      "amount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          {
+            "type": "string",
+            "enum": [
+              "viewport",
+              "max"
+            ]
+          }
+        ],
+        "description": "Pixels per scroll, one visible viewport, or the current scroll boundary. Defaults to viewport."
+      },
+      "container": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000,
+        "description": "CSS selector for the first matching scroll container. Defaults to the page."
+      },
+      "maxScrolls": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50,
+        "description": "Maximum scroll iterations. Stops early when scrolling and scrollable extent stop changing. Defaults to 1."
+      }
+    },
+    "required": [
+      "do"
+    ],
+    "additionalProperties": false,
+    "description": "Scroll the page or a selected scrollable container, waiting adaptively for content and dimensions to settle after each iteration.",
+    "title": "Scroll"
   },
   "BrandRetrieveByDomainRequest": {
     "type": "object",
@@ -9145,6 +9698,39 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "title": "WebDB spending limits",
     "description": "Optional spending limits for a collection."
   },
+  "WebhookRetry": {
+    "type": "object",
+    "properties": {
+      "delays_seconds": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "maxItems": 10,
+        "description": "Retry delays in seconds, totaling at most 72 hours. Use [] to disable automatic retries.",
+        "example": [
+          30,
+          300,
+          3600
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "description": "Webhook retry settings. Use {} for the default schedule.",
+    "example": {
+      "delays_seconds": [
+        10,
+        60,
+        300,
+        1800,
+        7200,
+        21600,
+        57600
+      ]
+    }
+  },
   "MonitorsPageTarget": {
     "type": "object",
     "properties": {
@@ -9406,6 +9992,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "change.detected",
           "run.completed"
         ]
+      },
+      "retry": {
+        "$ref": "#/components/schemas/WebhookRetry"
       },
       "secret": {
         "type": "string",
