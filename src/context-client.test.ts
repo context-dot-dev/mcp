@@ -255,7 +255,7 @@ test("bounds oversized tool responses while preserving structured data", async (
   }
 });
 
-test("removes account and diagnostic metadata from tool responses", async () => {
+test("preserves request IDs while removing private response metadata", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     new Response(
@@ -280,7 +280,37 @@ test("removes account and diagnostic metadata from tool responses", async () => 
     assert.deepEqual(result.structuredContent, {
       ok: true,
       data: [{ id: "batch_result_needed_by_the_client" }],
+      request_id: "req_internal",
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("includes request IDs in upstream API errors", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        message: "Invalid key",
+        error_code: "AUTHENTICATION_FAILED",
+        request_id: "req_failed",
+      }),
+      { status: 401, headers: { "content-type": "application/json" } },
+    );
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "invalid" },
+    });
+    assert.equal(result.isError, true);
+    assert.match(
+      result.content[0]?.type === "text" ? result.content[0].text : "",
+      /request_id: req_failed/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -5,7 +5,6 @@ type ToolArguments = Record<string, unknown>;
 const DEFAULT_MAX_RESPONSE_CHARS = 40_000;
 const OMITTED_RESPONSE_FIELDS = new Set([
   "key_metadata",
-  "request_id",
   "trace_id",
   "debug",
 ]);
@@ -75,7 +74,11 @@ function contextErrorMessage(
           : "Request failed";
   const code =
     typeof payload.error_code === "string" ? ` [${payload.error_code}]` : "";
-  return `Context API ${status}${code}: ${message || "Request failed"}`;
+  const requestId =
+    typeof payload.request_id === "string"
+      ? ` (request_id: ${payload.request_id})`
+      : "";
+  return `Context API ${status}${code}: ${message || "Request failed"}${requestId}`;
 }
 
 function minimizeContextResponse(
