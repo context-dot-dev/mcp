@@ -2505,6 +2505,88 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "web-answers",
+    "title": "Answer a research task from the live web",
+    "method": "POST",
+    "path": "/web/answers",
+    "description": "Answer a research task from the live web — Researches the live web and returns a sourced answer in your requested JSON shape. Select fast for a smaller research budget at 10 credits or ultra for deeper reasoning at 100 credits. Defaults to ultra. Fast research is limited to 30 seconds and ultra to 50 seconds; timeoutOpts.milliseconds can shorten either deadline.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "ultra"
+            ],
+            "description": "Research level: fast uses a smaller model and research budget for 10 credits; ultra uses deeper reasoning and research for 100 credits. Defaults to ultra. Only successful requests consume credits."
+          },
+          "task": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "What to research and answer, in plain language. Naming a domain in the task (for example \"pricing on context.dev\") makes the agent read that site before it searches."
+          },
+          "json_format": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "An example object with placeholder values. Object keys and value types are preserved; unknown values may be null. Empty arrays accept any JSON items. Defaults to {\"result\": \"\"}."
+          },
+          "timeoutOpts": {
+            "type": "object",
+            "properties": {
+              "milliseconds": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 300000,
+                "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+              },
+              "behavior": {
+                "type": "string",
+                "enum": [
+                  "fail",
+                  "return-partial"
+                ],
+                "default": "fail",
+                "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far."
+              }
+            },
+            "required": [
+              "milliseconds"
+            ],
+            "additionalProperties": false,
+            "description": "Optional request deadline and behavior on timeout."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          },
+          "zdr": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization, otherwise the request fails with ZDR_NOT_ENABLED."
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "web-competitors",
     "title": "Find website competitors",
     "method": "GET",

@@ -9,6 +9,7 @@ const PUBLIC_API_TOOLS = new Set([
   "web-crawl",
   "web-extract",
   "web-search",
+  "web-answers",
   "get-news-search",
   "brand-retrieve-unified",
   "web-styleguide",
@@ -149,7 +150,17 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-search": {
     title: "Search the live web",
     description:
-      "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape-markdown instead.",
+      "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape-markdown instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+  },
+  "web-answers": {
+    title: "Answer a web research question",
+    description:
+      "Research the live web and return a sourced answer in the exact JSON shape requested. Use fast for focused questions that should finish quickly or ultra for deeper research. Use web-search when ranked links or snippets are enough, web-scrape-markdown when the source URL is already known, or web-extract when the task is to extract a fixed schema from one website.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
