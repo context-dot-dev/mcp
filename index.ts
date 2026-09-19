@@ -144,7 +144,7 @@ const server = new MCPServer({
     "Turn the live web, company news, and files into reliable, agent-ready context. Search, scrape, crawl, extract structured data, parse documents, enrich brands, run large batches, and monitor meaningful changes.",
   instructions:
     "Use Context when a task needs current web data, company news, clean content from a URL, structured facts from a site, document parsing, brand intelligence, large-scale collection, or recurring change detection.\n\n" +
-    "Choose the smallest suitable tool: `get-news-search` finds verified news about one company; `web-search` discovers sources or researches broader topics; `web-scrape-markdown` reads one known page; `web-scrape-sitemap` discovers a site's URLs; `web-crawl` reads several linked pages synchronously; `submit-batch` handles large asynchronous jobs; and `web-extract` returns schema-shaped JSON. Use `parse-document` for file bytes.\n\n" +
+    "Choose the smallest suitable tool: `get-news-search` finds verified news about one company; `web-search` discovers sources or researches broader topics; `web-answers` researches the live web into a requested JSON shape; `web-scrape-markdown` reads one known page; `web-scrape-sitemap` discovers a site's URLs; `web-crawl` reads several linked pages synchronously; `submit-batch` handles large asynchronous jobs; and `web-extract` returns schema-shaped JSON from a known site. Use `parse-document` for file bytes.\n\n" +
     "Use `get-brand` for a visual domain profile and `brand-retrieve-unified` for raw brand data or non-domain identifiers. Monitors are for recurring checks, not one-time scraping. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
     "Use `list-logs` to investigate API failures in the authenticated account, then `get-log` with the request ID from a data entry for the redacted retained input and response.\n\n" +
     "Connect with Context OAuth. API-key authentication is available for private integrations through the Authorization header; never put API keys in URLs. Some operations consume Context credits, so avoid unnecessary duplicate calls and use idempotency keys for retried batch submissions.",
@@ -704,6 +704,8 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
     "New monitor lifecycle status: active continues scheduled runs; paused stops them until reactivated.",
   "web-extract.pdf":
     "PDF handling for discovered documents. Control whether PDFs are parsed and optionally restrict extraction to an inclusive page range.",
+  "web-answers.json_format":
+    "Example object whose keys and value types define the answer shape. Unknown values may be null.",
 };
 
 function mcpParameterDescription(

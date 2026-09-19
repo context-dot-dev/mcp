@@ -398,7 +398,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 37);
+  assert.equal(tools.length, 38);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -456,6 +456,7 @@ test("lists the public Context API with safety annotations", async () => {
     "parse-document",
     "web-scrape-html",
     "web-scrape-sitemap",
+    "web-answers",
     "get-news-search",
     "brand-retrieve-unified",
     "web-fonts",
@@ -500,6 +501,18 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);
   assert.equal(webSearch?.annotations?.openWorldHint, true);
+  const webAnswers = tools.find((tool) => tool.name === "web-answers");
+  assert.equal(webAnswers?.annotations?.readOnlyHint, true);
+  assert.equal(webAnswers?.annotations?.destructiveHint, false);
+  assert.equal(webAnswers?.annotations?.openWorldHint, true);
+  const answersProperties = (webAnswers?.inputSchema.properties ?? {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assert.deepEqual(webAnswers?.inputSchema.required, ["task"]);
+  assert.equal(answersProperties.task?.type, "string");
+  assert.equal(answersProperties.json_format?.type, "object");
+  assert.equal(answersProperties.mode?.type, "string");
   const newsSearch = tools.find((tool) => tool.name === "get-news-search");
   assert.equal(newsSearch?.annotations?.readOnlyHint, true);
   assert.equal(newsSearch?.annotations?.destructiveHint, false);

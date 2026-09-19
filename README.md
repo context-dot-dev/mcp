@@ -2,7 +2,7 @@
 
 A remote MCP server that gives AI agents reliable context from the live web, company news, and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
 
-The server exposes a curated 37-tool surface from the public [Context API](https://context.dev). Internal and legacy endpoints are never registered. Public endpoints that do not improve an agent workflow, such as cache prefetching, dedicated product extraction, and webhook-secret rotation, are intentionally omitted to keep tool selection clear.
+The server exposes a curated 38-tool surface from the public [Context API](https://context.dev). Internal and legacy endpoints are never registered. Public endpoints that do not improve an agent workflow, such as cache prefetching, dedicated product extraction, and webhook-secret rotation, are intentionally omitted to keep tool selection clear.
 
 ## Connect
 
@@ -26,7 +26,7 @@ Authorization: Bearer ctxt_secret_...
 | --- | --- |
 | Parse | `parse-document` |
 | Scrape and crawl | `web-scrape-html`, `web-scrape-markdown`, `web-scrape-images`, `web-scrape-sitemap`, `web-crawl`, `web-screenshot` |
-| Extract and search | `web-extract`, `web-search`, `web-naics`, `web-sic` |
+| Extract and search | `web-extract`, `web-search`, `web-answers`, `web-naics`, `web-sic` |
 | Company news | `get-news-search` |
 | Brand and design | `get-brand`, `brand-retrieve-unified`, `web-styleguide`, `web-fonts` |
 | API debugging | `list-logs`, `get-log` |
@@ -35,7 +35,7 @@ Authorization: Bearer ctxt_secret_...
 
 `get-brand` includes a visual brand card. Tool descriptions explain when each tool should be used, which adjacent tool to choose instead, whether work is synchronous or asynchronous, and what the result contains. API-backed tools retain the public OpenAPI request validation with MCP safety annotations audited for account state, open-web access, and destructive operations.
 
-For one known page, use `web-scrape-markdown`. Use `get-news-search` for live or historical news about one company, identified by exactly one name, domain, ticker, or ISIN; use `web-search` for broader topics or when the source is unknown. Use `web-crawl` for a focused multi-page request, and `submit-batch` for up to 25,000 URLs or a large asynchronous crawl. A batch returns an ID; poll `get-batch`, then page through `get-batch-results` after completion.
+For one known page, use `web-scrape-markdown`. Use `get-news-search` for live or historical news about one company, identified by exactly one name, domain, ticker, or ISIN; use `web-search` for broader topics or when the source is unknown; use `web-answers` when the user wants a sourced JSON answer rather than ranked links. Use `web-crawl` for a focused multi-page request, and `submit-batch` for up to 25,000 URLs or a large asynchronous crawl. A batch returns an ID; poll `get-batch`, then page through `get-batch-results` after completion.
 
 Tool responses are capped at 40,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
 

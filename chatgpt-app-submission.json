@@ -120,6 +120,18 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
+    "web-answers": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Researches the live web and returns a sourced JSON answer without modifying source sites or account records.",
+        "open_world_justification": "Searches and reads arbitrary public web pages outside the user's private Context account to produce the answer, so it interacts with external public-web data while remaining read-only.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
     "get-news-search": {
       "annotations": {
         "readOnlyHint": true,
