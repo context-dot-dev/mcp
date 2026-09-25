@@ -282,6 +282,40 @@ test("serves the OpenAI domain verification token as plain text", async () => {
   );
 });
 
+test("advertises every supported authentication path", async () => {
+  const landingResponse = await fetch(`${mcpBase}/mcp`, {
+    headers: { Accept: "text/html" },
+  });
+  const landingPage = await landingResponse.text();
+  assert.equal(landingResponse.status, 200);
+  assert.match(landingPage, /Authorization header/);
+  assert.match(landingPage, /X-API-Key header/);
+  assert.match(landingPage, /api_key URL parameter/);
+
+  const initializeResponse = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "auth-discovery-test", version: "1.0.0" },
+      },
+    }),
+  });
+  const initializePayload = await initializeResponse.json();
+  assert.equal(initializeResponse.status, 200);
+  assert.match(initializePayload.result.instructions, /Authorization: Bearer/);
+  assert.match(initializePayload.result.instructions, /X-API-Key/);
+  assert.match(initializePayload.result.instructions, /api_key/);
+});
+
 test("rejects untrusted browser origins and allows known MCP clients", async () => {
   const payload = JSON.stringify({
     jsonrpc: "2.0",
