@@ -11,6 +11,7 @@ type CapturedRequest = {
   body: Buffer;
   idempotencyKey?: string;
   authorization?: string;
+  contextAgent?: string;
 };
 
 const captured: CapturedRequest[] = [];
@@ -189,6 +190,7 @@ const upstream = createServer((request, response) => {
         ? idempotencyHeader[0]
         : idempotencyHeader,
       authorization: request.headers.authorization,
+      contextAgent: request.headers["x-context-agent"] as string | undefined,
     });
     const result = batchResponse(request.method ?? "", request.url ?? "");
     response.writeHead(result.status, { "content-type": "application/json" });
@@ -428,6 +430,23 @@ test("accepts a legacy query API key without OAuth", async () => {
     captured.at(-1)?.authorization,
     "Bearer ctxt_query_without_oauth",
   );
+});
+
+test("tags API requests with the connected MCP client", async () => {
+  captured.length = 0;
+  const client = new Client({ name: "context-test", version: "1.0.0" });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+      requestInit: { headers: { "User-Agent": "openai-mcp/1.0.0" } },
+    }),
+  );
+  await client.callTool({
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
+  });
+  await client.close();
+
+  assert.equal(captured.at(-1)?.contextAgent, "openai-mcp/1.0.0");
 });
 
 test("lists the public Context API with safety annotations", async () => {

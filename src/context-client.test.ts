@@ -9,6 +9,8 @@ type CapturedRequest = {
   url: string;
   authorization?: string;
   contentType?: string;
+  userAgent?: string;
+  contextAgent?: string;
   body: Buffer;
 };
 
@@ -24,6 +26,8 @@ const upstream = createServer((request, response) => {
       url: request.url ?? "",
       authorization: request.headers.authorization,
       contentType: request.headers["content-type"],
+      userAgent: request.headers["user-agent"],
+      contextAgent: request.headers["x-context-agent"] as string | undefined,
       body,
     });
 
@@ -356,4 +360,29 @@ test("includes request IDs in upstream API errors", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("forwards the calling MCP client in a header-safe X-Context-Agent", async () => {
+  captured.length = 0;
+  const call = (clientUserAgent?: string) =>
+    callContextApi({
+      apiBase,
+      endpoint: endpoint({ path: "/test/1" }),
+      args: {},
+      credential: { apiKey: "ctxt_test" },
+      clientUserAgent,
+    });
+
+  await call("Claude-User");
+  await call("Cursor ✨/1.2");
+  await call();
+
+  assert.deepEqual(
+    captured.map(({ userAgent, contextAgent }) => [userAgent, contextAgent]),
+    [
+      ["ContextDev-MCP/1.0", "Claude-User"],
+      ["ContextDev-MCP/1.0", "Cursor /1.2"],
+      ["ContextDev-MCP/1.0", undefined],
+    ],
+  );
 });

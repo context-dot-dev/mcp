@@ -221,11 +221,13 @@ export async function callContextApi({
   endpoint,
   args,
   credential,
+  clientUserAgent,
 }: {
   apiBase: string;
   endpoint: Endpoint;
   args: ToolArguments;
   credential: ContextCredential;
+  clientUserAgent?: string;
 }) {
   const requiredScope = endpoint.annotations.readOnlyHint
     ? "api.read"
@@ -258,8 +260,12 @@ export async function callContextApi({
     );
   }
 
+  // fetch rejects header values outside printable ASCII.
+  const contextAgent = clientUserAgent?.replace(/[^\x20-\x7E]/g, "").trim();
   const headers: Record<string, string> = {
     Authorization: `Bearer ${credential.apiKey}`,
+    "User-Agent": "ContextDev-MCP/1.0",
+    ...(contextAgent && { "X-Context-Agent": contextAgent }),
   };
   for (const parameter of endpoint.parameters) {
     if (parameter.in === "header" && args[parameter.name] !== undefined) {
