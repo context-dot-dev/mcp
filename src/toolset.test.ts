@@ -8,9 +8,8 @@ test("toolset exposes the curated public API surface", () => {
   const selected = selectEndpoints(ENDPOINTS);
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 37);
-  assert.ok(names.has("web-scrape-html"));
-  assert.ok(names.has("web-scrape-markdown"));
+  assert.equal(selected.length, 34);
+  assert.ok(names.has("web-scrape"));
   assert.ok(names.has("web-scrape-sitemap"));
   assert.ok(names.has("web-answers"));
   assert.ok(names.has("get-news-search"));
@@ -39,6 +38,10 @@ test("toolset exposes the curated public API surface", () => {
   assert.equal(names.has("brand-ai-query"), false);
   assert.equal(names.has("brand-retrieve"), false);
   assert.equal(names.has("get-monitor-limits"), false);
+  assert.equal(names.has("web-scrape-html"), false);
+  assert.equal(names.has("web-scrape-markdown"), false);
+  assert.equal(names.has("web-scrape-images"), false);
+  assert.equal(names.has("web-screenshot"), false);
   for (const endpoint of selected) {
     assert.equal(
       endpoint.parameters.some((parameter) => parameter.name === "headers"),
@@ -54,8 +57,8 @@ test("tool descriptions route agents between overlapping workflows", () => {
   );
 
   assert.match(
-    tools.get("web-scrape-markdown")?.description ?? "",
-    /web-search.*web-crawl.*submit-batch/i,
+    tools.get("web-scrape")?.description ?? "",
+    /HTML.*Markdown.*screenshot.*images.*highlights.*JSON.*product/i,
   );
   assert.match(
     tools.get("submit-batch")?.description ?? "",
@@ -71,7 +74,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
   );
   assert.match(
     tools.get("web-answers")?.description ?? "",
-    /web-search.*web-scrape-markdown.*web-extract/i,
+    /web-search.*web-scrape.*web-extract/i,
   );
   assert.match(
     tools.get("web-search")?.description ?? "",
@@ -109,12 +112,8 @@ test("tool descriptions route agents between overlapping workflows", () => {
 });
 
 test("every public tool has annotations that match its most privileged behavior", () => {
-  const interactiveExternalTools = new Set([
-    "web-scrape-html",
-    "web-scrape-markdown",
-    "web-scrape-images",
-  ]);
   const readOnlyExternalTools = new Set([
+    "web-scrape",
     "web-scrape-sitemap",
     "web-crawl",
     "web-extract",
@@ -124,7 +123,6 @@ test("every public tool has annotations that match its most privileged behavior"
     "brand-retrieve-unified",
     "web-styleguide",
     "web-fonts",
-    "web-screenshot",
     "web-naics",
     "web-sic",
   ]);
@@ -140,25 +138,19 @@ test("every public tool has annotations that match its most privileged behavior"
   ]);
 
   for (const tool of selectEndpoints(ENDPOINTS)) {
-    const expected = interactiveExternalTools.has(tool.name)
+    const expected = readOnlyExternalTools.has(tool.name)
       ? {
-          readOnlyHint: false,
-          destructiveHint: true,
+          readOnlyHint: true,
+          destructiveHint: false,
           openWorldHint: true,
         }
-      : readOnlyExternalTools.has(tool.name)
+      : tool.name === "parse-document"
         ? {
-            readOnlyHint: true,
+            readOnlyHint: false,
             destructiveHint: false,
-            openWorldHint: true,
+            openWorldHint: false,
           }
-        : tool.name === "parse-document"
-          ? {
-              readOnlyHint: false,
-              destructiveHint: false,
-              openWorldHint: false,
-            }
-        : additiveExternalTools.has(tool.name)
+      : additiveExternalTools.has(tool.name)
           ? {
               readOnlyHint: false,
               destructiveHint: false,

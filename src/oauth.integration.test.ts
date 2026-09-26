@@ -744,7 +744,7 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     })
   );
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 38);
+  assert.equal(tools.length, 35);
   const { resources } = await client.listResources();
   assert.equal(resources.length, 1);
   const resource = await client.readResource({
@@ -792,8 +792,8 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   });
   assert.equal(brandResult.isError, undefined);
   await client.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await client.callTool({
     name: "create-monitor",
@@ -825,8 +825,8 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
       id: 1,
       method: "tools/call",
       params: {
-        name: "web-scrape-markdown",
-        arguments: { url: "https://example.test" },
+        name: "web-scrape",
+        arguments: { url: "https://example.test", formats: { markdown: true } },
       },
     }),
   });
@@ -843,10 +843,10 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     })
   );
   const { tools } = await bearerClient.listTools();
-  assert.equal(tools.length, 38);
+  assert.equal(tools.length, 35);
   await bearerClient.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await bearerClient.close();
   assert.equal(
@@ -864,8 +864,8 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     })
   );
   await headerClient.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await headerClient.close();
   assert.equal(
@@ -883,8 +883,8 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     ),
   );
   await queryClient.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await queryClient.close();
   assert.equal(
@@ -902,8 +902,8 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     ),
   );
   await sseQueryClient.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await sseQueryClient.close();
   assert.equal(
@@ -922,8 +922,8 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     ),
   );
   await explicitApiKeyHeaderClient.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await explicitApiKeyHeaderClient.close();
   assert.equal(
@@ -946,8 +946,8 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     ),
   );
   await explicitHeaderClient.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
   });
   await explicitHeaderClient.close();
   assert.equal(
@@ -986,8 +986,8 @@ test("accepts direct Context API keys at the MCP transport", async () => {
       id: 1,
       method: "tools/call",
       params: {
-        name: "web-scrape-markdown",
-        arguments: { url: "https://example.test" },
+        name: "web-scrape",
+        arguments: { url: "https://example.test", formats: { markdown: true } },
       },
     }),
   });

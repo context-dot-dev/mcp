@@ -2,9 +2,7 @@ import type { Endpoint } from "../context-endpoints";
 
 const PUBLIC_API_TOOLS = new Set([
   "parse-document",
-  "web-scrape-html",
-  "web-scrape-markdown",
-  "web-scrape-images",
+  "web-scrape",
   "web-scrape-sitemap",
   "web-crawl",
   "web-extract",
@@ -14,7 +12,6 @@ const PUBLIC_API_TOOLS = new Set([
   "brand-retrieve-unified",
   "web-styleguide",
   "web-fonts",
-  "web-screenshot",
   "web-naics",
   "web-sic",
   "list-logs",
@@ -40,7 +37,278 @@ const PUBLIC_API_TOOLS = new Set([
   "delete-batch",
 ]);
 
-const PUBLIC_ENDPOINTS_MISSING_FROM_OPENAPI: Endpoint[] = [
+const CURATED_PUBLIC_ENDPOINTS: Endpoint[] = [
+  {
+    name: "web-scrape",
+    title: "Scrape a web page",
+    method: "POST",
+    path: "/web/scrape",
+    description:
+      "Scrape one known URL once and return any combination of HTML, Markdown, a screenshot, page images, relevant highlights, schema-shaped JSON, or product data. Use web-search when the URL is unknown, web-crawl for several linked pages, web-extract for structured data spanning several pages, or submit-batch for large asynchronous jobs.",
+    parameters: [],
+    requestBody: {
+      required: true,
+      contentType: "application/json",
+      binary: false,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          url: {
+            type: "string",
+            format: "uri",
+            pattern: "^https?://",
+            description: "HTTP or HTTPS URL to scrape.",
+          },
+          formats: {
+            type: "object",
+            additionalProperties: false,
+            description: "Outputs to return. Enable at least one format.",
+            properties: {
+              html: {
+                type: "boolean",
+                description: "Return rendered page HTML.",
+              },
+              markdown: {
+                type: "boolean",
+                description: "Return clean page content as Markdown.",
+              },
+              screenshot: {
+                type: "boolean",
+                description: "Return an inline image of the rendered page.",
+              },
+              images: {
+                type: "boolean",
+                description: "Return images found on the page.",
+              },
+              highlights: {
+                type: "boolean",
+                description:
+                  "Return Markdown passages relevant to highlightsParams.query.",
+              },
+              json: {
+                type: "boolean",
+                description:
+                  "Return page data matching jsonParams.schema.",
+              },
+              product: {
+                type: "boolean",
+                description:
+                  "Return product details such as name, price, and availability.",
+              },
+            },
+          },
+          sharedParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Browser and content settings shared by every output.",
+            properties: {
+              country: {
+                type: "string",
+                pattern: "^[A-Za-z]{2}$",
+                description: "Two-letter country code for the page request.",
+              },
+              viewport: {
+                type: "object",
+                additionalProperties: false,
+                description: "Browser viewport dimensions in pixels.",
+                properties: {
+                  width: {
+                    type: "integer",
+                    minimum: 240,
+                    maximum: 7680,
+                    description: "Viewport width in pixels.",
+                  },
+                  height: {
+                    type: "integer",
+                    minimum: 240,
+                    maximum: 4320,
+                    description: "Viewport height in pixels.",
+                  },
+                },
+              },
+              theme: {
+                type: "string",
+                enum: ["light", "dark"],
+                description: "Preferred page color scheme.",
+              },
+              dismissCookies: {
+                type: "boolean",
+                description: "Dismiss cookie banners before capture.",
+              },
+              dismissPopups: {
+                type: "boolean",
+                description: "Dismiss other obstructive popups before capture.",
+              },
+              waitFor: {
+                oneOf: [
+                  { type: "integer", minimum: 0, maximum: 30000 },
+                  { type: "string", minLength: 1, maxLength: 2048 },
+                ],
+                description:
+                  "Milliseconds to wait or a CSS selector that must become visible before capture.",
+              },
+              settleAnimations: {
+                type: "boolean",
+                description: "Wait briefly for animations to settle.",
+              },
+              mainContentOnly: {
+                type: "boolean",
+                description:
+                  "Keep only the page's primary content when detectable.",
+              },
+              includeSelectors: {
+                type: "array",
+                minItems: 1,
+                maxItems: 50,
+                uniqueItems: true,
+                items: { type: "string", minLength: 1, maxLength: 2048 },
+                description: "Keep content matching these CSS selectors.",
+              },
+              excludeSelectors: {
+                type: "array",
+                minItems: 1,
+                maxItems: 50,
+                uniqueItems: true,
+                items: { type: "string", minLength: 1, maxLength: 2048 },
+                description: "Remove content matching these CSS selectors.",
+              },
+              includeFrames: {
+                type: "boolean",
+                description: "Include iframe content in extracted outputs.",
+              },
+            },
+          },
+          markdownParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Markdown output settings.",
+            properties: {
+              includeLinks: {
+                type: "boolean",
+                description: "Preserve hyperlinks in Markdown.",
+              },
+              includeImages: {
+                type: "boolean",
+                description: "Include image references in Markdown.",
+              },
+              inlineImages: {
+                type: "string",
+                enum: ["placeholder", "preserve"],
+                description:
+                  "Replace inline base64 images with placeholders or preserve them.",
+              },
+            },
+          },
+          screenshotParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Screenshot output settings.",
+            properties: {
+              area: {
+                type: "string",
+                enum: ["viewport", "fullPage"],
+                description: "Capture the viewport or the full page.",
+              },
+              format: {
+                type: "string",
+                enum: ["png", "jpeg", "webp"],
+                description: "Screenshot image format.",
+              },
+            },
+          },
+          imageParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Page image output settings.",
+            properties: {
+              enrich: {
+                type: "array",
+                minItems: 1,
+                maxItems: 3,
+                uniqueItems: true,
+                items: {
+                  type: "string",
+                  enum: ["dimensions", "classification", "file"],
+                },
+                description:
+                  "Add dimensions, visual classification, or a hosted file URL.",
+              },
+              dedupe: {
+                type: "string",
+                enum: ["none", "visual"],
+                description: "Keep all images or remove visual duplicates.",
+              },
+            },
+          },
+          highlightsParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Settings for relevant Markdown highlights.",
+            properties: {
+              query: {
+                type: "string",
+                minLength: 1,
+                maxLength: 2000,
+                description: "Question or topic to find passages for.",
+              },
+              maxCharacters: {
+                type: "integer",
+                minimum: 100,
+                maximum: 20000,
+                description: "Maximum combined highlight length.",
+              },
+            },
+            required: ["query"],
+          },
+          jsonParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Settings for schema-shaped JSON extraction.",
+            properties: {
+              schema: {
+                type: "object",
+                additionalProperties: true,
+                description:
+                  "JSON Schema describing the top-level object to return.",
+              },
+              instructions: {
+                type: "string",
+                maxLength: 2000,
+                description: "Optional extraction guidance.",
+              },
+            },
+            required: ["schema"],
+          },
+          productParams: {
+            type: "object",
+            additionalProperties: false,
+            description: "Product extraction settings.",
+            properties: {
+              useAIFallback: {
+                type: "boolean",
+                description:
+                  "Use the specialized model when structured product data is unavailable.",
+              },
+            },
+          },
+          maxAgeMs: {
+            type: "integer",
+            minimum: 0,
+            maximum: 2592000000,
+            description:
+              "Maximum cached result age in milliseconds. Use 0 to fetch fresh.",
+          },
+        },
+        required: ["url", "formats"],
+      },
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+  },
   {
     name: "get-monitor-run",
     title: "Get a monitor run",
@@ -87,40 +355,10 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       openWorldHint: false,
     },
   },
-  "web-scrape-html": {
-    title: "Scrape raw HTML",
-    description:
-      "Fetch the raw HTML of one known URL. Use this only when DOM structure, attributes, scripts, or markup are required; prefer web-scrape-markdown when the goal is to read, summarize, or answer questions from a page. Supports selectors, dynamic-page waits, and optional browser actions. Browser actions can interact with third-party pages and may cause external side effects, so use them only with explicit user direction.",
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: true,
-      openWorldHint: true,
-    },
-  },
-  "web-scrape-markdown": {
-    title: "Scrape a page to Markdown",
-    description:
-      "Turn one known URL into clean, LLM-ready Markdown. This is the default tool for reading or analyzing a page and supports main-content filtering, selectors, links, images, PDF page ranges, dynamic-page waits, and optional browser actions. Browser actions can interact with third-party pages and may cause external side effects, so use them only with explicit user direction. Use web-search when the URL is unknown, web-crawl for several linked pages, or submit-batch for large asynchronous jobs.",
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: true,
-      openWorldHint: true,
-    },
-  },
-  "web-scrape-images": {
-    title: "Find images on a page",
-    description:
-      "Find image assets on one web page, including responsive sources, CSS backgrounds, inline SVGs, video posters, and available metadata. Optional browser actions can interact with third-party pages and may cause external side effects, so use them only with explicit user direction. Use this for asset discovery, brand libraries, catalog work, or visual audits; use web-screenshot when a rendered picture of the whole page is needed.",
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: true,
-      openWorldHint: true,
-    },
-  },
   "web-scrape-sitemap": {
     title: "Discover website URLs",
     description:
-      "Discover URLs from a website's sitemap without fetching every page body. Use this to inventory a site or locate relevant pages cheaply. Use web-scrape-markdown for one page, web-crawl to collect content from several pages, or submit-batch for large asynchronous collection.",
+      "Discover URLs from a website's sitemap without fetching every page body. Use this to inventory a site or locate relevant pages cheaply. Use web-scrape for one page, web-crawl to collect content from several pages, or submit-batch for large asynchronous collection.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -140,7 +378,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-extract": {
     title: "Extract structured web data",
     description:
-      "Crawl the relevant pages of a website and return data shaped by the supplied JSON Schema and instructions. Use this when the requested output has defined fields, such as pricing, locations, jobs, or company facts. Use web-scrape-markdown when readable page content is more useful than structured JSON.",
+      "Crawl the relevant pages of a website and return data shaped by the supplied JSON Schema and instructions. Use this when the requested output has defined fields, such as pricing, locations, jobs, or company facts. Use web-scrape when readable content from one known page is more useful than multi-page structured JSON.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -150,7 +388,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-search": {
     title: "Search the live web",
     description:
-      "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape-markdown instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
+      "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -160,7 +398,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-answers": {
     title: "Answer a web research question",
     description:
-      "Research the live web and return a sourced answer in the exact JSON shape requested. Use fast for focused questions that should finish quickly or ultra for deeper research. Use web-search when ranked links or snippets are enough, web-scrape-markdown when the source URL is already known, or web-extract when the task is to extract a fixed schema from one website.",
+      "Research the live web and return a sourced answer in the exact JSON shape requested. Use fast for focused questions that should finish quickly or ultra for deeper research. Use web-search when ranked links or snippets are enough, web-scrape when the source URL is already known, or web-extract when the task is to extract a fixed schema from one website.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -201,16 +439,6 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     title: "Inspect website fonts",
     description:
       "Identify the font families used by a website, with fallbacks and usage statistics. Use this when typography must be matched or audited; use web-styleguide for the broader visual system.",
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: true,
-    },
-  },
-  "web-screenshot": {
-    title: "Capture a website screenshot",
-    description:
-      "Capture a rendered PNG screenshot of a web page with viewport and full-page controls. Use this for visual QA, previews, audits, or design reference; use web-scrape-markdown when the page's textual content is needed.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -458,15 +686,19 @@ function applyToolOverride(endpoint: Endpoint): Endpoint {
 }
 
 export function selectEndpoints(endpoints: Endpoint[]): Endpoint[] {
-  const selectedEndpoints = endpoints.filter((endpoint) =>
-    PUBLIC_API_TOOLS.has(endpoint.name),
+  const curatedNames = new Set(
+    CURATED_PUBLIC_ENDPOINTS.map((endpoint) => endpoint.name),
+  );
+  const selectedEndpoints = endpoints.filter(
+    (endpoint) =>
+      PUBLIC_API_TOOLS.has(endpoint.name) && !curatedNames.has(endpoint.name),
   );
   const selectedNames = new Set(
     selectedEndpoints.map((endpoint) => endpoint.name),
   );
   return [
     ...selectedEndpoints,
-    ...PUBLIC_ENDPOINTS_MISSING_FROM_OPENAPI.filter(
+    ...CURATED_PUBLIC_ENDPOINTS.filter(
       (endpoint) => !selectedNames.has(endpoint.name),
     ),
   ].map(applyToolOverride);

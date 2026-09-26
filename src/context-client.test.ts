@@ -255,6 +255,48 @@ test("bounds oversized tool responses while preserving structured data", async (
   }
 });
 
+test("returns unified screenshots as MCP image content", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        screenshot: {
+          requested: true,
+          success: true,
+          data: "data:image/webp;base64,aGVsbG8=",
+        },
+        request_id: "req_screenshot",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ name: "web-scrape", path: "/web/scrape" }),
+      args: { url: "https://example.test", formats: { screenshot: true } },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const imageBlock = result.content.find((block) => block.type === "image");
+    assert.deepEqual(imageBlock, {
+      type: "image",
+      data: "aGVsbG8=",
+      mimeType: "image/webp",
+    });
+    assert.deepEqual(result.structuredContent, {
+      screenshot: {
+        requested: true,
+        success: true,
+        data: null,
+        delivery: "Returned as MCP image content.",
+      },
+      request_id: "req_screenshot",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("preserves request IDs while removing private response metadata", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
