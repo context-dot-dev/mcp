@@ -12,13 +12,19 @@ The MCP endpoint is:
 https://<your-domain>/mcp
 ```
 
-Connect through OAuth, or send a Context API key in a header (works on both hosted and local deployments):
+Connect through OAuth, or send a Context API key in the `Authorization` header (works on both hosted and local deployments):
 
 ```text
 Authorization: Bearer ctxt_secret_...
 ```
 
-`x-api-key` is also accepted. The legacy `api_key` query parameter remains available for existing integrations, but OAuth or headers should be used for new connections because URLs commonly leak into logs, browser history, and analytics.
+`X-API-Key: ctxt_secret_...` is also accepted. If a client cannot use OAuth or custom headers, put the key in the endpoint URL:
+
+```text
+https://<your-domain>/mcp?api_key=ctxt_secret_...
+```
+
+Prefer OAuth or headers because URLs can be saved in client configuration, logs, browser history, and analytics. Rotate a key if its URL is exposed.
 
 ## Tools
 

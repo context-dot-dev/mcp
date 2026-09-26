@@ -136,4 +136,4 @@ export function resolveContextCredential(
 }
 
 export const MISSING_CREDENTIAL_MESSAGE =
-  "Connect your Context account with OAuth, or send a Context API key in the Authorization header.";
+  "Connect your Context account with OAuth, or send a Context API key as an Authorization bearer token, X-API-Key header, or api_key URL parameter.";
