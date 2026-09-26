@@ -898,6 +898,7 @@ for (const ep of registeredEndpoints as Endpoint[]) {
         endpoint: ep,
         args: args as Record<string, unknown>,
         credential,
+        clientUserAgent: context.req?.header("user-agent"),
       });
     },
   );
