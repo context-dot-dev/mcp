@@ -288,18 +288,6 @@
         "destructive_justification": "Changing the target or detection definition permanently overwrites the existing baseline with a new one; the previous baseline cannot be recovered."
       }
     },
-    "web-screenshot": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Captures a rendered PNG screenshot of a web page without writing to the target site or modifying account data.",
-        "open_world_justification": "Loads and renders an arbitrary public web page outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
     "web-styleguide": {
       "annotations": {
         "readOnlyHint": true,
@@ -334,18 +322,6 @@
         "read_only_justification": "Queues an immediate out-of-schedule network check for a monitor in the authenticated account, creating a new run record.",
         "open_world_justification": "Running a monitor can send a change notification to the monitor's configured external webhook; without a webhook it only writes private Context run state and reads the target.",
         "destructive_justification": "A successful run may replace the monitor's stored comparison baseline with the newly observed state, overwriting data used by future comparisons."
-      }
-    },
-    "web-scrape-html": {
-      "annotations": {
-        "readOnlyHint": false,
-        "openWorldHint": true,
-        "destructiveHint": true
-      },
-      "justifications": {
-        "read_only_justification": "The tool normally fetches HTML, but its optional natural-language browser actions can click, type, or submit controls on a third-party page, so the most privileged supported mode is not read-only.",
-        "open_world_justification": "Optional browser actions can submit forms or otherwise change a third-party website; without actions the tool only reads the requested page.",
-        "destructive_justification": "An explicitly requested browser action can submit an irreversible form or trigger another difficult-to-reverse external action, so approval is required even though ordinary fetches are non-destructive."
       }
     },
     "get-batch-results": {
@@ -384,16 +360,16 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
-    "web-scrape-images": {
+    "web-scrape": {
       "annotations": {
-        "readOnlyHint": false,
+        "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "The tool normally discovers image assets, but its optional natural-language browser actions can click, type, or submit controls on a third-party page, so the most privileged supported mode is not read-only.",
-        "open_world_justification": "Optional browser actions can submit forms or otherwise change a third-party website; without actions the tool only reads image metadata and assets.",
-        "destructive_justification": "An explicitly requested browser action can submit an irreversible form or trigger another difficult-to-reverse external action, so approval is required even though ordinary image discovery is non-destructive."
+        "read_only_justification": "Reads one public page and returns the requested HTML, Markdown, screenshot, images, highlights, JSON, or product data without modifying the page or the user's account.",
+        "open_world_justification": "Fetches data from an arbitrary public URL outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
+        "destructive_justification": "The MCP schema excludes browser actions and arbitrary outbound headers, so the tool cannot submit forms, mutate third-party state, or perform irreversible actions."
       }
     },
     "web-scrape-sitemap": {
@@ -406,18 +382,6 @@
         "read_only_justification": "Retrieves discovered URLs from a website's sitemap without modifying the site or the user's account.",
         "open_world_justification": "Fetches sitemap and URL data from an arbitrary public website outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "web-scrape-markdown": {
-      "annotations": {
-        "readOnlyHint": false,
-        "openWorldHint": true,
-        "destructiveHint": true
-      },
-      "justifications": {
-        "read_only_justification": "The tool normally fetches and converts a page, but its optional natural-language browser actions can click, type, or submit controls on a third-party page, so the most privileged supported mode is not read-only.",
-        "open_world_justification": "Optional browser actions can submit forms or otherwise change a third-party website; without actions the tool only reads and converts the requested page.",
-        "destructive_justification": "An explicitly requested browser action can submit an irreversible form or trigger another difficult-to-reverse external action, so approval is required even though ordinary page conversion is non-destructive."
       }
     },
     "list-monitor-changes": {
@@ -461,7 +425,7 @@
   "app_info": {
     "category": "DEVELOPER_TOOLS",
     "subtitle": "Live web data for AI agents",
-    "description": "Context turns the live web and files into clean, agent-ready data inside ChatGPT. Search for current information and company news, read a known page as Markdown, crawl websites, extract schema-shaped JSON, parse documents, retrieve company and brand intelligence, inspect visual design systems, run asynchronous scraping batches across thousands of URLs, and monitor websites for meaningful changes over time. Some scraping tools can perform explicitly requested browser actions to reveal content. Context does not provide general messaging, calendar, account-management, or social-publishing integrations.",
+    "description": "Context turns the live web and files into clean, agent-ready data inside ChatGPT. Search for current information and company news, scrape known pages into HTML, Markdown, screenshots, images, highlights, JSON, or product data, crawl websites, parse documents, retrieve company and brand intelligence, inspect visual design systems, run asynchronous scraping batches across thousands of URLs, and monitor websites for meaningful changes over time. Context does not provide general messaging, calendar, account-management, or social-publishing integrations.",
     "display_name": "Context.dev"
   },
   "test_cases": [
@@ -469,7 +433,7 @@
       "description": "Read a known public documentation page as Markdown and answer from its contents.",
       "user_prompt": "Read https://docs.context.dev/ and give me a concise overview of the public Context APIs described there. Include the source URL.",
       "expected_output": "Uses the scraped Markdown to summarize the documented Context API categories and includes https://docs.context.dev/ as the source.",
-      "tools_triggered": "web-scrape-markdown",
+      "tools_triggered": "web-scrape",
       "expected_output_url": null,
       "file_attachment_urls": null
     },

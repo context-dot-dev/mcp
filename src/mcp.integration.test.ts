@@ -416,8 +416,11 @@ test("accepts a legacy query API key without OAuth", async () => {
     ),
   );
   await client.callTool({
-    name: "web-scrape-markdown",
-    arguments: { url: "https://example.test" },
+    name: "web-scrape",
+    arguments: {
+      url: "https://example.test",
+      formats: { markdown: true },
+    },
   });
   await client.close();
 
@@ -432,7 +435,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 38);
+  assert.equal(tools.length, 35);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -488,7 +491,7 @@ test("lists the public Context API with safety annotations", async () => {
   const names = new Set(tools.map((tool) => tool.name));
   for (const requiredName of [
     "parse-document",
-    "web-scrape-html",
+    "web-scrape",
     "web-scrape-sitemap",
     "web-answers",
     "get-news-search",
@@ -520,6 +523,10 @@ test("lists the public Context API with safety annotations", async () => {
     "get-monitor-limits",
     "create-webdb-collection",
     "preview-webdb",
+    "web-scrape-html",
+    "web-scrape-markdown",
+    "web-scrape-images",
+    "web-screenshot",
   ]) {
     assert.equal(names.has(privateName), false, `exposed ${privateName}`);
   }
@@ -564,12 +571,30 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(newsProperties.cursor?.anyOf instanceof Array, true);
   assert.equal(newsProperties.tags?.type, "array");
 
-  const markdown = tools.find(
-    (tool) => tool.name === "web-scrape-markdown",
-  );
-  assert.equal(markdown?.annotations?.readOnlyHint, false);
-  assert.equal(markdown?.annotations?.destructiveHint, true);
-  assert.equal(markdown?.annotations?.openWorldHint, true);
+  const webScrape = tools.find((tool) => tool.name === "web-scrape");
+  assert.equal(webScrape?.annotations?.readOnlyHint, true);
+  assert.equal(webScrape?.annotations?.destructiveHint, false);
+  assert.equal(webScrape?.annotations?.openWorldHint, true);
+  assert.deepEqual(webScrape?.inputSchema.required, ["url", "formats"]);
+  const webScrapeProperties = (webScrape?.inputSchema.properties ?? {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const webScrapeFormats = (webScrapeProperties.formats?.properties ?? {}) as Record<
+    string,
+    unknown
+  >;
+  assert.deepEqual(Object.keys(webScrapeFormats), [
+    "html",
+    "markdown",
+    "screenshot",
+    "images",
+    "highlights",
+    "json",
+    "product",
+  ]);
+  assert.equal(JSON.stringify(webScrape?.inputSchema).includes("headers"), false);
+  assert.equal(JSON.stringify(webScrape?.inputSchema).includes("actions"), false);
 
   const brand = tools.find((tool) => tool.name === "get-brand");
   assert.equal(brand?.annotations?.readOnlyHint, true);
@@ -581,6 +606,57 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(submitBatch?.annotations?.destructiveHint, false);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+});
+
+test("scrapes one page into multiple curated outputs", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const arguments_ = {
+    url: "https://example.test/product",
+    formats: {
+      html: true,
+      markdown: true,
+      screenshot: true,
+      images: true,
+      highlights: true,
+      json: true,
+      product: true,
+    },
+    sharedParams: {
+      viewport: { width: 1440, height: 900 },
+      mainContentOnly: true,
+      includeSelectors: ["main"],
+    },
+    markdownParams: { includeLinks: true, includeImages: true },
+    screenshotParams: { area: "fullPage", format: "webp" },
+    imageParams: { enrich: ["dimensions"], dedupe: "visual" },
+    highlightsParams: {
+      query: "pricing and availability",
+      maxCharacters: 2000,
+    },
+    jsonParams: {
+      schema: {
+        type: "object",
+        properties: {
+          price: { type: "number" },
+          inStock: { type: "boolean" },
+        },
+      },
+    },
+    productParams: { useAIFallback: false },
+  };
+
+  const result = await client.callTool({
+    name: "web-scrape",
+    arguments: arguments_,
+  });
+  await client.close();
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.method, "POST");
+  assert.equal(captured[0]!.url, "/web/scrape");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), arguments_);
+  assert.deepEqual(resultObject(result), { ok: true });
 });
 
 test("lists and retrieves account logs through the MCP tools", async () => {
@@ -872,16 +948,16 @@ test("accepts every documented batch submission mode", async () => {
   );
 });
 
-test("executes nested queries, path operations, JSON bodies, and parse bytes", async () => {
+test("executes path operations, JSON bodies, and parse bytes", async () => {
   captured.length = 0;
   const client = await connectClient();
 
   await client.callTool({
-    name: "web-scrape-markdown",
+    name: "web-scrape",
     arguments: {
       url: "https://example.test/page",
-      pdf: { start: 2, end: 4 },
-      includeSelectors: ["main", "article"],
+      formats: { markdown: true },
+      sharedParams: { includeSelectors: ["main", "article"] },
     },
   });
   await client.callTool({
@@ -927,13 +1003,13 @@ test("executes nested queries, path operations, JSON bodies, and parse bytes", a
   });
   await client.close();
 
-  const markdownUrl = new URL(captured[0]!.url, upstreamBase);
-  assert.equal(markdownUrl.searchParams.has("headers[X-Custom]"), false);
-  assert.equal(markdownUrl.searchParams.get("pdf[start]"), "2");
-  assert.deepEqual(markdownUrl.searchParams.getAll("includeSelectors"), [
-    "main",
-    "article",
-  ]);
+  assert.equal(captured[0]!.method, "POST");
+  assert.equal(captured[0]!.url, "/web/scrape");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    url: "https://example.test/page",
+    formats: { markdown: true },
+    sharedParams: { includeSelectors: ["main", "article"] },
+  });
   assert.equal(captured[1]!.url, "/monitors/monitor%2Fa");
   assert.equal(captured[2]!.url, "/monitors/monitor%2Fa/runs/run%2Fb");
   assert.equal(captured[3]!.method, "POST");

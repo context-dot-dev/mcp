@@ -1,4 +1,4 @@
-import { error, object, text } from "mcp-use/server";
+import { error, image, object, text } from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
 
 type ToolArguments = Record<string, unknown>;
@@ -181,6 +181,41 @@ function boundedObject(value: Record<string, unknown>, originalChars: number) {
   });
 }
 
+function contextObject(endpoint: Endpoint, value: Record<string, unknown>) {
+  const screenshot = getScreenshot(value);
+  if (endpoint.name !== "web-scrape" || !screenshot) {
+    return boundedObject(value, JSON.stringify(value).length);
+  }
+
+  const withoutInlineScreenshot = {
+    ...value,
+    screenshot: {
+      ...(value.screenshot as Record<string, unknown>),
+      data: null,
+      delivery: "Returned as MCP image content.",
+    },
+  };
+  const result = boundedObject(
+    withoutInlineScreenshot,
+    JSON.stringify(withoutInlineScreenshot).length,
+  );
+  const imageResult = image(screenshot.data, screenshot.mimeType);
+  return {
+    ...result,
+    content: [...result.content, ...imageResult.content],
+  };
+}
+
+function getScreenshot(value: Record<string, unknown>) {
+  const screenshot = value.screenshot;
+  if (!screenshot || typeof screenshot !== "object") return undefined;
+  const dataUrl = (screenshot as Record<string, unknown>).data;
+  if (typeof dataUrl !== "string") return undefined;
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/.exec(dataUrl);
+  if (!match) return undefined;
+  return { mimeType: match[1]!, data: match[2]! };
+}
+
 export async function callContextApi({
   apiBase,
   endpoint,
@@ -275,7 +310,7 @@ export async function callContextApi({
     const minimized = minimizeContextResponse(
       parsed as Record<string, unknown>,
     );
-    return boundedObject(minimized, JSON.stringify(minimized).length);
+    return contextObject(endpoint, minimized);
   }
   const resultText = parsed === undefined ? raw : JSON.stringify(parsed);
   const limit = maxResponseChars();
