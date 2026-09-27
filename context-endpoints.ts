@@ -60,7 +60,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Submit agent feedback",
     "method": "POST",
     "path": "/feedback",
-    "description": "Submit agent feedback — Report a problem with a Context.dev API call, docs page, SDK, or CLI. Include request_id, url, or both.",
+    "description": "Submit agent feedback — Report an API issue or documentation mismatch, including request IDs when available.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -123,7 +123,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List request logs",
     "method": "GET",
     "path": "/logs",
-    "description": "List request logs — List your organization's API requests, newest first. Defaults to the last 24 hours.",
+    "description": "List request logs — List your organization’s request logs with filters and pagination. Logs also include batch settlements and monitor runs.",
     "parameters": [
       {
         "name": "from",
@@ -270,10 +270,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-log",
-    "title": "Get a request log",
+    "title": "Retrieve a request log",
     "method": "GET",
     "path": "/logs/{request_id}",
-    "description": "Get a request log — Get one logged API call, including its request input and response body.",
+    "description": "Retrieve a request log — Retrieve a request’s metadata, retained input, and response.",
     "parameters": [
       {
         "name": "request_id",
@@ -298,7 +298,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List webhook deliveries",
     "method": "POST",
     "path": "/webhooks/deliveries",
-    "description": "List webhook deliveries — List your batch or monitor webhook deliveries, newest first.",
+    "description": "List webhook deliveries — List batch and monitor webhook deliveries from the last 30 days.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -441,10 +441,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-webhook-delivery",
-    "title": "Get a webhook delivery",
+    "title": "Retrieve a webhook delivery",
     "method": "GET",
     "path": "/webhooks/deliveries/{delivery_id}",
-    "description": "Get a webhook delivery — Get a webhook delivery, including its status and latest attempt.",
+    "description": "Retrieve a webhook delivery — Retrieve a webhook delivery’s status and original payload.",
     "parameters": [
       {
         "name": "delivery_id",
@@ -461,7 +461,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -478,7 +478,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List webhook delivery attempts",
     "method": "GET",
     "path": "/webhooks/deliveries/{delivery_id}/attempts",
-    "description": "List webhook delivery attempts — List delivery attempts, newest first.",
+    "description": "List webhook delivery attempts — List a delivery’s attempts, newest first.",
     "parameters": [
       {
         "name": "delivery_id",
@@ -519,7 +519,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -536,7 +536,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Retry a webhook delivery",
     "method": "POST",
     "path": "/webhooks/deliveries/{delivery_id}/retry",
-    "description": "Retry a webhook delivery — Retry a webhook delivery within seven days of creation.",
+    "description": "Retry a webhook delivery — Resend the original payload using the source’s current URL and secret. Available for 7 days after the event.",
     "parameters": [
       {
         "name": "delivery_id",
@@ -568,7 +568,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "force": {
             "type": "boolean",
-            "description": "Resend a delivery that already succeeded."
+            "description": "Resend even if the delivery already succeeded. Defaults to false."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -587,10 +587,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-scrape",
-    "title": "Scrape",
+    "title": "Scrape a URL",
     "method": "POST",
     "path": "/web/scrape",
-    "description": "Scrape — Reuse cached outputs independently and capture missing formats in one page visit. Each cache key includes only the settings that affect that output. HTML is shared with Markdown, parsed fields, product data, highlights, and JSON extraction. Cached outputs can come from different visits within maxAgeMs; use 0 for a fresh capture. HTML-only requests use the existing fast acquisition path. Highlights return Markdown excerpts most relevant to highlightsParams.query. Requests with at least one successful output cost one base credit, including cache hits, or two with browser actions. All-failed responses are unbilled except missing pages, which retain the base price and the one-credit product charge when product was requested. Highlights add 3 credits when passages are returned. JSON extraction runs an LLM over nonempty page Markdown and adds four credits only when its result is returned successfully. PDF OCR adds one credit per recovered page on fresh extraction. Product adds one credit when its successful result is returned, plus six if that result used the specialized model. Original response bytes and screenshots are limited to 20 MiB each, screenshots to 40 megapixels, and the combined response to 60 MiB. An oversized output has success: false and data: null. If the combined response exceeds its limit, the largest outputs are marked failed until the remaining outputs f…",
+    "description": "Scrape a URL — Returns the outputs you enable in `formats` from one visit to a URL. Each output reports its own `success`, so a failed output does not fail the request.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -608,10 +608,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-news-search",
-    "title": "Search company news",
+    "title": "Search news",
     "method": "POST",
     "path": "/news/search",
-    "description": "Search company news — Searches live and historical company news for one company, identified in searchBy by name, domain, ticker (optionally disambiguated by exchange), or ISIN. Results can be filtered by one of publisher domain, publisher country, article language, or article type, optionally combined with a published-at date range, and include stable story IDs, source metadata, verified entity relevance, and cursor pagination.",
+    "description": "Search news — Find company news by name, domain, ticker, or ISIN. Filter articles and continue through results with a cursor.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -1111,10 +1111,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-answers",
-    "title": "Answer a research task from the live web",
+    "title": "Answer a research task",
     "method": "POST",
     "path": "/web/answers",
-    "description": "Answer a research task from the live web — Researches the live web and returns a sourced answer in your requested JSON shape. Select fast for a smaller research budget at 10 credits or ultra for deeper reasoning at 100 credits. Defaults to ultra. Fast research is limited to 30 seconds and ultra to 50 seconds; timeoutOpts.milliseconds can shorten either deadline.",
+    "description": "Answer a research task — Research the web and return a sourced answer in your JSON shape. Choose `fast` for a short task or `ultra` for deeper research.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -1132,10 +1132,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "parse-document",
-    "title": "Parse Bytes",
+    "title": "Parse a file",
     "method": "POST",
     "path": "/parse",
-    "description": "Parse Bytes — Converts raw text, source code, web/data, PDF, Microsoft Office, and image bytes into LLM-usable Markdown.",
+    "description": "Parse a file — Convert uploaded file bytes into Markdown and optional HTML.",
     "parameters": [
       {
         "name": "extension",
@@ -1267,11 +1267,11 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "ocr",
         "in": "query",
         "required": false,
-        "description": "When true for PDF inputs, OCR the selected pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. pdf.start/pdf.end limit the inclusive page range. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs.",
+        "description": "Read text from images and scanned PDF pages. PDF page ranges still apply.",
         "schema": {
           "type": "boolean",
           "default": false,
-          "description": "When true for PDF inputs, OCR the selected pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. pdf.start/pdf.end limit the inclusive page range. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+          "description": "Read text from images and scanned PDF pages. PDF page ranges still apply."
         }
       },
       {
@@ -1313,7 +1313,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -1321,14 +1321,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -1336,7 +1336,7 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     "requestBody": {
       "required": true,
-      "description": "Raw file bytes. The request body must not exceed 50 MiB.",
+      "description": "Raw file bytes, up to 50 MiB.",
       "schema": {
         "type": "string",
         "format": "binary"
@@ -1373,7 +1373,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "headers",
         "in": "query",
         "required": false,
-        "description": "Optional outbound HTTP headers, such as Referer, Cookie, or Authorization. Send as a JSON object or deep-object query params such as headers[Referer]=https://example.com/. Host, Content-Length, and hop-by-hop transport headers are rejected. Authorization and cookies are removed when a redirect changes origin. Credential-bearing headers bypass cache reads and writes; other headers are included in the cache key.",
+        "description": "Headers for the target origin. Credentials are removed on cross-origin redirects and bypass caching.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -1381,14 +1381,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 8192,
             "pattern": "^[^\\r\\n]*$"
           },
-          "description": "Optional outbound HTTP headers, such as Referer, Cookie, or Authorization. Send as a JSON object or deep-object query params such as headers[Referer]=https://example.com/. Host, Content-Length, and hop-by-hop transport headers are rejected. Authorization and cookies are removed when a redirect changes origin. Credential-bearing headers bypass cache reads and writes; other headers are included in the cache key."
+          "description": "Headers for the target origin. Credentials are removed on cross-origin redirects and bypass caching."
         }
       },
       {
         "name": "country",
         "in": "query",
         "required": false,
-        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "description": "Fetch from this country (ISO 3166-1 alpha-2).",
         "schema": {
           "$ref": "#/components/schemas/BrowserCountryCode"
         }
@@ -1412,7 +1412,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/LenientTimeout"
         }
@@ -1421,7 +1421,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
@@ -1430,14 +1430,14 @@ export const ENDPOINTS: Endpoint[] = [
           "minimum": 0,
           "maximum": 2592000000,
           "default": 86400000,
-          "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+          "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
         }
       },
       {
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -1445,14 +1445,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -1494,7 +1494,7 @@ export const ENDPOINTS: Endpoint[] = [
             "shouldParse": {
               "type": "boolean",
               "default": true,
-              "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
+              "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
             },
             "start": {
               "type": "integer",
@@ -1509,7 +1509,7 @@ export const ENDPOINTS: Endpoint[] = [
             "ocr": {
               "type": "boolean",
               "default": false,
-              "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+              "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
             }
           },
           "default": {
@@ -1545,7 +1545,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "extractRules",
         "in": "query",
         "required": false,
-        "description": "Optional CSS extraction rules applied to the returned HTML after selector and main-content filtering. Use selector strings (\"h1\", \"a@href\") or objects with selector, type (item or list), and output (text, html, @attribute, or nested rules). Text whitespace is normalized; html includes the matched element; attributes are returned as written. Missing items are null and missing lists are empty. CSS only; XPath is not supported. Maximum: 100 fields across 5 levels. Send a JSON-encoded string in the extractRules query parameter.",
+        "description": "CSS extraction rules, as a JSON object. Up to 100 fields and 5 nesting levels. XPath is unsupported.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -1596,14 +1596,14 @@ export const ENDPOINTS: Endpoint[] = [
               }
             ]
           },
-          "description": "Optional CSS extraction rules applied to the returned HTML after selector and main-content filtering. Use selector strings (\"h1\", \"a@href\") or objects with selector, type (item or list), and output (text, html, @attribute, or nested rules). Text whitespace is normalized; html includes the matched element; attributes are returned as written. Missing items are null and missing lists are empty. CSS only; XPath is not supported. Maximum: 100 fields across 5 levels. Send a JSON-encoded string in the extractRules query parameter."
+          "description": "CSS extraction rules, as a JSON object. Up to 100 fields and 5 nesting levels. XPath is unsupported."
         }
       },
       {
         "name": "includeSelectors",
         "in": "query",
         "required": false,
-        "description": "CSS selectors. When provided, only matching subtrees (and their descendants) are kept and everything else is dropped. When omitted, the entire document is kept. Examples: \"article.main\", \"#content\", \"[role=main]\".",
+        "description": "Keep only elements matching these CSS selectors.",
         "schema": {
           "type": [
             "array",
@@ -1615,7 +1615,7 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 2048
           },
           "maxItems": 50,
-          "description": "CSS selectors. When provided, only matching subtrees (and their descendants) are kept and everything else is dropped. When omitted, the entire document is kept. Examples: \"article.main\", \"#content\", \"[role=main]\"."
+          "description": "Keep only elements matching these CSS selectors."
         }
       },
       {
@@ -1641,7 +1641,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
@@ -1650,7 +1650,7 @@ export const ENDPOINTS: Endpoint[] = [
           "minimum": 0,
           "maximum": 2592000000,
           "default": 86400000,
-          "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+          "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
         }
       },
       {
@@ -1700,7 +1700,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "headers",
         "in": "query",
         "required": false,
-        "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache.",
+        "description": "HTTP headers for the target origin. Non-empty headers bypass caching.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -1708,14 +1708,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 8192,
             "pattern": "^[^\\r\\n]*$"
           },
-          "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache."
+          "description": "HTTP headers for the target origin. Non-empty headers bypass caching."
         }
       },
       {
         "name": "country",
         "in": "query",
         "required": false,
-        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "description": "Fetch from this country (ISO 3166-1 alpha-2).",
         "schema": {
           "$ref": "#/components/schemas/BrowserCountryCode"
         }
@@ -1724,7 +1724,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -1733,7 +1733,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -1741,14 +1741,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -1845,7 +1845,7 @@ export const ENDPOINTS: Endpoint[] = [
             "shouldParse": {
               "type": "boolean",
               "default": true,
-              "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
+              "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
             },
             "start": {
               "type": "integer",
@@ -1860,7 +1860,7 @@ export const ENDPOINTS: Endpoint[] = [
             "ocr": {
               "type": "boolean",
               "default": false,
-              "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+              "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
             }
           },
           "default": {
@@ -1885,7 +1885,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "includeSelectors",
         "in": "query",
         "required": false,
-        "description": "CSS selectors. When provided, only matching HTML subtrees (and their descendants) are kept before conversion to Markdown. When omitted, the entire document is kept. Examples: \"article.main\", \"#content\", \"[role=main]\".",
+        "description": "Keep matching HTML subtrees before converting to Markdown.",
         "schema": {
           "type": [
             "array",
@@ -1897,14 +1897,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 2048
           },
           "maxItems": 50,
-          "description": "CSS selectors. When provided, only matching HTML subtrees (and their descendants) are kept before conversion to Markdown. When omitted, the entire document is kept. Examples: \"article.main\", \"#content\", \"[role=main]\"."
+          "description": "Keep matching HTML subtrees before converting to Markdown."
         }
       },
       {
         "name": "excludeSelectors",
         "in": "query",
         "required": false,
-        "description": "CSS selectors to remove before conversion to Markdown. Applied after includeSelectors. Exclusion takes precedence: an element matching both is removed. Examples: \"nav\", \"footer\", \".ad-banner\", \"[aria-hidden=true]\".",
+        "description": "Remove matching elements after inclusions. Exclusions take precedence.",
         "schema": {
           "type": [
             "array",
@@ -1916,14 +1916,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 2048
           },
           "maxItems": 50,
-          "description": "CSS selectors to remove before conversion to Markdown. Applied after includeSelectors. Exclusion takes precedence: an element matching both is removed. Examples: \"nav\", \"footer\", \".ad-banner\", \"[aria-hidden=true]\"."
+          "description": "Remove matching elements after inclusions. Exclusions take precedence."
         }
       },
       {
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
@@ -1932,7 +1932,7 @@ export const ENDPOINTS: Endpoint[] = [
           "minimum": 0,
           "maximum": 2592000000,
           "default": 86400000,
-          "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+          "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
         }
       },
       {
@@ -1982,7 +1982,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "headers",
         "in": "query",
         "required": false,
-        "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache.",
+        "description": "HTTP headers for the target origin. Non-empty headers bypass caching.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -1990,14 +1990,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 8192,
             "pattern": "^[^\\r\\n]*$"
           },
-          "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache."
+          "description": "HTTP headers for the target origin. Non-empty headers bypass caching."
         }
       },
       {
         "name": "country",
         "in": "query",
         "required": false,
-        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "description": "Fetch from this country (ISO 3166-1 alpha-2).",
         "schema": {
           "$ref": "#/components/schemas/BrowserCountryCode"
         }
@@ -2006,7 +2006,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -2015,7 +2015,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -2023,14 +2023,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2096,7 +2096,7 @@ export const ENDPOINTS: Endpoint[] = [
             "hostedUrl": {
               "type": "boolean",
               "default": false,
-              "description": "Host materializable images on the Brand.dev CDN and return their URL and MIME type. Ignored when zero data retention is enabled."
+              "description": "Host materializable images on the Context.dev CDN and return their URL and MIME type. Ignored when zero data retention is enabled."
             },
             "classification": {
               "type": "boolean",
@@ -2119,11 +2119,11 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "dedupe",
         "in": "query",
         "required": false,
-        "description": "When true, visually duplicate images are removed: every image is loaded and perceptually hashed, and only the highest-resolution copy of each duplicate group is kept. Images that cannot be downloaded or hashed are kept. Default: false.",
+        "description": "Remove visual duplicates, keeping the highest-resolution copy. Undownloadable images remain.",
         "schema": {
           "type": "boolean",
           "default": false,
-          "description": "When true, visually duplicate images are removed: every image is loaded and perceptually hashed, and only the highest-resolution copy of each duplicate group is kept. Images that cannot be downloaded or hashed are kept. Default: false."
+          "description": "Remove visual duplicates, keeping the highest-resolution copy. Undownloadable images remain."
         }
       },
       {
@@ -2162,7 +2162,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "headers",
         "in": "query",
         "required": false,
-        "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache.",
+        "description": "HTTP headers for the target origin. Non-empty headers bypass caching.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -2170,14 +2170,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 8192,
             "pattern": "^[^\\r\\n]*$"
           },
-          "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache."
+          "description": "HTTP headers for the target origin. Non-empty headers bypass caching."
         }
       },
       {
         "name": "country",
         "in": "query",
         "required": false,
-        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "description": "Fetch from this country (ISO 3166-1 alpha-2).",
         "schema": {
           "$ref": "#/components/schemas/BrowserCountryCode"
         }
@@ -2186,7 +2186,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -2195,7 +2195,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -2203,14 +2203,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2233,46 +2233,47 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "domain",
         "in": "query",
         "required": true,
-        "description": "Domain to build a sitemap for",
+        "description": "Domain to map, e.g. `stripe.com`.",
         "schema": {
           "type": "string",
           "minLength": 3,
-          "description": "Domain to build a sitemap for"
+          "description": "Domain to map, e.g. `stripe.com`.",
+          "example": "stripe.com"
         }
       },
       {
         "name": "includeSubdomains",
         "in": "query",
         "required": false,
-        "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false.",
+        "description": "Include URLs on subdomains.",
         "schema": {
           "type": "boolean",
           "default": false,
-          "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false."
+          "description": "Include URLs on subdomains."
         }
       },
       {
         "name": "maxLinks",
         "in": "query",
         "required": false,
-        "description": "Maximum number of links to return from the sitemap crawl. Defaults to 10,000. Minimum is 1, maximum is 100,000.",
+        "description": "Maximum number of URLs to return.",
         "schema": {
           "type": "integer",
           "minimum": 1,
           "maximum": 100000,
           "default": 10000,
-          "description": "Maximum number of links to return from the sitemap crawl. Defaults to 10,000. Minimum is 1, maximum is 100,000."
+          "description": "Maximum number of URLs to return."
         }
       },
       {
         "name": "sitemapUrl",
         "in": "query",
         "required": false,
-        "description": "Optional explicit sitemap URL. When provided, exactly this sitemap is crawled instead of discovering the domain's sitemaps.",
+        "description": "Fetch this sitemap instead of discovering sitemaps. Must belong to the domain or a subdomain.",
         "schema": {
           "type": "string",
           "format": "uri",
-          "description": "Optional explicit sitemap URL. When provided, exactly this sitemap is crawled instead of discovering the domain's sitemaps."
+          "description": "Fetch this sitemap instead of discovering sitemaps. Must belong to the domain or a subdomain."
         }
       },
       {
@@ -2291,12 +2292,12 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "search",
         "in": "query",
         "required": false,
-        "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+        "description": "Filter URLs by a topic or phrase, most relevant first.",
         "schema": {
           "type": "string",
           "minLength": 2,
           "maxLength": 200,
-          "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+          "description": "Filter URLs by a topic or phrase, most relevant first.",
           "example": "help center and troubleshooting articles"
         }
       },
@@ -2304,7 +2305,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "headers",
         "in": "query",
         "required": false,
-        "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache.",
+        "description": "HTTP headers for the target origin. Non-empty headers bypass caching.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -2312,14 +2313,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 8192,
             "pattern": "^[^\\r\\n]*$"
           },
-          "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache."
+          "description": "HTTP headers for the target origin. Non-empty headers bypass caching."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/LenientPartialTimeout"
         }
@@ -2328,7 +2329,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -2336,14 +2337,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2357,55 +2358,56 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-map",
-    "title": "Discover URLs with Page Metadata",
+    "title": "Map URLs",
     "method": "GET",
     "path": "/web/urls",
-    "description": "Discover URLs with Page Metadata — Discovers URLs using the same sitemap crawl, filters, and limits as /web/scrape/sitemap. Each URL includes its available title, description, keywords, and language. URLs without stored enrichment are returned immediately with only the URL and queued for background HTML scraping, so later requests can include their metadata. Responses are never cached as a whole; every request reads the current per-URL enrichment. Zero data retention and credential-bearing discovery requests return URLs without reading or storing shared enrichment or queuing background scrapes. Costs 1 credit, or 2 credits with search.",
+    "description": "Map URLs — Discover a site's URLs, with page titles, descriptions, keywords, and language when available. Metadata can be missing on newly discovered URLs.",
     "parameters": [
       {
         "name": "domain",
         "in": "query",
         "required": true,
-        "description": "Domain to build a sitemap for",
+        "description": "Domain to map, e.g. `stripe.com`.",
         "schema": {
           "type": "string",
           "minLength": 3,
-          "description": "Domain to build a sitemap for"
+          "description": "Domain to map, e.g. `stripe.com`.",
+          "example": "stripe.com"
         }
       },
       {
         "name": "includeSubdomains",
         "in": "query",
         "required": false,
-        "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false.",
+        "description": "Include URLs on subdomains.",
         "schema": {
           "type": "boolean",
           "default": false,
-          "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false."
+          "description": "Include URLs on subdomains."
         }
       },
       {
         "name": "maxLinks",
         "in": "query",
         "required": false,
-        "description": "Maximum number of links to return from the sitemap crawl. Defaults to 10,000. Minimum is 1, maximum is 100,000.",
+        "description": "Maximum number of URLs to return.",
         "schema": {
           "type": "integer",
           "minimum": 1,
           "maximum": 100000,
           "default": 10000,
-          "description": "Maximum number of links to return from the sitemap crawl. Defaults to 10,000. Minimum is 1, maximum is 100,000."
+          "description": "Maximum number of URLs to return."
         }
       },
       {
         "name": "sitemapUrl",
         "in": "query",
         "required": false,
-        "description": "Optional explicit sitemap URL. When provided, exactly this sitemap is crawled instead of discovering the domain's sitemaps.",
+        "description": "Fetch this sitemap instead of discovering sitemaps. Must belong to the domain or a subdomain.",
         "schema": {
           "type": "string",
           "format": "uri",
-          "description": "Optional explicit sitemap URL. When provided, exactly this sitemap is crawled instead of discovering the domain's sitemaps."
+          "description": "Fetch this sitemap instead of discovering sitemaps. Must belong to the domain or a subdomain."
         }
       },
       {
@@ -2424,12 +2426,12 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "search",
         "in": "query",
         "required": false,
-        "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+        "description": "Filter URLs by a topic or phrase, most relevant first.",
         "schema": {
           "type": "string",
           "minLength": 2,
           "maxLength": 200,
-          "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+          "description": "Filter URLs by a topic or phrase, most relevant first.",
           "example": "help center and troubleshooting articles"
         }
       },
@@ -2437,7 +2439,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "headers",
         "in": "query",
         "required": false,
-        "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache.",
+        "description": "HTTP headers for the target origin. Non-empty headers bypass caching.",
         "schema": {
           "type": "object",
           "additionalProperties": {
@@ -2445,14 +2447,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 8192,
             "pattern": "^[^\\r\\n]*$"
           },
-          "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache."
+          "description": "HTTP headers for the target origin. Non-empty headers bypass caching."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/LenientPartialTimeout"
         }
@@ -2461,7 +2463,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -2469,14 +2471,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -2490,10 +2492,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-crawl",
-    "title": "Crawl Website & Scrape Markdown",
+    "title": "Crawl a website",
     "method": "POST",
     "path": "/web/crawl",
-    "description": "Crawl Website & Scrape Markdown — Performs a crawl starting from a given URL, extracts page content as Markdown, and returns results for all crawled pages.",
+    "description": "Crawl a website — Crawl a website and return page content as Markdown. Use a batch for crawls beyond 500 pages.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -2503,14 +2505,14 @@ export const ENDPOINTS: Endpoint[] = [
           "url": {
             "type": "string",
             "format": "uri",
-            "description": "The starting URL for the crawl (must include http:// or https:// protocol)"
+            "description": "Start URL, including `http://` or `https://`."
           },
           "maxPages": {
             "type": "integer",
             "minimum": 1,
             "maximum": 500,
             "default": 100,
-            "description": "Maximum number of pages to crawl. Hard cap: 500."
+            "description": "Maximum pages to crawl."
           },
           "maxDepth": {
             "type": "integer",
@@ -2558,7 +2560,7 @@ export const ENDPOINTS: Endpoint[] = [
               "ocr": {
                 "type": "boolean",
                 "default": false,
-                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost."
+                "description": "Read scanned PDF pages with OCR; preserve pages that already contain text."
               },
               "start": {
                 "type": "integer",
@@ -2576,7 +2578,7 @@ export const ENDPOINTS: Endpoint[] = [
               "shouldParse": true,
               "ocr": false
             },
-            "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
           },
           "includeFrames": {
             "type": "boolean",
@@ -2590,7 +2592,7 @@ export const ENDPOINTS: Endpoint[] = [
               "type": "string",
               "maxLength": 2048
             },
-            "description": "CSS selectors. When provided, only matching HTML subtrees (and their descendants) are kept before each crawled page is converted to Markdown. When omitted, the entire document is kept. Examples: \"article.main\", \"#content\", \"[role=main]\"."
+            "description": "Keep matching HTML subtrees before converting each page to Markdown."
           },
           "excludeSelectors": {
             "type": "array",
@@ -2599,14 +2601,14 @@ export const ENDPOINTS: Endpoint[] = [
               "type": "string",
               "maxLength": 2048
             },
-            "description": "CSS selectors to remove before each crawled page is converted to Markdown. Applied after includeSelectors. Exclusion takes precedence: an element matching both is removed. Examples: \"nav\", \"footer\", \".ad-banner\", \"[aria-hidden=true]\"."
+            "description": "Remove matching elements after inclusions. Exclusions take precedence."
           },
           "maxAgeMs": {
             "type": "integer",
             "minimum": 0,
             "maximum": 2592000000,
             "default": 86400000,
-            "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+            "description": "Maximum cache age in milliseconds. Defaults to 1 day; `0` fetches fresh."
           },
           "waitForMs": {
             "type": "integer",
@@ -2618,14 +2620,14 @@ export const ENDPOINTS: Endpoint[] = [
           "settleAnimations": {
             "type": "boolean",
             "default": false,
-            "description": "When true, waits briefly for CSS and transition animations to settle before extracting each crawled page. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages."
+            "description": "Wait briefly for CSS animations and transitions to settle before reading each page."
           },
           "stopAfterMs": {
             "type": "integer",
             "minimum": 10000,
             "maximum": 110000,
             "default": 80000,
-            "description": "Soft time budget for the crawl in milliseconds. After each scrape, the crawler checks the elapsed time and, if exceeded, returns the pages collected so far instead of continuing. Min: 10000 (10s). Max: 110000 (110s). Default: 80000 (80s)."
+            "description": "Soft crawl deadline in milliseconds. Returns pages collected before the next deadline check."
           },
           "country": {
             "$ref": "#/components/schemas/BrowserCountryCode"
@@ -2640,7 +2642,7 @@ export const ENDPOINTS: Endpoint[] = [
               "disabled"
             ],
             "default": "disabled",
-            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+            "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -2661,10 +2663,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-extract",
-    "title": "Extract Structured Website Data",
+    "title": "Extract structured data",
     "method": "POST",
     "path": "/web/extract",
-    "description": "Extract Structured Website Data — Crawl a website, use the provided JSON Schema and instructions to prioritize relevant internal links, and extract structured data from the selected pages.",
+    "description": "Extract structured data — Extract website data using your JSON Schema and instructions.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -2678,7 +2680,7 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "schema": {
             "type": "object",
-            "description": "JSON Schema for the returned data object. Image fields such as `image_urls` or `product_photos` automatically make page image references available to extraction, so product data and photos can be returned in one call. TypeScript Zod users can pass a JSON Schema generated from a Zod object; Python users can pass the equivalent JSON Schema object.",
+            "description": "JSON Schema for the returned object. Image fields include relevant page image references.",
             "additionalProperties": true,
             "example": {
               "type": "object",
@@ -2722,7 +2724,7 @@ export const ENDPOINTS: Endpoint[] = [
           "factCheck": {
             "type": "boolean",
             "default": false,
-            "description": "When true, every returned value must be grounded in facts stated on the page; fields that cannot be supported by the page are returned as null/empty. When false (default), the model may make reasonable inferences and derivations from the page content (e.g. ideal customer, competitor analysis, recommendations) while keeping verifiable specifics (names, quotes, URLs, dates, metrics) faithful to the source."
+            "description": "Require facts stated on the page. Unsupported fields become null or empty."
           },
           "followSubdomains": {
             "type": "boolean",
@@ -2786,12 +2788,12 @@ export const ENDPOINTS: Endpoint[] = [
           "settleAnimations": {
             "type": "boolean",
             "default": false,
-            "description": "When true, waits briefly for CSS and transition animations to settle before extracting each crawled page. Defaults to false. This adds a bit of latency in exchange for more stable output on animated pages."
+            "description": "Wait briefly for CSS animations and transitions to settle before reading each page."
           },
           "actions": {
             "type": "array",
             "maxItems": 5,
-            "description": "Optional browser actions executed in order on the requested page after it loads, before links are discovered or additional pages are crawled. Requires a paid plan. When actions are provided and stopAfterMs is omitted, the crawl budget defaults to 110000 ms.",
+            "description": "Browser steps before page discovery. Requires a paid plan; defaults the crawl budget to 110000 ms.",
             "items": {
               "$ref": "#/components/schemas/WebScrapeAction"
             }
@@ -2813,7 +2815,7 @@ export const ENDPOINTS: Endpoint[] = [
               "disabled"
             ],
             "default": "disabled",
-            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+            "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -2836,10 +2838,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-search",
-    "title": "Web Search",
+    "title": "Search the web",
     "method": "POST",
     "path": "/web/search",
-    "description": "Web Search — Search the web and optionally scrape each result to Markdown in one round-trip.",
+    "description": "Search the web — Search the web and optionally return page content with each result.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -3130,7 +3132,7 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "queryFanout": {
             "type": "boolean",
-            "description": "Expand the query into multiple parallel variants for broader recall."
+            "description": "Currently has no effect."
           },
           "markdownOptions": {
             "type": "object",
@@ -3220,7 +3222,7 @@ export const ENDPOINTS: Endpoint[] = [
               "disabled"
             ],
             "default": "disabled",
-            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+            "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -3275,7 +3277,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -3284,7 +3286,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -3292,14 +3294,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3313,10 +3315,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "people-enrich",
-    "title": "Enrich Person",
+    "title": "Enrich a person",
     "method": "POST",
     "path": "/people/enrich",
-    "description": "Enrich Person — Finds and normalizes the best available person candidate from additive identity clues, then assigns an identity match score from 0 to 100. Available on all paid plans. Successful requests cost 20 credits. Disposable and free email addresses (like gmail.com, yahoo.com) will throw a 422 error.",
+    "description": "Enrich a person — Find a person from identity clues and return their profile with a match score. Requires a paid plan; free or disposable email addresses return 422.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -3409,7 +3411,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "force_language",
         "in": "query",
         "required": false,
-        "description": "Language to force for the retrieved brand data.",
+        "description": "Language, e.g. `english`.",
         "schema": {
           "allOf": [
             {
@@ -3428,32 +3430,32 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxSpeed",
         "in": "query",
         "required": false,
-        "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data. Works with all three lookup methods.",
+        "description": "Skip slower enrichment steps for a faster, less detailed response.",
         "schema": {
           "type": "boolean",
           "default": false,
-          "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data. Works with all three lookup methods."
+          "description": "Skip slower enrichment steps for a faster, less detailed response."
         }
       },
       {
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -3462,7 +3464,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3476,10 +3478,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "brand-retrieve-unified",
-    "title": "Retrieve brand data",
+    "title": "Retrieve a brand",
     "method": "POST",
     "path": "/brand/retrieve",
-    "description": "Retrieve brand data — Retrieve logos, backdrops, colors, industry, description, and more. Provide exactly one lookup identifier in the request body: a domain, company name, email address, stock ticker, transaction descriptor, or direct URL. Note: `by_direct_url` fetches brand data only from the provided URL — not from the entire internet.",
+    "description": "Retrieve a brand — Retrieve logos, colors, company details, and social links using one lookup identifier. A direct URL limits extraction to that page.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -3518,7 +3520,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "force_language",
         "in": "query",
         "required": false,
-        "description": "Language to force for the retrieved brand data.",
+        "description": "Language, e.g. `english`.",
         "schema": {
           "allOf": [
             {
@@ -3557,21 +3559,21 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -3580,7 +3582,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3594,10 +3596,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "brand-search",
-    "title": "Brand Search",
+    "title": "Search brands",
     "method": "GET",
     "path": "/brand/search",
-    "description": "Brand Search — Search indexed brands by name or domain",
+    "description": "Search brands — Find up to 10 brands by name or domain, ordered by popularity. Use the returned domain to retrieve a full brand profile.",
     "parameters": [
       {
         "name": "query",
@@ -3661,7 +3663,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3684,19 +3686,19 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "email",
         "in": "query",
         "required": true,
-        "description": "Email address to retrieve brand data for (e.g., 'contact@example.com'). The domain will be extracted from the email. Free email providers (gmail.com, yahoo.com, etc.) and disposable email addresses are not allowed.",
+        "description": "Work email address. Free and disposable email providers are rejected.",
         "schema": {
           "type": "string",
           "minLength": 1,
           "format": "email",
-          "description": "Email address to retrieve brand data for (e.g., 'contact@example.com'). The domain will be extracted from the email. Free email providers (gmail.com, yahoo.com, etc.) and disposable email addresses are not allowed."
+          "description": "Work email address. Free and disposable email providers are rejected."
         }
       },
       {
         "name": "force_language",
         "in": "query",
         "required": false,
-        "description": "Language to force for the retrieved brand data.",
+        "description": "Language, e.g. `english`.",
         "schema": {
           "allOf": [
             {
@@ -3726,21 +3728,21 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -3749,7 +3751,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3794,7 +3796,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "force_language",
         "in": "query",
         "required": false,
-        "description": "Language to force for the retrieved brand data.",
+        "description": "Language, e.g. `english`.",
         "schema": {
           "allOf": [
             {
@@ -3824,21 +3826,21 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -3847,7 +3849,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3870,20 +3872,20 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "isin",
         "in": "query",
         "required": true,
-        "description": "ISIN (International Securities Identification Number) to retrieve brand data for (e.g., 'AU000000IMD5', 'US0378331005'). Must be exactly 12 characters: 2 letters followed by 9 alphanumeric characters and ending with a digit.",
+        "description": "Company ISIN: 12 characters, such as `US0378331005`.",
         "schema": {
           "type": "string",
           "minLength": 12,
           "maxLength": 12,
           "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$",
-          "description": "ISIN (International Securities Identification Number) to retrieve brand data for (e.g., 'AU000000IMD5', 'US0378331005'). Must be exactly 12 characters: 2 letters followed by 9 alphanumeric characters and ending with a digit."
+          "description": "Company ISIN: 12 characters, such as `US0378331005`."
         }
       },
       {
         "name": "force_language",
         "in": "query",
         "required": false,
-        "description": "Language to force for the retrieved brand data.",
+        "description": "Language, e.g. `english`.",
         "schema": {
           "allOf": [
             {
@@ -3913,21 +3915,21 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -3936,7 +3938,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -3971,7 +3973,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "force_language",
         "in": "query",
         "required": false,
-        "description": "Language to force for the retrieved brand data.",
+        "description": "Language, e.g. `english`.",
         "schema": {
           "allOf": [
             {
@@ -4001,7 +4003,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -4074,7 +4076,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4108,21 +4110,21 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -4145,7 +4147,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4159,10 +4161,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-styleguide",
-    "title": "Scrape Styleguide",
+    "title": "Extract a styleguide",
     "method": "GET",
     "path": "/web/styleguide",
-    "description": "Scrape Styleguide — Extract a comprehensive design system from a website including colors, typography, spacing, shadows, and UI components.",
+    "description": "Extract a styleguide — Extract colors, typography, spacing, and component styles from a website.",
     "parameters": [
       {
         "name": "domain",
@@ -4179,32 +4181,32 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "directUrl",
         "in": "query",
         "required": false,
-        "description": "A specific URL to fetch the styleguide from directly, bypassing domain resolution (e.g., 'https://example.com/design-system'). When provided, the styleguide is extracted from this exact URL. You must provide either 'domain' or 'directUrl', but not both.",
+        "description": "Exact URL to inspect. Provide either `domain` or `directUrl`, not both.",
         "schema": {
           "type": "string",
           "format": "uri",
-          "description": "A specific URL to fetch the styleguide from directly, bypassing domain resolution (e.g., 'https://example.com/design-system'). When provided, the styleguide is extracted from this exact URL. You must provide either 'domain' or 'directUrl', but not both."
+          "description": "Exact URL to inspect. Provide either `domain` or `directUrl`, not both."
         }
       },
       {
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -4227,7 +4229,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -4235,14 +4237,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4256,20 +4258,20 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-fonts",
-    "title": "Scrape Fonts",
+    "title": "Extract fonts",
     "method": "GET",
     "path": "/web/fonts",
-    "description": "Scrape Fonts — Scrape font information from a website including font families, usage statistics, fallbacks, and element/word counts.",
+    "description": "Extract fonts — Identify fonts and available font files used by a website.",
     "parameters": [
       {
         "name": "directUrl",
         "in": "query",
         "required": false,
-        "description": "A specific URL to fetch fonts from directly, bypassing domain resolution (e.g., 'https://example.com/design-system'). When provided, fonts are extracted from this exact URL. You must provide either 'domain' or 'directUrl', but not both.",
+        "description": "Exact page to inspect. Provide either `domain` or `directUrl`.",
         "schema": {
           "type": "string",
           "format": "uri",
-          "description": "A specific URL to fetch fonts from directly, bypassing domain resolution (e.g., 'https://example.com/design-system'). When provided, fonts are extracted from this exact URL. You must provide either 'domain' or 'directUrl', but not both."
+          "description": "Exact page to inspect. Provide either `domain` or `directUrl`."
         }
       },
       {
@@ -4287,21 +4289,21 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
         }
       },
       {
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -4310,7 +4312,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4485,7 +4487,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "country",
         "in": "query",
         "required": false,
-        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "description": "Fetch from this country (ISO 3166-1 alpha-2).",
         "schema": {
           "$ref": "#/components/schemas/BrowserCountryCode"
         }
@@ -4494,7 +4496,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -4503,7 +4505,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -4511,14 +4513,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4725,7 +4727,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "country",
         "in": "query",
         "required": false,
-        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "description": "Fetch from this country (ISO 3166-1 alpha-2).",
         "schema": {
           "$ref": "#/components/schemas/BrowserCountryCode"
         }
@@ -4734,7 +4736,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
         }
@@ -4743,7 +4745,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -4751,14 +4753,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4772,10 +4774,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-naics",
-    "title": "Classify NAICS industries",
+    "title": "Classify NAICS codes",
     "method": "GET",
     "path": "/web/naics",
-    "description": "Classify NAICS industries — Classify any brand into 2022 NAICS industry codes from its domain or name.",
+    "description": "Classify NAICS codes — Classify a company into NAICS industry codes.",
     "parameters": [
       {
         "name": "input",
@@ -4818,7 +4820,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -4827,7 +4829,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -4835,14 +4837,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -4856,10 +4858,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-sic",
-    "title": "Classify SIC industries",
+    "title": "Classify SIC codes",
     "method": "GET",
     "path": "/web/sic",
-    "description": "Classify SIC industries — Classify any brand into Standard Industrial Classification (SIC) codes from its domain or name. Choose between the original SIC system (`original_sic`) or the latest SIC list maintained by the SEC (`latest_sec`).",
+    "description": "Classify SIC codes — Classify a company into SIC industry codes.",
     "parameters": [
       {
         "name": "input",
@@ -4876,7 +4878,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "type",
         "in": "query",
         "required": false,
-        "description": "Which SIC dataset to classify against. `original_sic` uses the 1987 Standard Industrial Classification system; `latest_sec` uses the current SIC list as published by the SEC. Defaults to `original_sic`.",
+        "description": "SIC dataset: `original_sic` (1987) or `latest_sec` (current SEC list).",
         "schema": {
           "type": "string",
           "enum": [
@@ -4884,7 +4886,7 @@ export const ENDPOINTS: Endpoint[] = [
             "latest_sec"
           ],
           "default": "original_sic",
-          "description": "Which SIC dataset to classify against. `original_sic` uses the 1987 Standard Industrial Classification system; `latest_sec` uses the current SIC list as published by the SEC. Defaults to `original_sic`."
+          "description": "SIC dataset: `original_sic` (1987) or `latest_sec` (current SEC list)."
         }
       },
       {
@@ -4917,7 +4919,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
         }
@@ -4926,7 +4928,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
@@ -4934,14 +4936,14 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -5141,7 +5143,7 @@ export const ENDPOINTS: Endpoint[] = [
               "disabled"
             ],
             "default": "disabled",
-            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+            "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -5319,10 +5321,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "utility-prefetch",
-    "title": "Prefetch data",
+    "title": "Prefetch brand data",
     "method": "POST",
     "path": "/utility/prefetch",
-    "description": "Prefetch data — Signal that you may fetch data soon to improve latency. The type field selects what to prefetch ('brand' queues a brand data fetch, 'styleguide' queues a styleguide extraction) and identifier carries exactly one lookup key: a domain, or an email whose domain is extracted and validated (free email providers and disposable email addresses are not allowed).",
+    "description": "Prefetch brand data — Queue brand or styleguide data so a later lookup can return sooner.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -5339,7 +5341,7 @@ export const ENDPOINTS: Endpoint[] = [
               "brand",
               "styleguide"
             ],
-            "description": "What to prefetch: 'brand' warms the brand data cache, 'styleguide' warms the styleguide cache."
+            "description": "Data to prefetch."
           },
           "identifier": {
             "$ref": "#/components/schemas/UtilityPrefetchIdentifier"
@@ -5366,7 +5368,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List monitors",
     "method": "GET",
     "path": "/monitors",
-    "description": "List monitors — Lists monitors for the authenticated organization. Supports free-text search (`q` over `search_by` fields, `prefix` or `exact` via `search_type`) plus status/type/tag filters. Results are paginated via the opaque `cursor`.",
+    "description": "List monitors — List your monitors with optional search and filters.",
     "parameters": [
       {
         "name": "q",
@@ -5384,7 +5386,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "search_by",
         "in": "query",
         "required": false,
-        "description": "Comma-separated fields to search with `q`. Defaults to all of them. Note `instructions` only exists on extract monitors.",
+        "description": "Fields to search with `q`. Defaults to all fields; page and extract targets can have instructions.",
         "schema": {
           "type": [
             "array",
@@ -5399,7 +5401,7 @@ export const ENDPOINTS: Endpoint[] = [
               "tags"
             ]
           },
-          "description": "Comma-separated fields to search with `q`. Defaults to all of them. Note `instructions` only exists on extract monitors.",
+          "description": "Fields to search with `q`. Defaults to all fields; page and extract targets can have instructions.",
           "example": "name,url"
         }
       },
@@ -5526,7 +5528,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Create a monitor",
     "method": "POST",
     "path": "/monitors",
-    "description": "Create a monitor — Creates a monitor. The request body is a union of the supported target/change detection combinations. The monitor runs immediately after creation to create its initial baseline.",
+    "description": "Create a monitor — Watch a page, URL inventory, or extracted website data on a schedule. A run starts immediately to capture the baseline.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -5544,10 +5546,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-monitor",
-    "title": "Get a monitor",
+    "title": "Retrieve a monitor",
     "method": "GET",
     "path": "/monitors/{monitor_id}",
-    "description": "Get a monitor",
+    "description": "Retrieve a monitor — Retrieve a monitor’s configuration and current state.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -5570,7 +5572,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Update a monitor",
     "method": "PATCH",
     "path": "/monitors/{monitor_id}",
-    "description": "Update a monitor — Updates a monitor. If `target` or `change_detection` changes, the monitor creates a new baseline. Unsupported target/change detection combinations are rejected.",
+    "description": "Update a monitor — Update a monitor. Changing its target or change detection replaces the baseline and queues a new baseline run.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -5601,7 +5603,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Delete a monitor",
     "method": "DELETE",
     "path": "/monitors/{monitor_id}",
-    "description": "Delete a monitor",
+    "description": "Delete a monitor — Delete a monitor and stop future runs and webhook retries.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -5624,7 +5626,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List monitor runs",
     "method": "GET",
     "path": "/monitors/{monitor_id}/runs",
-    "description": "List monitor runs",
+    "description": "List monitor runs — List a monitor’s runs, newest first.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -5686,7 +5688,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Retrieve a monitor run",
     "method": "GET",
     "path": "/monitors/{monitor_id}/runs/{run_id}",
-    "description": "Retrieve a monitor run — Fetches one run for a monitor, including lifecycle status, timing, credits charged, and any detected change.",
+    "description": "Retrieve a monitor run — Retrieve the status, timing, and results of one monitor run.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -5715,10 +5717,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "list-monitor-changes",
-    "title": "List changes for a monitor",
+    "title": "List monitor changes",
     "method": "GET",
     "path": "/monitors/{monitor_id}/changes",
-    "description": "List changes for a monitor",
+    "description": "List monitor changes — List full change records for a monitor, newest first.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -5795,10 +5797,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "list-account-runs",
-    "title": "List runs",
+    "title": "List runs for all monitors",
     "method": "GET",
     "path": "/monitors/runs",
-    "description": "List runs — Returns an account-wide feed of monitor runs across all monitors.",
+    "description": "List runs for all monitors — List runs across your monitors, newest first.",
     "parameters": [
       {
         "name": "status",
@@ -5848,10 +5850,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "list-monitor-credit-usage",
-    "title": "Monitor credit usage",
+    "title": "Retrieve monitor credit usage",
     "method": "GET",
     "path": "/monitors/credit-usage",
-    "description": "Monitor credit usage — Returns credits charged per monitor over an optional [since, until] window, newest spenders first.",
+    "description": "Retrieve monitor credit usage — Return usage per monitor, highest first, for up to the 10,000 most recent runs in the requested window.",
     "parameters": [
       {
         "name": "since",
@@ -5886,10 +5888,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-monitor-limits",
-    "title": "Monitor limits",
+    "title": "Retrieve monitor limits",
     "method": "GET",
     "path": "/monitors/limits",
-    "description": "Monitor limits — Returns how many monitors the account has and the maximum it allows.",
+    "description": "Retrieve monitor limits — Retrieve your organization’s monitor allowance and usage.",
     "parameters": [],
     "annotations": {
       "readOnlyHint": true,
@@ -5899,10 +5901,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "list-changes",
-    "title": "List changes",
+    "title": "List changes for all monitors",
     "method": "GET",
     "path": "/monitors/changes",
-    "description": "List changes — Returns an account-wide feed of detected changes across monitors.",
+    "description": "List changes for all monitors — List full change records across your monitors, newest first.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -6010,10 +6012,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-change",
-    "title": "Get a change",
+    "title": "Retrieve a monitor change",
     "method": "GET",
     "path": "/monitors/changes/{change_id}",
-    "description": "Get a change",
+    "description": "Retrieve a monitor change — Retrieve a detected change, including its diff and available evidence.",
     "parameters": [
       {
         "name": "change_id",
@@ -6036,7 +6038,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Run a monitor now",
     "method": "POST",
     "path": "/monitors/{monitor_id}/run",
-    "description": "Run a monitor now — Triggers an immediate run of the monitor outside its normal schedule. The run is queued and processed asynchronously.",
+    "description": "Run a monitor now — Queue a run without changing the regular schedule. Paused monitors return 409.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -6059,7 +6061,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Rotate a monitor webhook secret",
     "method": "POST",
     "path": "/monitors/{monitor_id}/webhook/rotate-secret",
-    "description": "Rotate a monitor webhook secret — Generates a new signing secret for the monitor's webhook and returns the updated monitor (including the new `webhook.secret`). The previous secret stops signing deliveries immediately, so update your endpoint before rotating.",
+    "description": "Rotate a monitor webhook secret — Generate and return a new signing secret. It takes effect immediately for all subsequent delivery attempts.",
     "parameters": [
       {
         "name": "monitor_id",
@@ -6110,7 +6112,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6165,7 +6167,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6232,7 +6234,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6266,7 +6268,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6421,7 +6423,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6488,7 +6490,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6555,7 +6557,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6589,7 +6591,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6634,7 +6636,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6690,7 +6692,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6739,7 +6741,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6773,7 +6775,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6818,7 +6820,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6873,7 +6875,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6940,7 +6942,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -6996,7 +6998,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -7062,7 +7064,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
         "schema": {
           "$ref": "#/components/schemas/RequestTags"
         }
@@ -7079,17 +7081,17 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Submit a batch",
     "method": "POST",
     "path": "/batch/submit",
-    "description": "Submit a batch — Scrape 25K URLs or crawl large websites asynchronously.",
+    "description": "Submit a batch — Scrape up to 25,000 URLs, or crawl a site, asynchronously. Poll the batch ID or receive a webhook when it finishes.",
     "parameters": [
       {
         "name": "Idempotency-Key",
         "in": "header",
         "required": false,
-        "description": "Any string unique to this submission. Retries with the same key return the original batch.",
+        "description": "Unique key per submission. Retrying with the same key and body returns the original batch; a different body returns `409`.",
         "schema": {
           "type": "string",
           "maxLength": 200,
-          "description": "Any string unique to this submission. Retries with the same key return the original batch."
+          "description": "Unique key per submission. Retrying with the same key and body returns the original batch; a different body returns `409`."
         }
       }
     ],
@@ -7112,7 +7114,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List batches",
     "method": "GET",
     "path": "/batch/list",
-    "description": "List batches — List your batches from newest to oldest. Filter by status or continue with a cursor.",
+    "description": "List batches — List your batches, newest first, with optional filters.",
     "parameters": [
       {
         "name": "limit",
@@ -7200,20 +7202,20 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-batch",
-    "title": "Get a batch",
+    "title": "Retrieve a batch",
     "method": "GET",
     "path": "/batch/{batch_id}",
-    "description": "Get a batch — Check progress, and get download links once the batch finishes.",
+    "description": "Retrieve a batch — Get batch progress and result download links. Result files are deleted 7 days after the batch finishes.",
     "parameters": [
       {
         "name": "batch_id",
         "in": "path",
         "required": true,
-        "description": "ID of the batch to retrieve or cancel.",
+        "description": "Batch ID.",
         "schema": {
           "type": "string",
           "example": "batch_9f2c8a",
-          "description": "ID of the batch to retrieve or cancel."
+          "description": "Batch ID."
         }
       }
     ],
@@ -7228,17 +7230,17 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Delete a batch",
     "method": "DELETE",
     "path": "/batch/{batch_id}",
-    "description": "Delete a batch — Permanently delete a finished batch and its stored results. Active batches must settle first.",
+    "description": "Delete a batch — Permanently delete a finished batch and its results. Its webhook deliveries can no longer be retried.",
     "parameters": [
       {
         "name": "batch_id",
         "in": "path",
         "required": true,
-        "description": "ID of the batch to retrieve or cancel.",
+        "description": "Batch ID.",
         "schema": {
           "type": "string",
           "example": "batch_9f2c8a",
-          "description": "ID of the batch to retrieve or cancel."
+          "description": "Batch ID."
         }
       }
     ],
@@ -7250,20 +7252,20 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "get-batch-results",
-    "title": "Get batch results",
+    "title": "List batch results",
     "method": "GET",
     "path": "/batch/{batch_id}/results",
-    "description": "Get batch results — Page through a finished batch's results as JSON instead of downloading the NDJSON files.",
+    "description": "List batch results — Page through a finished batch’s results as JSON. Results remain available for 7 days.",
     "parameters": [
       {
         "name": "batch_id",
         "in": "path",
         "required": true,
-        "description": "ID of the batch to retrieve or cancel.",
+        "description": "Batch ID.",
         "schema": {
           "type": "string",
           "example": "batch_9f2c8a",
-          "description": "ID of the batch to retrieve or cancel."
+          "description": "Batch ID."
         }
       },
       {
@@ -7300,17 +7302,17 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Cancel a batch",
     "method": "POST",
     "path": "/batch/{batch_id}/cancel",
-    "description": "Cancel a batch — Stop a batch from starting new pages. In-progress pages finish, and unused credits are refunded.",
+    "description": "Cancel a batch — Stop a batch from starting new pages. Pages already in progress finish before the batch becomes cancelled.",
     "parameters": [
       {
         "name": "batch_id",
         "in": "path",
         "required": true,
-        "description": "ID of the batch to retrieve or cancel.",
+        "description": "Batch ID.",
         "schema": {
           "type": "string",
           "example": "batch_9f2c8a",
-          "description": "ID of the batch to retrieve or cancel."
+          "description": "Batch ID."
         }
       }
     ],
@@ -7367,7 +7369,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "maxLength": 50
     },
     "maxItems": 20,
-    "description": "Optional tags for tracking usage. Up to 20 tags, each 1 to 50 characters.",
+    "description": "Labels for filtering usage in the dashboard.",
     "example": [
       "production",
       "team-alpha"
@@ -7381,19 +7383,15 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "format": "uri",
         "pattern": "^https?://",
-        "description": "The URL to scrape."
+        "description": "Public HTTP or HTTPS URL to scrape."
       },
       "formats": {
         "$ref": "#/components/schemas/ScrapeFormats",
-        "description": "Outputs to return. Enable at least one; omitted formats are false."
-      },
-      "sharedParams": {
-        "$ref": "#/components/schemas/ScrapeSharedParams",
-        "description": "Shared browser and content settings. Content filters leave screenshots and original bytes unchanged."
+        "description": "Outputs to return. Set at least one to `true`."
       },
       "markdownParams": {
         "$ref": "#/components/schemas/ScrapeMarkdownParams",
-        "description": "Markdown options. Requires formats.markdown: true."
+        "description": "Markdown options. Requires `formats.markdown`."
       },
       "screenshotParams": {
         "$ref": "#/components/schemas/ScrapeScreenshotParams",
@@ -7409,35 +7407,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "highlightsParams": {
         "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Highlight options. Requires formats.highlights: true."
-      },
-      "maxAgeMs": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 2592000000,
-        "default": 86400000,
-        "description": "Maximum age of each cached output. Defaults to 1 day; 0 fetches fresh and updates the requested outputs. Compatible outputs are shared with the individual scrape endpoints. Image results with hosted files refresh after 23 hours; other outputs retain their own freshness."
-      },
-      "zdr": {
-        "type": "string",
-        "enum": [
-          "enabled",
-          "disabled"
-        ],
-        "default": "disabled",
-        "description": "Zero data retention. Bypasses caches and uploads; excludes request/response content and tags from logs. Must be enabled for your organization."
-      },
-      "timeoutOpts": {
-        "$ref": "#/components/schemas/ScrapeTimeout",
-        "default": {
-          "milliseconds": 60000,
-          "behavior": "fail"
-        },
-        "description": "Total deadline, including navigation, actions, waiting, and all outputs. Defaults to 60000 milliseconds with behavior fail. Individual outputs have internal deadlines that reserve time to return completed outputs; timed-out outputs have success: false and data: null under either behavior. The overall request deadline remains enforced: fail returns an error if that deadline is reached. Use return-partial to allow the current page state and available outputs when the page is still loading. Partial responses set isPartial. Failed retrievals and incomplete captures are not cached; valid captured pieces may be cached independently. Fixed waits must fit before a response reserve of up to 5000 milliseconds (at most one quarter of the timeout) when using return-partial."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags",
-        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+        "description": "Required when `formats.highlights` is `true`."
       },
       "jsonParams": {
         "$ref": "#/components/schemas/ScrapeJsonParams",
@@ -7446,6 +7416,38 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "productParams": {
         "$ref": "#/components/schemas/ScrapeProductParams",
         "description": "Product options. Requires formats.product: true."
+      },
+      "sharedParams": {
+        "$ref": "#/components/schemas/ScrapeSharedParams",
+        "description": "Browser and content settings shared by all outputs."
+      },
+      "maxAgeMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2592000000,
+        "default": 86400000,
+        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 1 day."
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "default": "disabled",
+        "description": "`enabled` turns on zero data retention. Your organization must have ZDR enabled."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/ScrapeTimeout",
+        "default": {
+          "milliseconds": 60000,
+          "behavior": "fail"
+        },
+        "description": "Deadline for the whole request. Defaults to 60000 ms with `fail`. Fixed waits must end before it."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags",
+        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
       }
     },
     "required": [
@@ -7848,18 +7850,18 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "fast",
           "ultra"
         ],
-        "description": "Research level: fast uses a smaller model and research budget for 10 credits; ultra uses deeper reasoning and research for 100 credits. Defaults to ultra. Only successful requests consume credits."
+        "description": "`fast` for short tasks; `ultra` for deeper research (default)."
       },
       "task": {
         "type": "string",
         "minLength": 1,
         "maxLength": 2000,
-        "description": "What to research and answer, in plain language. Naming a domain in the task (for example \"pricing on context.dev\") makes the agent read that site before it searches."
+        "description": "Research task. Name a domain to have it read before searching."
       },
       "json_format": {
         "type": "object",
         "additionalProperties": {},
-        "description": "An example object with placeholder values (for example {\"pricing_page_url\": \"\", \"plans\": [{\"name\": \"\", \"price\": 0}]}). Object keys and value types are preserved; unknown values may be null. Empty arrays accept any JSON items. Defaults to {\"result\": \"\"}. Maximum 8 levels, 500 values, and 16000 characters."
+        "description": "Example answer object, not JSON Schema. Up to 8 levels, 500 values, and 16000 characters; unknowns may be null."
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
@@ -7873,7 +7875,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       }
     },
     "required": [
@@ -8090,7 +8092,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "zw"
     ],
     "example": "de",
-    "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2)."
+    "description": "Fetch from this country (ISO 3166-1 alpha-2)."
   },
   "LenientTimeout": {
     "type": "object",
@@ -8099,7 +8101,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "integer",
         "minimum": 1,
         "maximum": 300000,
-        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+        "description": "Deadline in milliseconds."
       },
       "behavior": {
         "type": "string",
@@ -8107,14 +8109,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "fail"
         ],
         "default": "fail",
-        "description": "What to do at the deadline. This endpoint supports \"fail\": return 408 REQUEST_TIMEOUT without charging credits."
+        "description": "Only \"fail\" is supported: return 408 at the deadline."
       }
     },
     "required": [
       "milliseconds"
     ],
     "additionalProperties": false,
-    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+    "description": "Request deadline and what to return when it passes."
   },
   "HtmlExtractionRules": {
     "type": "object",
@@ -8196,7 +8198,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "integer",
         "minimum": 1,
         "maximum": 300000,
-        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+        "description": "Deadline in milliseconds."
       },
       "behavior": {
         "type": "string",
@@ -8205,14 +8207,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "return-partial"
         ],
         "default": "fail",
-        "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far; if none are available, the request still fails without charging credits. Partial results are not cached as complete results. \"return-partial\" requires milliseconds of at least 5000."
+        "description": "\"fail\" returns 408 at the deadline. \"return-partial\" returns available results; inspect the response’s partial flag. \"return-partial\" requires at least 5000 ms."
       }
     },
     "required": [
       "milliseconds"
     ],
     "additionalProperties": false,
-    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+    "description": "Request deadline and what to return when it passes."
   },
   "LenientPartialTimeout": {
     "type": "object",
@@ -8221,7 +8223,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "integer",
         "minimum": 1,
         "maximum": 300000,
-        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+        "description": "Deadline in milliseconds."
       },
       "behavior": {
         "type": "string",
@@ -8230,14 +8232,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "return-partial"
         ],
         "default": "fail",
-        "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far; if none are available, the request still fails without charging credits. Partial results are not cached as complete results."
+        "description": "\"fail\" returns 408 at the deadline. \"return-partial\" returns available results; inspect the response’s partial flag."
       }
     },
     "required": [
       "milliseconds"
     ],
     "additionalProperties": false,
-    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+    "description": "Request deadline and what to return when it passes."
   },
   "PartialTimeout": {
     "type": "object",
@@ -8246,7 +8248,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "integer",
         "minimum": 1000,
         "maximum": 300000,
-        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+        "description": "Deadline in milliseconds."
       },
       "behavior": {
         "type": "string",
@@ -8255,14 +8257,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "return-partial"
         ],
         "default": "fail",
-        "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far; if none are available, the request still fails without charging credits. Partial results are not cached as complete results."
+        "description": "\"fail\" returns 408 at the deadline. \"return-partial\" returns available results; inspect the response’s partial flag."
       }
     },
     "required": [
       "milliseconds"
     ],
     "additionalProperties": false,
-    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+    "description": "Request deadline and what to return when it passes."
   },
   "PersonEnrichmentRequest": {
     "type": "object",
@@ -8385,7 +8387,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -8623,7 +8625,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "yoruba",
       "zulu"
     ],
-    "description": "Language to force for the retrieved brand data."
+    "description": "Language, e.g. `english`."
   },
   "BrandRetrieveRequest": {
     "oneOf": [
@@ -8657,7 +8659,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "by_transaction": "#/components/schemas/BrandRetrieveFromTransactionRequest"
       }
     },
-    "description": "Exactly one lookup type must be provided."
+    "description": "One lookup, chosen by `type`."
   },
   "CountryGL": {
     "type": "string",
@@ -8911,7 +8913,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "integer",
         "minimum": 1000,
         "maximum": 300000,
-        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+        "description": "Deadline in milliseconds."
       },
       "behavior": {
         "type": "string",
@@ -8919,14 +8921,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "fail"
         ],
         "default": "fail",
-        "description": "What to do at the deadline. This endpoint supports \"fail\": return 408 REQUEST_TIMEOUT without charging credits."
+        "description": "Only \"fail\" is supported: return 408 at the deadline."
       }
     },
     "required": [
       "milliseconds"
     ],
     "additionalProperties": false,
-    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+    "description": "Request deadline and what to return when it passes."
   },
   "UtilityPrefetchIdentifier": {
     "oneOf": [
@@ -8960,7 +8962,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         },
         "maxItems": 20,
         "uniqueItems": true,
-        "description": "User-defined tags for grouping and filtering monitors and their changes. Duplicates are removed.",
+        "description": "Labels for filtering monitors, their changes, and their usage.",
         "example": [
           "pricing",
           "competitor"
@@ -8985,7 +8987,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     ],
     "additionalProperties": false,
     "title": "Create monitor request",
-    "description": "Creates a web monitor. `mode` is the constant `web`; the behavior is described by `target` (page, sitemap, or extract) and `change_detection` (exact or semantic). Supported combinations: page + exact, page + semantic, sitemap + exact, extract + semantic. `change_detection` is optional; page targets with `instructions` infer semantic detection, while page targets without them infer exact detection. Other targets default to their supported detection type. `schedule` is optional and defaults to once per day."
+    "description": "Monitor target, detection method, and schedule. Omitted schedules run daily."
   },
   "MonitorsUpdateMonitorRequest": {
     "type": "object",
@@ -9005,7 +9007,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         },
         "maxItems": 20,
         "uniqueItems": true,
-        "description": "User-defined tags for grouping and filtering monitors and their changes. Duplicates are removed.",
+        "description": "Labels for filtering monitors, their changes, and their usage.",
         "example": [
           "pricing",
           "competitor"
@@ -9029,11 +9031,11 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "webhook": {
         "$ref": "#/components/schemas/MonitorsNullableWebhookConfig",
-        "description": "Set to null to remove the webhook."
+        "description": "Set to null to remove the webhook. Changing `url` issues a new secret."
       }
     },
     "additionalProperties": false,
-    "description": "Shared monitor update fields. `target` and `change_detection` can be updated, but the final combination must be supported."
+    "description": "Send only the fields to change. `target` replaces the whole target."
   },
   "WebdbsCreateCollectionRequest": {
     "type": "object",
@@ -9649,7 +9651,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "includeHTML": {
                             "type": "boolean",
                             "default": false,
-                            "description": "Also include each page's HTML in its result record, as an `html` field alongside the Markdown."
+                            "description": "Also return each page's HTML in `html`."
                           },
                           "pdf": {
                             "type": "object",
@@ -9657,7 +9659,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": {
                                 "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
+                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
                               },
                               "start": {
                                 "type": "integer",
@@ -9672,7 +9674,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "ocr": {
                                 "type": "boolean",
                                 "default": false,
-                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
                               }
                             },
                             "default": {
@@ -9692,7 +9694,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "maxLength": 2048
                             },
                             "maxItems": 50,
-                            "description": "Keep only the subtrees matching these CSS selectors. Filtered pages are always fetched fresh, ignoring `maxAgeMs`."
+                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
                           },
                           "excludeSelectors": {
                             "type": [
@@ -9716,7 +9718,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "settleAnimations": {
                             "type": "boolean",
                             "default": false,
-                            "description": "Wait briefly for CSS and transition animations to settle before extraction, on pages that render in a browser."
+                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
                           },
                           "country": {
                             "$ref": "#/components/schemas/BrowserCountryCode"
@@ -9729,7 +9731,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "minimum": 0,
                             "maximum": 2592000000,
                             "default": 86400000,
-                            "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -9815,7 +9817,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": {
                                 "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
+                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
                               },
                               "start": {
                                 "type": "integer",
@@ -9830,7 +9832,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "ocr": {
                                 "type": "boolean",
                                 "default": false,
-                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
                               }
                             },
                             "default": {
@@ -9850,7 +9852,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "maxLength": 2048
                             },
                             "maxItems": 50,
-                            "description": "Keep only the subtrees matching these CSS selectors. Filtered pages are always fetched fresh, ignoring `maxAgeMs`."
+                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
                           },
                           "excludeSelectors": {
                             "type": [
@@ -9874,7 +9876,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "settleAnimations": {
                             "type": "boolean",
                             "default": false,
-                            "description": "Wait briefly for CSS and transition animations to settle before extraction, on pages that render in a browser."
+                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
                           },
                           "country": {
                             "$ref": "#/components/schemas/BrowserCountryCode"
@@ -9887,7 +9889,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "minimum": 0,
                             "maximum": 2592000000,
                             "default": 86400000,
-                            "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -9925,7 +9927,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             ],
             "additionalProperties": false,
             "title": "Scrape",
-            "description": "Scrape up to 25K URLs in one batch."
+            "description": "Scrape a list of up to 25,000 URLs."
           },
           {
             "type": "object",
@@ -10092,7 +10094,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "includeHTML": {
                             "type": "boolean",
                             "default": false,
-                            "description": "Also include each page's HTML in its result record, as an `html` field alongside the Markdown."
+                            "description": "Also return each page's HTML in `html`."
                           },
                           "pdf": {
                             "type": "object",
@@ -10100,7 +10102,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": {
                                 "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
+                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
                               },
                               "start": {
                                 "type": "integer",
@@ -10115,7 +10117,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "ocr": {
                                 "type": "boolean",
                                 "default": false,
-                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
                               }
                             },
                             "default": {
@@ -10135,7 +10137,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "maxLength": 2048
                             },
                             "maxItems": 50,
-                            "description": "Keep only the subtrees matching these CSS selectors. Filtered pages are always fetched fresh, ignoring `maxAgeMs`."
+                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
                           },
                           "excludeSelectors": {
                             "type": [
@@ -10159,7 +10161,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "settleAnimations": {
                             "type": "boolean",
                             "default": false,
-                            "description": "Wait briefly for CSS and transition animations to settle before extraction, on pages that render in a browser."
+                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
                           },
                           "country": {
                             "$ref": "#/components/schemas/BrowserCountryCode"
@@ -10172,7 +10174,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "minimum": 0,
                             "maximum": 2592000000,
                             "default": 86400000,
-                            "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -10341,7 +10343,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": {
                                 "type": "boolean",
                                 "default": true,
-                                "description": "When true, PDF URLs are fetched and parsed. When false, PDF URLs are skipped and a 400 PDF_SKIPPED is returned."
+                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
                               },
                               "start": {
                                 "type": "integer",
@@ -10356,7 +10358,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "ocr": {
                                 "type": "boolean",
                                 "default": false,
-                                "description": "When true, OCR the selected PDF pages that have no usable text layer (scans), replacing each recovered page's text with the OCR result while pages with a real text layer keep it. Billed at 1 credit per page OCR actually recovered, on top of the base request cost. When false, no OCR runs."
+                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
                               }
                             },
                             "default": {
@@ -10376,7 +10378,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "maxLength": 2048
                             },
                             "maxItems": 50,
-                            "description": "Keep only the subtrees matching these CSS selectors. Filtered pages are always fetched fresh, ignoring `maxAgeMs`."
+                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
                           },
                           "excludeSelectors": {
                             "type": [
@@ -10400,7 +10402,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "settleAnimations": {
                             "type": "boolean",
                             "default": false,
-                            "description": "Wait briefly for CSS and transition animations to settle before extraction, on pages that render in a browser."
+                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
                           },
                           "country": {
                             "$ref": "#/components/schemas/BrowserCountryCode"
@@ -10413,7 +10415,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "minimum": 0,
                             "maximum": 2592000000,
                             "default": 86400000,
-                            "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -10479,7 +10481,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "url"
         ],
         "additionalProperties": false,
-        "description": "Completion webhook settings. Cannot be combined with webhookUrl. Omitting retry preserves legacy delivery; retry: {} opts into durable retries."
+        "description": "Where to send the batch's final-status event. Omit `retry` for one attempt; `{}` uses the default retry schedule."
       },
       "tags": {
         "type": "array",
@@ -10519,7 +10521,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "screenshot": {
         "type": "boolean",
         "default": false,
-        "description": "An inline image of the page."
+        "description": "A screenshot of the page."
       },
       "images": {
         "type": "boolean",
@@ -10534,22 +10536,22 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "parse": {
         "type": "boolean",
         "default": false,
-        "description": "Fields selected by parseParams.rules."
+        "description": "Fields extracted with `parseParams.rules`, returned as `parsed`."
       },
       "highlights": {
         "type": "boolean",
         "default": false,
-        "description": "Relevant Markdown excerpts for your question or topic, preserving code, lists, and tables, with headings included when needed for context. Adds 3 credits when passages are returned."
+        "description": "Markdown excerpts relevant to `highlightsParams.query`."
       },
       "json": {
         "type": "boolean",
         "default": false,
-        "description": "Page data extracted using your schema. Adds 4 credits when extraction succeeds and its result is returned."
+        "description": "An object matching `jsonParams.schema`, extracted from the page."
       },
       "product": {
         "type": "boolean",
         "default": false,
-        "description": "Product details such as name, price, and availability. Adds 1 credit when its successful result is returned or the target page is missing."
+        "description": "Product details such as name, price, and availability."
       }
     },
     "not": {
@@ -10665,156 +10667,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       ]
     }
   },
-  "ScrapeSharedParams": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "country": {
-        "type": "string",
-        "pattern": "^[A-Za-z]{2}$",
-        "examples": [
-          "US"
-        ],
-        "description": "Supported two-letter country code, case-insensitive. Applies to every output, including image downloads."
-      },
-      "headers": {
-        "type": "object",
-        "propertyNames": {
-          "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
-          "not": {
-            "pattern": "^(?:[Hh][Oo][Ss][Tt]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ll][Ee][Nn][Gg][Tt][Hh]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Kk][Ee][Ee][Pp]-[Aa][Ll][Ii][Vv][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Pp][Rr][Oo][Xx][Yy]-[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Tt][Ee]|[Tt][Rr][Aa][Ii][Ll][Ee][Rr]|[Tt][Rr][Aa][Nn][Ss][Ff][Ee][Rr]-[Ee][Nn][Cc][Oo][Dd][Ii][Nn][Gg]|[Uu][Pp][Gg][Rr][Aa][Dd][Ee]|[Ee][Xx][Pp][Ee][Cc][Tt])$"
-          }
-        },
-        "additionalProperties": {
-          "type": "string",
-          "maxLength": 8192,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "description": "Headers for the target origin. Requests with custom headers bypass caching.",
-        "examples": [
-          {
-            "Accept-Language": "en-US"
-          }
-        ]
-      },
-      "viewport": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "width": {
-            "type": "integer",
-            "minimum": 240,
-            "maximum": 7680,
-            "default": 1440
-          },
-          "height": {
-            "type": "integer",
-            "minimum": 240,
-            "maximum": 4320,
-            "default": 900
-          }
-        },
-        "description": "Browser dimensions in pixels."
-      },
-      "theme": {
-        "type": "string",
-        "enum": [
-          "light",
-          "dark"
-        ],
-        "description": "Override the browser color scheme."
-      },
-      "dismissCookies": {
-        "type": "boolean",
-        "default": true,
-        "description": "Dismiss cookie banners by accepting cookies before actions."
-      },
-      "dismissPopups": {
-        "type": "boolean",
-        "default": false,
-        "description": "Dismiss other popups before actions."
-      },
-      "actions": {
-        "type": "array",
-        "minItems": 1,
-        "maxItems": 5,
-        "items": {
-          "$ref": "#/components/schemas/ScrapeAction"
-        },
-        "description": "Run in order before capture. A failed action fails the request. Bypasses caching."
-      },
-      "waitFor": {
-        "oneOf": [
-          {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 30000,
-            "title": "Milliseconds"
-          },
-          {
-            "type": "string",
-            "pattern": "\\S",
-            "maxLength": 2048,
-            "title": "CSS selector"
-          }
-        ],
-        "examples": [
-          500,
-          "#content"
-        ],
-        "description": "After actions, wait this many milliseconds or until a CSS selector is visible. Defaults to 500 ms, or 2000 ms with frames or an XML URL. Set 0 to skip."
-      },
-      "settleAnimations": {
-        "type": "boolean",
-        "description": "Settle animations before capture. Defaults to true with screenshots, otherwise false."
-      },
-      "mainContentOnly": {
-        "type": "boolean",
-        "default": false,
-        "description": "Keep only main content in HTML, Markdown, images, and parsed fields."
-      },
-      "includeSelectors": {
-        "type": "array",
-        "minItems": 1,
-        "maxItems": 50,
-        "uniqueItems": true,
-        "items": {
-          "type": "string",
-          "pattern": "\\S",
-          "maxLength": 2048
-        },
-        "description": "Keep matching content after mainContentOnly."
-      },
-      "excludeSelectors": {
-        "type": "array",
-        "minItems": 1,
-        "maxItems": 50,
-        "uniqueItems": true,
-        "items": {
-          "type": "string",
-          "pattern": "\\S",
-          "maxLength": 2048
-        },
-        "description": "Remove matching content. Exclusions win."
-      },
-      "includeFrames": {
-        "type": "boolean",
-        "default": false,
-        "description": "Include iframe content in extraction. Screenshots show visible frames regardless."
-      },
-      "parsers": {
-        "type": "object",
-        "additionalProperties": false,
-        "description": "Document parsing options.",
-        "properties": {
-          "pdf": {
-            "$ref": "#/components/schemas/ScrapePdfOptions",
-            "description": "PDF text options for HTML, Markdown, and parsed fields."
-          }
-        }
-      }
-    }
-  },
   "ScrapeMarkdownParams": {
     "type": "object",
     "additionalProperties": false,
@@ -10833,7 +10685,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "placeholder",
           "preserve"
         ],
-        "description": "Base64 images use placeholders by default. Requires includeImages: true."
+        "description": "How base64 images appear: `placeholder` (default) or `preserve`. Requires `includeImages`."
       }
     },
     "allOf": [
@@ -10862,7 +10714,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "properties": {
       "area": {
         "default": "viewport",
-        "description": "Viewport, full page, one visible element, or a rectangle. Maximum 40 megapixels.",
+        "description": "What to capture: `viewport`, `fullPage`, one element, or a rectangle. Max 40 megapixels.",
         "oneOf": [
           {
             "type": "string",
@@ -10880,7 +10732,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                 "type": "string",
                 "pattern": "\\S",
                 "maxLength": 2048,
-                "description": "Must match one visible element."
+                "description": "CSS selector matching exactly one visible element."
               }
             },
             "required": [
@@ -10952,7 +10804,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "file"
           ]
         },
-        "description": "Add dimensions, a visual category, or a hosted file URL. Each image has a maximum processing time of 30000 milliseconds, bounded by the remaining request deadline."
+        "description": "Extra data per image: `dimensions`, `classification`, or a hosted `file` URL."
       },
       "dedupe": {
         "type": "string",
@@ -10961,7 +10813,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "visual"
         ],
         "default": "none",
-        "description": "For visual duplicates, keep the largest image."
+        "description": "Set `visual` to drop visual duplicates, keeping the largest copy."
       }
     }
   },
@@ -10992,7 +10844,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "minimum": 100,
         "maximum": 20000,
         "default": 4000,
-        "description": "Maximum combined length of the returned passages, in characters."
+        "description": "Maximum combined length of returned passages."
       }
     },
     "required": [
@@ -11006,7 +10858,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "schema": {
         "type": "object",
         "additionalProperties": true,
-        "description": "JSON Schema for the returned object. Must describe a top-level object; at most 50 KB serialized. Optional fields the page does not state are omitted, or null when their type allows null, while required non-nullable fields always receive a best-effort value, so prefer nullable or optional fields for data a page may omit. Zod users can pass the output of z.toJSONSchema().",
+        "description": "JSON Schema for a top-level object, up to 50 KB. Use optional or nullable fields for missing facts.",
         "example": {
           "type": "object",
           "properties": {
@@ -11031,7 +10883,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "instructions": {
         "type": "string",
         "maxLength": 2000,
-        "description": "Optional guidance on which facts to prioritize or how to interpret schema fields."
+        "description": "Extra guidance, such as which facts to prefer or how to read a field."
       }
     },
     "required": [
@@ -11045,7 +10897,157 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "useAIFallback": {
         "type": "boolean",
         "default": false,
-        "description": "Extract the product with a specialized model when the page has no structured product data. Adds six credits when the model verdict is returned successfully. If the fallback fails, the product output has success: false and data: null with no fallback charge; other outputs remain available. Request deadlines and client disconnects still apply."
+        "description": "Use an AI model when the page has no structured product data."
+      }
+    }
+  },
+  "ScrapeSharedParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "country": {
+        "type": "string",
+        "pattern": "^[A-Za-z]{2}$",
+        "examples": [
+          "US"
+        ],
+        "description": "Proxy country as a two-letter code, such as `US`. Case-insensitive."
+      },
+      "headers": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
+          "not": {
+            "pattern": "^(?:[Hh][Oo][Ss][Tt]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ll][Ee][Nn][Gg][Tt][Hh]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Kk][Ee][Ee][Pp]-[Aa][Ll][Ii][Vv][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Pp][Rr][Oo][Xx][Yy]-[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Tt][Ee]|[Tt][Rr][Aa][Ii][Ll][Ee][Rr]|[Tt][Rr][Aa][Nn][Ss][Ff][Ee][Rr]-[Ee][Nn][Cc][Oo][Dd][Ii][Nn][Gg]|[Uu][Pp][Gg][Rr][Aa][Dd][Ee]|[Ee][Xx][Pp][Ee][Cc][Tt])$"
+          }
+        },
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 8192,
+          "pattern": "^[^\\r\\n]*$"
+        },
+        "description": "HTTP headers to send to the target site. Requests with headers skip the cache.",
+        "examples": [
+          {
+            "Accept-Language": "en-US"
+          }
+        ]
+      },
+      "viewport": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 7680,
+            "default": 1440
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 4320,
+            "default": 900
+          }
+        },
+        "description": "Browser size in pixels. Defaults to 1920 × 1080."
+      },
+      "theme": {
+        "type": "string",
+        "enum": [
+          "light",
+          "dark"
+        ],
+        "description": "Emulate a light or dark color scheme."
+      },
+      "dismissCookies": {
+        "type": "boolean",
+        "default": true,
+        "description": "Accept cookie banners before actions and capture."
+      },
+      "dismissPopups": {
+        "type": "boolean",
+        "default": false,
+        "description": "Close other popups before actions and capture."
+      },
+      "actions": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 5,
+        "items": {
+          "$ref": "#/components/schemas/ScrapeAction"
+        },
+        "description": "Browser steps run in order before capture. Requires a paid plan. Skips the cache."
+      },
+      "waitFor": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "title": "Milliseconds"
+          },
+          {
+            "type": "string",
+            "pattern": "\\S",
+            "maxLength": 2048,
+            "title": "CSS selector"
+          }
+        ],
+        "examples": [
+          500,
+          "#content"
+        ],
+        "description": "Milliseconds, or a CSS selector to wait for, after actions. Defaults to 500 (2000 with frames or XML)."
+      },
+      "settleAnimations": {
+        "type": "boolean",
+        "description": "Wait for CSS animations to finish before capture. Defaults to `true` when `screenshot` is requested."
+      },
+      "mainContentOnly": {
+        "type": "boolean",
+        "default": false,
+        "description": "Keep only the main content. Doesn't affect `screenshot`, `bytes`, or `product`."
+      },
+      "includeSelectors": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 50,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "\\S",
+          "maxLength": 2048
+        },
+        "description": "Keep only elements matching these CSS selectors."
+      },
+      "excludeSelectors": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 50,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "\\S",
+          "maxLength": 2048
+        },
+        "description": "Remove elements matching these CSS selectors. Overrides `includeSelectors`."
+      },
+      "includeFrames": {
+        "type": "boolean",
+        "default": false,
+        "description": "Include iframe content in HTML and text outputs. Screenshots always show visible frames."
+      },
+      "parsers": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Document parsing options.",
+        "properties": {
+          "pdf": {
+            "$ref": "#/components/schemas/ScrapePdfOptions",
+            "description": "PDF page range and OCR."
+          }
+        }
       }
     }
   },
@@ -11173,7 +11175,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
@@ -11224,7 +11226,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
@@ -11280,7 +11282,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
@@ -11332,7 +11334,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age of cached brand data in ms. Defaults to 3 months; clamped to 0–1 year. `0` refreshes."
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
@@ -11395,7 +11397,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     ],
     "additionalProperties": false,
     "title": "By direct URL",
-    "description": "Retrieve brand data by fetching the provided URL directly. Note: if you use this, brand data is fetched only from the provided URL — not from the entire internet — so results are limited to what that single page contains. No domain resolution, database lookup, or cross-source enrichment is performed. Cannot be combined with domain, name, email, or ticker."
+    "description": "Retrieve brand data from this exact URL. Cross-site enrichment and other lookup identifiers are excluded."
   },
   "BrandRetrieveFromTransactionRequest": {
     "type": "object",
@@ -11485,7 +11487,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "domain": {
         "type": "string",
         "minLength": 3,
-        "description": "Domain name to prefetch data for"
+        "description": "Domain, e.g. `stripe.com`."
       }
     },
     "required": [
@@ -11517,7 +11519,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "enum": [
       "web"
     ],
-    "description": "Top-level monitor category. Always `web` today; the concrete behavior is described by `target` and `change_detection`.",
+    "description": "Always `web`. Optional.",
     "title": "Monitor mode"
   },
   "MonitorsTarget": {
@@ -11534,7 +11536,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "$ref": "#/components/schemas/MonitorsExtractTarget"
           },
           {
-            "description": "Watch the monitor-relevant pages of a site for meaningful changes. A crawl guided by `schema`/`instructions` selects up to `max_pages` relevant pages to track; each run re-checks exactly those pages, and confirmed content changes are judged for relevance against the monitor's `instructions` (and `schema`, when provided). The tracked page set is refreshed by a periodic re-discovery crawl."
+            "description": "Track relevant pages selected by `schema` and `instructions`; refresh the page set periodically."
           }
         ]
       }
@@ -11547,7 +11549,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "extract": "#/components/schemas/MonitorsExtractTarget"
       }
     },
-    "description": "Discriminated union describing what the monitor watches."
+    "description": "What to watch: a page, a sitemap, or data extracted from a site."
   },
   "MonitorsChangeDetection": {
     "oneOf": [
@@ -11565,7 +11567,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "semantic": "#/components/schemas/MonitorsSemanticChangeDetection"
       }
     },
-    "description": "Discriminated union describing how changes are detected."
+    "description": "How changes are judged. Defaults to `semantic` for extract targets and page targets with `instructions`, otherwise `exact`."
   },
   "MonitorsSchedule": {
     "oneOf": [
@@ -11579,7 +11581,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "interval": "#/components/schemas/MonitorsIntervalSchedule"
       }
     },
-    "description": "Discriminated union describing how the monitor is scheduled. Only `interval` is supported today; `cron` and `exact_time` are reserved for future use."
+    "description": "How often the monitor runs. Defaults to once a day."
   },
   "MonitorsNullableWebhookConfig": {
     "anyOf": [
@@ -11810,6 +11812,69 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       ]
     }
   },
+  "ScrapeParseRules": {
+    "type": "object",
+    "additionalProperties": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "item",
+                "list"
+              ]
+            },
+            "output": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "html"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "pattern": "^@.*$"
+                },
+                {
+                  "$ref": "#/components/schemas/ScrapeParseRules"
+                }
+              ]
+            }
+          },
+          "required": [
+            "selector"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "minProperties": 1,
+    "description": "Field names mapped to CSS selectors (`h1`, `a@href`) or rule objects. Max 100 fields, 5 levels.",
+    "examples": [
+      {
+        "title": "h1",
+        "links": {
+          "selector": "a",
+          "type": "list",
+          "output": "@href"
+        }
+      }
+    ]
+  },
   "ScrapeAction": {
     "title": "Browser action",
     "oneOf": [
@@ -11954,7 +12019,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "endPage": {
         "type": "integer",
         "minimum": 1,
-        "description": "Last page to parse. Must be at least startPage."
+        "description": "Last page to parse. Must be at least `startPage`."
       },
       "ocr": {
         "type": "string",
@@ -11963,72 +12028,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "auto"
         ],
         "default": "off",
-        "description": "Read text from scanned pages."
+        "description": "Set `auto` to read scanned pages with OCR."
       }
     }
-  },
-  "ScrapeParseRules": {
-    "type": "object",
-    "additionalProperties": {
-      "anyOf": [
-        {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2048
-        },
-        {
-          "type": "object",
-          "properties": {
-            "selector": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2048
-            },
-            "type": {
-              "type": "string",
-              "enum": [
-                "item",
-                "list"
-              ]
-            },
-            "output": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "enum": [
-                    "text",
-                    "html"
-                  ]
-                },
-                {
-                  "type": "string",
-                  "pattern": "^@.*$"
-                },
-                {
-                  "$ref": "#/components/schemas/ScrapeParseRules"
-                }
-              ]
-            }
-          },
-          "required": [
-            "selector"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "minProperties": 1,
-    "description": "Map field names to CSS selectors or rules. Missing items return null; missing lists return [].",
-    "examples": [
-      {
-        "title": "h1",
-        "links": {
-          "selector": "a",
-          "type": "list",
-          "output": "@href"
-        }
-      }
-    ]
   },
   "MonitorsPageTarget": {
     "type": "object",
@@ -12064,7 +12066,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "maxLength": 2048
         },
         "maxItems": 50,
-        "description": "CSS selectors defining the HTML regions to monitor. Matching subtrees are combined in document order before text extraction, instead of automatic main-content selection. Omit or pass an empty array to use automatic main-content extraction. If the filtered page has no usable text, the run fails without replacing the baseline. Changing these selectors creates a new baseline.",
+        "description": "Monitor these CSS-selected regions. Empty or omitted uses main content. Changes create a new baseline.",
         "example": [
           "#attraction-details"
         ]
@@ -12077,7 +12079,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "maxLength": 2048
         },
         "maxItems": 50,
-        "description": "CSS selectors for HTML regions to remove before text extraction. Applied after include_selectors; exclusion takes precedence when an element matches both. Omit or pass an empty array to apply no explicit exclusions. Changing these selectors creates a new baseline.",
+        "description": "Remove matching regions after inclusions. Changes create a new baseline.",
         "example": [
           ".carousel",
           "[id^=\"TA_\"]"
@@ -12148,7 +12150,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "url"
     ],
     "additionalProperties": false,
-    "description": "Watch a sitemap for URL additions and removals. Crawled URLs are normalized (lowercased host, no trailing slash/fragment) and scoped to the monitored site and its subdomains before comparison. On a detected difference the sitemap is re-fetched within the same run and only URLs both observations agree on are reported, suppressing transient crawl flaps.",
+    "description": "Watch a site’s URL inventory for confirmed additions and removals.",
     "title": "Sitemap target"
   },
   "MonitorsExtractTarget": {
@@ -12169,7 +12171,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "schema": {
         "type": "object",
         "additionalProperties": {},
-        "description": "JSON Schema describing the data you care about. It is used three ways: it guides which pages are selected for tracking, it gives the change judge extra context on which changes matter (alongside `instructions`), and it defines the shape of the baseline `data` snapshot on GET /monitors/{monitor_id} (refreshed at most about once a day). It is not a response format for changes: change events and webhook payloads always contain diffs, summaries, and evidence excerpts — never data in this schema's shape. If omitted, a default summary + key-points schema is used.",
+        "description": "JSON Schema for page selection and the baseline snapshot. Changes return diffs and evidence.",
         "example": {
           "type": "object",
           "properties": {
@@ -12260,7 +12262,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "type"
     ],
     "additionalProperties": false,
-    "description": "Detect meaning-level changes to page content, ignoring cosmetic or instruction-irrelevant differences. Which changes are meaningful is judged against the page or extract target's `instructions` (and an extract target's `schema`, when provided).",
+    "description": "Detect meaningful content changes using the target’s instructions and optional schema.",
     "title": "Semantic"
   },
   "MonitorsIntervalSchedule": {
@@ -12298,7 +12300,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "url": {
         "type": "string",
         "format": "uri",
-        "description": "Webhook URL events are delivered to. Slack incoming webhook URLs are automatically formatted as Slack messages.",
+        "description": "Public HTTP(S) URL that receives events. Slack and GovSlack URLs get formatted messages.",
         "example": "https://example.com/webhook"
       },
       "events": {
@@ -12313,7 +12315,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "minItems": 1,
         "maxItems": 2,
         "uniqueItems": true,
-        "description": "Events delivered to this endpoint. `change.detected` fires only when a run detects a change; `run.completed` fires on every completed run — including runs that detected no change — and embeds the change when one was detected. Defaults to `[\"change.detected\"]` when omitted.",
+        "description": "Events to deliver. Defaults to `change.detected`; `run.completed` also includes unchanged runs.",
         "example": [
           "change.detected",
           "run.completed"
@@ -12325,7 +12327,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "secret": {
         "type": "string",
         "readOnly": true,
-        "description": "Signing secret used to verify webhook authenticity. Omitted unless the API key has monitors:write permission or full access. Each delivery includes an `X-Context-Signature: t=<unix>,v1=<hmac>` header, where the HMAC is SHA-256 over `\"{t}.{rawRequestBody}\"` keyed by this secret. Recompute it with a constant-time compare and reject stale timestamps to prevent replay. Generated by the API; cannot be set by clients.",
+        "description": "API-generated signing secret. Visible only with full access or `monitors:write` permission.",
         "example": "whsec_8f3a…"
       }
     },
