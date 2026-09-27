@@ -2744,6 +2744,7 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "Optional maximum link depth from the starting URL (0 = only the starting page). If omitted, there is no crawl depth limit."
           },
           "pdf": {
+            "description": "PDF parsing options, including whether to parse PDFs and the inclusive page range.",
             "type": "object",
             "properties": {
               "shouldParse": {
@@ -5555,8 +5556,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       }
@@ -5578,8 +5581,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       }
@@ -5609,8 +5614,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       }
@@ -5632,8 +5639,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       },
@@ -5694,8 +5703,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       },
@@ -5703,8 +5714,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "run_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor run.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor run.",
           "example": "run_123"
         }
       }
@@ -5726,8 +5739,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       },
@@ -6021,8 +6036,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "change_id",
         "in": "path",
         "required": true,
+        "description": "ID of the detected change.",
         "schema": {
           "type": "string",
+          "description": "ID of the detected change.",
           "example": "chg_123"
         }
       }
@@ -6044,8 +6061,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       }
@@ -6067,8 +6086,10 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "monitor_id",
         "in": "path",
         "required": true,
+        "description": "ID of the monitor.",
         "schema": {
           "type": "string",
+          "description": "ID of the monitor.",
           "example": "mon_123"
         }
       }
@@ -7674,7 +7695,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "name"
-        ]
+        ],
+        "description": "Use `name` to identify the company by name."
       },
       "name": {
         "type": "string",
@@ -7698,7 +7720,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "domain"
-        ]
+        ],
+        "description": "Use `domain` to identify the company by website domain."
       },
       "domain": {
         "type": "string",
@@ -7722,7 +7745,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "ticker"
-        ]
+        ],
+        "description": "Use `ticker` to identify a publicly traded company."
       },
       "ticker": {
         "type": "string",
@@ -7825,7 +7849,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "isin"
-        ]
+        ],
+        "description": "Use `isin` to identify the company by its securities identifier."
       },
       "isin": {
         "type": "string",
@@ -8276,7 +8301,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "format": "uri"
         },
         "minItems": 1,
-        "maxItems": 20
+        "maxItems": 20,
+        "description": "Public profile URLs for the person. A person-profile URL can identify the person without a name."
       },
       "name": {
         "type": "object",
@@ -8284,20 +8310,24 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "first": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
+            "maxLength": 100,
+            "description": "First or given name."
           },
           "last": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
+            "maxLength": 100,
+            "description": "Last or family name."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Person name. Without an email or person-profile URL, provide both first and last name plus company, education, or location."
       },
       "email": {
         "type": "string",
         "maxLength": 320,
-        "format": "email"
+        "format": "email",
+        "description": "Email address of the person to find."
       },
       "company": {
         "type": "object",
@@ -8305,15 +8335,18 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "description": "Name of a company associated with the person."
           },
           "domain": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 253
+            "maxLength": 253,
+            "description": "Website domain of a company associated with the person."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Company context to help identify the person. Provide a name or domain."
       },
       "education": {
         "type": "array",
@@ -8326,36 +8359,43 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                 "name": {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 200
+                  "maxLength": 200,
+                  "description": "Name of the school or university."
                 },
                 "domain": {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 253
+                  "maxLength": 253,
+                  "description": "Website domain of the school or university."
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "description": "School or university, identified by name or domain."
             },
             "degree": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 200
+              "maxLength": 200,
+              "description": "Degree or qualification earned."
             },
             "field_of_study": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 200
+              "maxLength": 200,
+              "description": "Subject or major studied."
             },
             "graduation_year": {
               "type": "integer",
               "minimum": 1900,
-              "maximum": 2200
+              "maximum": 2200,
+              "description": "Four-digit graduation year."
             }
           },
           "additionalProperties": false
         },
         "minItems": 1,
-        "maxItems": 10
+        "maxItems": 10,
+        "description": "Education history to help distinguish people with similar names."
       },
       "location": {
         "type": "object",
@@ -8363,20 +8403,24 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "city": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "description": "City associated with the person."
           },
           "region": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "description": "State, province, or region associated with the person."
           },
           "country": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "description": "Country associated with the person."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Location context to help identify the person. Provide a city, region, or country."
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
@@ -8951,6 +8995,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "minLength": 1,
         "maxLength": 200,
+        "description": "Display name for the monitor.",
         "example": "Acme pricing monitor"
       },
       "tags": {
@@ -8996,6 +9041,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "minLength": 1,
         "maxLength": 200,
+        "description": "Display name for the monitor.",
         "example": "Acme pricing monitor"
       },
       "tags": {
@@ -9018,7 +9064,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "enum": [
           "active",
           "paused"
-        ]
+        ],
+        "description": "Set `paused` to stop scheduled runs or `active` to resume them."
       },
       "target": {
         "$ref": "#/components/schemas/MonitorsTarget"
@@ -10471,7 +10518,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "properties": {
           "url": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "description": "Public HTTP(S) URL that receives batch completion, failure, or cancellation events."
           },
           "retry": {
             "$ref": "#/components/schemas/WebhookRetry"
@@ -10673,11 +10721,13 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "properties": {
       "includeLinks": {
         "type": "boolean",
-        "default": true
+        "default": true,
+        "description": "Keep link URLs in the Markdown. Set false to return link text without URLs."
       },
       "includeImages": {
         "type": "boolean",
-        "default": false
+        "default": false,
+        "description": "Include images in the Markdown using image syntax with URLs and alt text."
       },
       "inlineImages": {
         "type": "string",
@@ -10746,21 +10796,25 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "properties": {
               "x": {
                 "type": "integer",
+                "description": "Left edge of the capture, in pixels from the document origin.",
                 "minimum": 0,
                 "maximum": 100000
               },
               "y": {
                 "type": "integer",
+                "description": "Top edge of the capture, in pixels from the document origin.",
                 "minimum": 0,
                 "maximum": 100000
               },
               "width": {
                 "type": "integer",
+                "description": "Width of the capture in pixels.",
                 "minimum": 1,
                 "maximum": 7680
               },
               "height": {
                 "type": "integer",
+                "description": "Height of the capture in pixels.",
                 "minimum": 1,
                 "maximum": 100000
               }
@@ -10783,7 +10837,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "jpeg",
           "webp"
         ],
-        "default": "png"
+        "default": "png",
+        "description": "Image format for the screenshot."
       }
     }
   },
@@ -10939,18 +10994,20 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "properties": {
           "width": {
             "type": "integer",
+            "description": "Browser viewport width in pixels.",
             "minimum": 240,
             "maximum": 7680,
             "default": 1440
           },
           "height": {
             "type": "integer",
+            "description": "Browser viewport height in pixels.",
             "minimum": 240,
             "maximum": 4320,
             "default": 900
           }
         },
-        "description": "Browser size in pixels. Defaults to 1920 × 1080."
+        "description": "Browser size in pixels. Omit for 1920 × 1080. When provided, missing dimensions default to 1440 × 900."
       },
       "theme": {
         "type": "string",
@@ -11058,12 +11115,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "wait"
-        ]
+        ],
+        "description": "Use `wait` to pause for a fixed duration."
       },
       "timeMs": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 30000
+        "maximum": 30000,
+        "description": "Time to pause in milliseconds before the next action."
       }
     },
     "required": [
@@ -11081,12 +11140,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "perform"
-        ]
+        ],
+        "description": "Use `perform` for a plain-language browser instruction."
       },
       "action": {
         "type": "string",
         "minLength": 1,
-        "maxLength": 500
+        "maxLength": 500,
+        "description": "One browser instruction, such as clicking a button or entering text."
       }
     },
     "required": [
@@ -11104,7 +11165,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "scroll"
-        ]
+        ],
+        "description": "Use `scroll` to move through the page or a container."
       },
       "direction": {
         "type": "string",
@@ -11584,6 +11646,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "description": "How often the monitor runs. Defaults to once a day."
   },
   "MonitorsNullableWebhookConfig": {
+    "description": "Webhook destination and delivery settings. Null means no webhook is configured.",
     "anyOf": [
       {
         "allOf": [
@@ -11827,16 +11890,19 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "selector": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 2048
+              "maxLength": 2048,
+              "description": "CSS selector to match within the current page or parent rule."
             },
             "type": {
               "type": "string",
               "enum": [
                 "item",
                 "list"
-              ]
+              ],
+              "description": "Return the first match with `item` or all matches with `list`."
             },
             "output": {
+              "description": "Return text, HTML, an attribute such as `@href`, or nested field rules. Defaults to text.",
               "anyOf": [
                 {
                   "type": "string",
@@ -11886,7 +11952,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "type": "string",
             "enum": [
               "perform"
-            ]
+            ],
+            "description": "Use `perform` for a plain-language browser instruction."
           },
           "action": {
             "type": "string",
@@ -11894,7 +11961,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "maxLength": 500,
             "examples": [
               "Click the product details tab"
-            ]
+            ],
+            "description": "One browser instruction, such as clicking a button or entering text."
           }
         },
         "required": [
@@ -11911,7 +11979,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "type": "string",
             "enum": [
               "scroll"
-            ]
+            ],
+            "description": "Use `scroll` to move through the page or a container."
           },
           "direction": {
             "type": "string",
@@ -11921,7 +11990,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
               "left",
               "right"
             ],
-            "default": "down"
+            "default": "down",
+            "description": "Direction to scroll."
           },
           "amount": {
             "oneOf": [
@@ -11938,7 +12008,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                 ]
               }
             ],
-            "default": "viewport"
+            "default": "viewport",
+            "description": "Distance per scroll: pixels, one `viewport`, or `max` to reach the end."
           },
           "selector": {
             "type": "string",
@@ -11948,6 +12019,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           },
           "maxScrolls": {
             "type": "integer",
+            "description": "Maximum number of scroll steps for this action.",
             "minimum": 1,
             "maximum": 50,
             "default": 1
@@ -11966,10 +12038,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "type": "string",
             "enum": [
               "wait"
-            ]
+            ],
+            "description": "Use `wait` to pause for a fixed duration."
           },
           "milliseconds": {
             "type": "integer",
+            "description": "Time to pause in milliseconds before the next action.",
             "minimum": 0,
             "maximum": 30000
           }
@@ -11988,12 +12062,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "type": "string",
             "enum": [
               "waitFor"
-            ]
+            ],
+            "description": "Use `waitFor` to wait for a matching element."
           },
           "selector": {
             "type": "string",
             "pattern": "\\S",
-            "maxLength": 2048
+            "maxLength": 2048,
+            "description": "CSS selector to wait for before continuing."
           }
         },
         "required": [
@@ -12039,11 +12115,13 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "page"
-        ]
+        ],
+        "description": "Use `page` to watch one web page."
       },
       "url": {
         "type": "string",
         "format": "uri",
+        "description": "Public HTTP(S) page URL to monitor.",
         "example": "https://acme.com/pricing"
       },
       "instructions": {
@@ -12101,7 +12179,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "sitemap"
-        ]
+        ],
+        "description": "Use `sitemap` to watch a site for added or removed URLs."
       },
       "url": {
         "type": "string",
@@ -12160,7 +12239,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "extract"
-        ]
+        ],
+        "description": "Use `extract` to watch structured data across selected pages."
       },
       "url": {
         "type": "string",
@@ -12214,7 +12294,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "follow_subdomains": {
         "type": "boolean",
-        "default": false
+        "default": false,
+        "description": "Allow page discovery on subdomains of the target site."
       }
     },
     "required": [
@@ -12232,7 +12313,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "exact"
-        ]
+        ],
+        "description": "Use `exact` to compare visible text or sitemap URLs."
       }
     },
     "required": [
@@ -12249,13 +12331,15 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "semantic"
-        ]
+        ],
+        "description": "Use `semantic` to judge changes against the target instructions."
       },
       "confidence_threshold": {
         "type": "number",
         "minimum": 0,
         "maximum": 1,
-        "default": 0.75
+        "default": 0.75,
+        "description": "Minimum confidence required to report a meaningful change, from 0 to 1."
       }
     },
     "required": [
@@ -12272,7 +12356,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "string",
         "enum": [
           "interval"
-        ]
+        ],
+        "description": "Use `interval` to run on a repeating schedule."
       },
       "frequency": {
         "type": "integer",
@@ -12673,6 +12758,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "hours",
       "days"
     ],
+    "description": "Time unit used with `frequency` to set the run interval.",
     "example": "hours"
   }
 };
