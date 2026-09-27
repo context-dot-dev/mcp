@@ -467,6 +467,18 @@
         "open_world_justification": "Reads only one retained request from the authenticated user's private Context account and does not access or alter external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
+    },
+    "submit-feedback": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Records a feedback report about Context itself for the authenticated account.",
+        "open_world_justification": "Sends the report only to Context and does not access or alter external internet state.",
+        "destructive_justification": "Adds a report without deleting or overwriting data. Reporting the same request again returns the original report."
+      }
     }
   },
   "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",

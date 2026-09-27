@@ -56,6 +56,69 @@ export type Endpoint = {
 
 export const ENDPOINTS: Endpoint[] = [
   {
+    "name": "submit-feedback",
+    "title": "Submit agent feedback",
+    "method": "POST",
+    "path": "/feedback",
+    "description": "Submit agent feedback — Report a problem with a Context.dev API call, docs page, SDK, or CLI. Include request_id, url, or both.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The request_id of the API call the feedback is about, from its response body or X-Request-Id header.",
+            "example": "3f1c2a6e-8b4d-4c1e-9f0a-2d7b5e6c8a91"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "docs_mismatch",
+              "friction",
+              "feature_gap",
+              "quality_degradation",
+              "other"
+            ],
+            "description": "Kind of issue."
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "What went wrong and what you expected instead.",
+            "example": "Markdown drops the plan comparison table; expected all 4 rows."
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri",
+            "description": "The page the feedback is about, such as one page of a crawl or a docs page.",
+            "example": "https://stripe.com/pricing"
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "required": [
+          "category",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "list-logs",
     "title": "List request logs",
     "method": "GET",
