@@ -431,3 +431,105 @@ test("forwards the calling MCP client in a header-safe X-Context-Agent", async (
     ],
   );
 });
+
+test("prompts feedback for API failures with body IDs, header IDs, or no ID", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const scenario of [
+      { payload: { message: "Failed", request_id: "body-id" }, header: "header-id", expected: "body-id" },
+      { payload: { message: "Failed" }, header: "header-id", expected: "header-id" },
+      { payload: { message: "Failed" }, header: undefined, expected: undefined },
+    ]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(scenario.payload), {
+        status: 500,
+        headers: scenario.header ? { "x-request-id": scenario.header } : {},
+      });
+      const result = await callContextApi({
+        apiBase,
+        endpoint: endpoint({ path: "/test" }),
+        args: {},
+        credential: { apiKey: "key" },
+      });
+      assert.equal(result.isError, true);
+      const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+      assert.match(message, /always call submit-feedback once/);
+      assert.match(message, /expected versus actual/);
+      assert.match(message, /public page\/docs url if no ID/);
+      assert.match(message, /Never invent an ID or include secrets\/private data/);
+      if (scenario.expected) {
+        assert.ok(message.includes(`request_id: ${scenario.expected}`));
+      } else {
+        assert.doesNotMatch(message, /request_id:/);
+      }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("retains header request IDs on successful responses for quality feedback", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ markdown: "# Incomplete" }), {
+    headers: { "x-request-id": "header-success-id" },
+  });
+  try {
+    const result = await callContextApi({
+      apiBase,
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "key" },
+    });
+    assert.notEqual(result.isError, true);
+    assert.deepEqual(result.structuredContent, {
+      markdown: "# Incomplete",
+      request_id: "header-success-id",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("network failures suggest feedback without fabricating a request ID", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("Connection reset"); };
+  try {
+    const result = await callContextApi({
+      apiBase,
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "key" },
+    });
+    assert.equal(result.isError, true);
+    const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+    assert.match(message, /Connection reset/);
+    assert.match(message, /always call submit-feedback once/);
+    assert.doesNotMatch(message, /request_id:/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("feedback failures stop recursive reporting for HTTP and network errors", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const networkFailure of [false, true]) {
+      globalThis.fetch = async () => {
+        if (networkFailure) throw new Error("Connection reset");
+        return new Response(JSON.stringify({ message: "Unavailable" }), { status: 503 });
+      };
+      const result = await callContextApi({
+        apiBase,
+        endpoint: endpoint({ name: "submit-feedback", path: "/feedback" }),
+        args: {},
+        credential: { apiKey: "key" },
+      });
+      assert.equal(result.isError, true);
+      const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+      assert.match(message, /Do not call submit-feedback to report its own failure/);
+      assert.match(message, /tell the user feedback could not be submitted/);
+      assert.doesNotMatch(message, /always call submit-feedback/);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -1,5 +1,6 @@
 import { error, image, object, text } from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
+import { contextApiError, contextRequestId } from "./feedback";
 
 type ToolArguments = Record<string, unknown>;
 const DEFAULT_MAX_RESPONSE_CHARS = 40_000;
@@ -68,9 +69,10 @@ function isReadOnlyRequest(endpoint: Endpoint, args: ToolArguments): boolean {
   );
 }
 
-function contextErrorMessage(
+export function contextErrorMessage(
   status: number,
-  parsed: unknown
+  parsed: unknown,
+  headers: Headers,
 ): string {
   const payload =
     parsed && typeof parsed === "object"
@@ -86,10 +88,8 @@ function contextErrorMessage(
           : "Request failed";
   const code =
     typeof payload.error_code === "string" ? ` [${payload.error_code}]` : "";
-  const requestId =
-    typeof payload.request_id === "string"
-      ? ` (request_id: ${payload.request_id})`
-      : "";
+  const id = contextRequestId(parsed, headers);
+  const requestId = id ? ` (request_id: ${id})` : "";
   return `Context API ${status}${code}: ${message || "Request failed"}${requestId}`;
 }
 
@@ -310,7 +310,7 @@ export async function callContextApi({
     response = await fetch(url, request);
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
-    return error(`Failed to reach Context API: ${message}`);
+    return contextApiError(endpoint.name, `Failed to reach Context API: ${message}`);
   }
 
   const raw = await response.text();
@@ -322,12 +322,17 @@ export async function callContextApi({
   }
 
   if (!response.ok) {
-    return error(contextErrorMessage(response.status, parsed));
+    return contextApiError(
+      endpoint.name,
+      contextErrorMessage(response.status, parsed, response.headers),
+    );
   }
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     const minimized = minimizeContextResponse(
       parsed as Record<string, unknown>,
     );
+    const requestId = contextRequestId(parsed, response.headers);
+    if (requestId) minimized.request_id = requestId;
     return contextObject(endpoint, minimized);
   }
   const resultText = parsed === undefined ? raw : JSON.stringify(parsed);

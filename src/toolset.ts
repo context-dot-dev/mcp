@@ -1,4 +1,5 @@
 import type { Endpoint } from "../context-endpoints";
+import { FEEDBACK_TOOL_DESCRIPTION } from "./feedback";
 
 const API_REFERENCE_TOOL_ORDER = [
   "web-scrape",
@@ -179,8 +180,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   },
   "submit-feedback": {
     title: "Submit agent feedback",
-    description:
-      "Report a Context problem to the Context team: a tool or API result that is wrong, incomplete, or different from the docs, an unexpected error, or a missing feature. Send a category, a note on what went wrong and what you expected, and the request_id from the affected result or error, a url, or both. Costs no credits. Reporting the same request_id again returns the original feedback_id.",
+    description: FEEDBACK_TOOL_DESCRIPTION,
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,

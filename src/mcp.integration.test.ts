@@ -19,8 +19,23 @@ let upstreamBase = "";
 let mcpBase = "";
 let mcpProcess: ChildProcess;
 
-function batchResponse(method: string, requestUrl: string) {
+function batchResponse(method: string, requestUrl: string, requestBody: Buffer) {
   const path = new URL(requestUrl, "http://context.test").pathname;
+  if (method === "POST" && path === "/web/scrape") {
+    const args = JSON.parse(requestBody.toString());
+    if (args.url === "https://example.test/feedback-error") {
+      return {
+        status: 500,
+        body: {
+          message: "Unexpected scrape failure",
+          request_id: "4f2c1a1e-1111-4222-8333-444455556666",
+        },
+      };
+    }
+  }
+  if (method === "POST" && path === "/feedback") {
+    return { status: 200, body: { feedback_id: "feedback_local_test" } };
+  }
   if (method === "GET" && path === "/logs") {
     return {
       status: 200,
@@ -56,6 +71,16 @@ function batchResponse(method: string, requestUrl: string) {
     };
   }
   if (method === "POST" && path === "/brand/retrieve") {
+    const args = JSON.parse(requestBody.toString());
+    if (args.domain === "feedback-error.test") {
+      return {
+        status: 500,
+        body: {
+          message: "Unexpected brand failure",
+          request_id: "5f2c1a1e-1111-4222-8333-444455556666",
+        },
+      };
+    }
     return {
       status: 200,
       body: {
@@ -83,6 +108,7 @@ function batchResponse(method: string, requestUrl: string) {
           },
         },
         key_metadata: { credits_remaining: 100 },
+        request_id: "6f2c1a1e-1111-4222-8333-444455556666",
       },
     };
   }
@@ -192,7 +218,11 @@ const upstream = createServer((request, response) => {
       authorization: request.headers.authorization,
       contextAgent: request.headers["x-context-agent"] as string | undefined,
     });
-    const result = batchResponse(request.method ?? "", request.url ?? "");
+    const result = batchResponse(
+      request.method ?? "",
+      request.url ?? "",
+      Buffer.concat(chunks),
+    );
     response.writeHead(result.status, { "content-type": "application/json" });
     response.end(JSON.stringify(result.body));
   });
@@ -936,6 +966,66 @@ test("submits agent feedback about an affected request", async () => {
   assert.deepEqual(JSON.parse(captured[0]!.body.toString()), feedback);
 });
 
+test("delivers actionable feedback guidance at initialization and discovery", async () => {
+  const client = await connectClient();
+  try {
+    const instructions = client.getInstructions() ?? "";
+    assert.match(instructions, /Always report unexpected Context API behavior/);
+    assert.match(instructions, /wrong or incomplete data in a successful response/);
+    assert.match(instructions, /even if a retry or workaround succeeds/);
+    assert.match(instructions, /otherwise use a relevant public page or docs url/);
+    assert.match(instructions, /never include API keys, tokens, cookies, private page contents/);
+    assert.match(instructions, /do not report that failure through submit-feedback/);
+    const { tools } = await client.listTools();
+    const feedback = tools.find((tool) => tool.name === "submit-feedback");
+    assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
+    assert.match(feedback?.description ?? "", /wrong or incomplete successful results/);
+  } finally {
+    await client.close();
+  }
+});
+
+test("API and brand errors guide a report using the affected request ID", async () => {
+  const client = await connectClient();
+  try {
+    for (const scenario of [
+      {
+        name: "web-scrape",
+        arguments: { url: "https://example.test/feedback-error", formats: { markdown: true } },
+        requestId: "4f2c1a1e-1111-4222-8333-444455556666",
+      },
+      {
+        name: "get-brand",
+        arguments: { domain: "feedback-error.test" },
+        requestId: "5f2c1a1e-1111-4222-8333-444455556666",
+      },
+    ]) {
+      captured.length = 0;
+      const failed = await client.callTool({ name: scenario.name, arguments: scenario.arguments });
+      assert.equal(failed.isError, true);
+      const content = failed.content as Array<{ type: string; text?: string }>;
+      const message = content.find((block) => block.type === "text")?.text ?? "";
+      assert.match(message, /always call submit-feedback once/);
+      const requestId = /request_id: ([\w-]+)/.exec(message)?.[1];
+      assert.equal(requestId, scenario.requestId);
+      const reported = await client.callTool({
+        name: "submit-feedback",
+        arguments: {
+          request_id: requestId,
+          category: "bug",
+          note: `${scenario.name}: expected a result for valid input; received an unexpected HTTP 500.`,
+        },
+      });
+      assert.equal(resultObject(reported).feedback_id, "feedback_local_test");
+      assert.equal(captured.length, 2);
+      assert.equal(captured[1]!.url, "/feedback");
+      assert.equal(JSON.parse(captured[1]!.body.toString()).request_id, scenario.requestId);
+    }
+  } finally {
+    await client.close();
+  }
+});
+
 test("searches company news with an entity, article types, and a date range", async () => {
   captured.length = 0;
   const client = await connectClient();
@@ -1269,6 +1359,13 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
   const brandCard = brandCardResult.structuredContent as {
     brand: Record<string, unknown>;
   };
+  assert.ok(
+    (brandCardResult.content as Array<{ type: string; text?: string }>).some(
+      (block) => block.type === "text" &&
+        block.text?.includes("request_id: 6f2c1a1e-1111-4222-8333-444455556666"),
+    ),
+    "brand cards must retain the affected request ID for quality feedback",
+  );
   assert.equal(brandCard.brand.domain, "example.test");
   assert.equal(
     brandCard.brand.logo,
