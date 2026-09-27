@@ -8,7 +8,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
   const selected = selectEndpoints([...ENDPOINTS].reverse());
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 38);
+  assert.equal(selected.length, 39);
   assert.equal(names.size, selected.length);
   assert.deepEqual(
     selected.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
@@ -51,6 +51,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "POST /webhooks/deliveries/{delivery_id}/retry",
       "GET /logs",
       "GET /logs/{request_id}",
+      "POST /feedback",
     ],
   );
   for (const removedName of [
@@ -104,6 +105,10 @@ test("tool descriptions route agents between overlapping workflows", () => {
     tools.get("list-logs")?.description ?? "",
     /errors_only.*request_id.*get-log/i,
   );
+  assert.match(
+    tools.get("submit-feedback")?.description ?? "",
+    /category.*note.*request_id.*feedback_id/i,
+  );
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
@@ -149,6 +154,7 @@ test("every public tool has annotations that match its most privileged behavior"
     "run-monitor-now",
     "update-monitor",
   ]);
+  const additivePrivateTools = new Set(["parse-document", "submit-feedback"]);
   const destructivePrivateTools = new Set([
     "delete-monitor",
     "cancel-batch",
@@ -163,7 +169,7 @@ test("every public tool has annotations that match its most privileged behavior"
           destructiveHint: false,
           openWorldHint: true,
         }
-      : tool.name === "parse-document"
+      : additivePrivateTools.has(tool.name)
         ? {
             readOnlyHint: false,
             destructiveHint: false,

@@ -454,7 +454,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 39);
+  assert.equal(tools.length, 40);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -548,6 +548,7 @@ test("lists the public Context API with safety annotations", async () => {
     "retry-webhook-delivery",
     "list-logs",
     "get-log",
+    "submit-feedback",
   ]);
   for (const privateName of [
     "utility-prefetch",
@@ -905,6 +906,34 @@ test("lists and retrieves account logs through the MCP tools", async () => {
   );
   assert.equal(listed.request_id, "8d13e8f0-1111-4222-8333-444455556666");
   assert.equal(detail.request_id, "9d13e8f0-1111-4222-8333-444455556666");
+});
+
+test("submits agent feedback about an affected request", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const feedback = {
+    request_id: "3f1c2a6e-8b4d-4c1e-9f0a-2d7b5e6c8a91",
+    category: "bug",
+    note: "Markdown drops the plan comparison table; expected all 4 rows.",
+    url: "https://stripe.com/pricing",
+  };
+
+  const result = await client.callTool({
+    name: "submit-feedback",
+    arguments: feedback,
+  });
+  const invalid = await client.callTool({
+    name: "submit-feedback",
+    arguments: { ...feedback, category: "feature_request" },
+  });
+  await client.close();
+
+  assert.notEqual(result.isError, true);
+  assert.equal(invalid.isError, true);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.method, "POST");
+  assert.equal(new URL(captured[0]!.url, upstreamBase).pathname, "/feedback");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), feedback);
 });
 
 test("searches company news with an entity, article types, and a date range", async () => {

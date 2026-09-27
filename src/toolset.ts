@@ -39,6 +39,7 @@ const API_REFERENCE_TOOL_ORDER = [
   "retry-webhook-delivery",
   "list-logs",
   "get-log",
+  "submit-feedback",
 ] as const;
 
 type ToolOverride = Partial<
@@ -172,6 +173,16 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
     annotations: {
       readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "submit-feedback": {
+    title: "Submit agent feedback",
+    description:
+      "Report a Context problem to the Context team: a tool or API result that is wrong, incomplete, or different from the docs, an unexpected error, or a missing feature. Send a category, a note on what went wrong and what you expected, and the request_id from the affected result or error, a url, or both. Costs no credits. Reporting the same request_id again returns the original feedback_id.",
+    annotations: {
+      readOnlyHint: false,
       destructiveHint: false,
       openWorldHint: false,
     },

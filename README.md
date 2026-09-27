@@ -2,7 +2,7 @@
 
 A remote MCP server that gives AI agents reliable context from the live web, company news, and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
 
-The server exposes 39 tools: 38 operations in [API-reference sidebar order](https://docs.context.dev/api-reference/web-scraping/scrape), with the `get-brand` visual wrapper immediately after brand retrieval. Prefetch is intentionally excluded. Webhook event payload pages describe incoming notifications and are not callable tools. Request schemas are generated from the Context OpenAPI specification.
+The server exposes 40 tools: 39 operations in [API-reference sidebar order](https://docs.context.dev/api-reference/web-scraping/scrape), with the `get-brand` visual wrapper immediately after brand retrieval. Prefetch is intentionally excluded. Webhook event payload pages describe incoming notifications and are not callable tools. Request schemas are generated from the Context OpenAPI specification.
 
 ## Connect
 
@@ -40,6 +40,7 @@ Prefer OAuth or headers because URLs can be saved in client configuration, logs,
 | Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `get-monitor-limits`, `list-monitor-credit-usage`, `run-monitor-now`, run and change history, `rotate-monitor-webhook-secret` |
 | Webhook deliveries | `list-webhook-deliveries`, `get-webhook-delivery`, `list-webhook-delivery-attempts`, `retry-webhook-delivery` |
 | API debugging | `list-logs`, `get-log` |
+| Feedback | `submit-feedback` |
 
 `get-brand` includes a visual brand card. Tool descriptions explain when each tool should be used, which adjacent tool to choose instead, whether work is synchronous or asynchronous, and what the result contains. API-backed tools retain the public OpenAPI request validation with MCP safety annotations audited for account state, open-web access, and destructive operations.
 
