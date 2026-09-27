@@ -1,63 +1,27 @@
 {
   "tools": {
-    "web-sic": {
+    "web-scrape": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true,
+        "destructiveHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Returns page outputs and can run browser instructions that interact with controls on the target site.",
+        "open_world_justification": "Fetches and can interact with user-specified websites outside the private Context account.",
+        "destructive_justification": "User-supplied perform actions can submit forms or change target-site state, so the tool advertises its most privileged behavior."
+      }
+    },
+    "web-map": {
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Classifies a company into SIC industry codes from its domain or name without modifying any records.",
-        "open_world_justification": "Queries public company and classification information outside the user's private Context account, so its interaction domain includes external public-web entities even though it does not modify them.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "list-logs": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Lists API request metadata from the authenticated Context account with filters and pagination without modifying any records.",
-        "open_world_justification": "Reads only retained request metadata from the authenticated user's private Context account and does not access or alter external internet state.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "get-log": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Retrieves one retained API request and its redacted input and response from the authenticated Context account without modifying any records.",
-        "open_world_justification": "Reads only one retained request from the authenticated user's private Context account and does not access or alter external internet state.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "get-batch": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Retrieves one batch's status, progress, timing, and download links without modifying any records.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "get-brand": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Fetches live brand intelligence for a domain from the Context API and returns it without modifying any stored data.",
-        "open_world_justification": "Retrieves live public brand information for an arbitrary domain outside the user's private Context account, so it interacts with external public-web entities without modifying them.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+        "read_only_justification": "Maps website URLs and available page metadata using the Context index without modifying source sites.",
+        "open_world_justification": "Retrieves URL and page metadata for an arbitrary public website outside the private Context account.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
       }
     },
     "web-crawl": {
@@ -69,42 +33,6 @@
       "justifications": {
         "read_only_justification": "Follows links from a start URL and returns Markdown content for multiple pages without modifying any source site or account data.",
         "open_world_justification": "Visits and follows links across public pages outside the user's private Context account, so it interacts with an open world of external websites while remaining read-only.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "web-fonts": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Identifies font families used by a website without modifying the site or account data.",
-        "open_world_justification": "Fetches typography resources from an arbitrary public website outside the user's private Context account, so its interaction domain includes external public-web entities without modifying them.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "web-naics": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Classifies a company into NAICS industry codes from its domain or name without modifying any records.",
-        "open_world_justification": "Queries public company and classification information outside the user's private Context account, so its interaction domain includes external public-web entities even though it does not modify them.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "get-change": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Retrieves one detected change with full text diffs, semantic evidence, confidence, and snapshot data without modifying any records.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -132,6 +60,66 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
+    "brand-retrieve-unified": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves raw brand intelligence data by domain, name, email, ticker, ISIN, or transaction descriptor without modifying any records.",
+        "open_world_justification": "Retrieves public brand and company information for arbitrary external identifiers outside the user's private Context account, so it interacts with external public-web entities without modifying them.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "get-brand": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Fetches live brand intelligence for a domain from the Context API and returns it without modifying any stored data.",
+        "open_world_justification": "Retrieves live public brand information for an arbitrary domain outside the user's private Context account, so it interacts with external public-web entities without modifying them.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "brand-search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches indexed brand names and domains without modifying brand records.",
+        "open_world_justification": "Queries public company information for arbitrary names and domains.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "web-styleguide": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Extracts a website's design system data including colors, typography, and spacing without writing to the site or account data.",
+        "open_world_justification": "Fetches visual design data from an arbitrary public website outside the user's private Context account, so its interaction domain includes external public-web entities without modifying them.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "people-enrich": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Resolves supplied identity clues and returns a person profile and match score without modifying source records.",
+        "open_world_justification": "Retrieves public person information from sources outside the private Context account.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
     "get-news-search": {
       "annotations": {
         "readOnlyHint": true,
@@ -144,27 +132,63 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
-    "get-monitor": {
+    "parse-document": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Sends user-supplied file bytes to the Context API and transforms their content into new Markdown, so it is not classified as read-only for OpenAI review.",
+        "open_world_justification": "Processes the supplied file within the authenticated Context service and does not access public websites, external accounts, or public platforms.",
+        "destructive_justification": "Creates a converted Markdown response without deleting, overwriting, or altering the user's original file."
+      }
+    },
+    "submit-batch": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Creates a new asynchronous scraping job in the authenticated account that will fetch up to 25,000 URLs.",
+        "open_world_justification": "When webhookUrl is supplied, the batch sends a completion request to a user-selected external endpoint; without a webhook it only writes private Context batch state and reads public pages.",
+        "destructive_justification": "Creates new batch state and results without deleting or overwriting existing user data, so its updates are additive rather than destructive."
+      }
+    },
+    "list-batches": {
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Retrieves a single monitor's configuration, schedule, and baseline data by ID without modifying any settings.",
+        "read_only_justification": "Lists asynchronous scraping batches in the authenticated account with status and filter parameters without modifying any records.",
         "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
-    "web-extract": {
+    "get-batch": {
       "annotations": {
         "readOnlyHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Crawls a website and returns structured JSON shaped by the supplied schema without writing to the site or modifying account data.",
-        "open_world_justification": "Crawls and reads arbitrary public website pages outside the user's private Context account to produce structured data, so it interacts with external public-web entities without modifying them.",
+        "read_only_justification": "Retrieves one batch's status, progress, timing, and download links without modifying any records.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "get-batch-results": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Pages through the URL-level results of a completed batch as JSON without modifying any stored records.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -192,40 +216,16 @@
         "destructive_justification": "Permanently deletes the batch and all stored page results; this cannot be undone."
       }
     },
-    "list-batches": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Lists asynchronous scraping batches in the authenticated account with status and filter parameters without modifying any records.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "list-changes": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Lists detected changes across all monitors in the authenticated account with filter parameters without modifying any records.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "submit-batch": {
+    "create-monitor": {
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Creates a new asynchronous scraping job in the authenticated account that will fetch up to 25,000 URLs.",
-        "open_world_justification": "When webhookUrl is supplied, the batch sends a completion request to a user-selected external endpoint; without a webhook it only writes private Context batch state and reads public pages.",
-        "destructive_justification": "Creates new batch state and results without deleting or overwriting existing user data, so its updates are additive rather than destructive."
+        "read_only_justification": "Creates a new recurring monitor record in the authenticated account and immediately triggers a baseline network request to the target URL.",
+        "open_world_justification": "A monitor can be configured with an external webhook that Context will call when later runs detect changes; without a webhook it only writes private Context monitor state and reads the target.",
+        "destructive_justification": "Creates a new monitor and baseline without deleting or overwriting existing user data, so its updates are additive rather than destructive."
       }
     },
     "list-monitors": {
@@ -240,40 +240,16 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
-    "create-monitor": {
+    "get-monitor": {
       "annotations": {
-        "readOnlyHint": false,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Creates a new recurring monitor record in the authenticated account and immediately triggers a baseline network request to the target URL.",
-        "open_world_justification": "A monitor can be configured with an external webhook that Context will call when later runs detect changes; without a webhook it only writes private Context monitor state and reads the target.",
-        "destructive_justification": "Creates a new monitor and baseline without deleting or overwriting existing user data, so its updates are additive rather than destructive."
-      }
-    },
-    "delete-monitor": {
-      "annotations": {
-        "readOnlyHint": false,
-        "openWorldHint": false,
-        "destructiveHint": true
-      },
-      "justifications": {
-        "read_only_justification": "Permanently deletes a monitor and cancels all future scheduled runs from the authenticated account.",
-        "open_world_justification": "Operates only on the authenticated user's private Context account and does not write to or alter any external internet systems.",
-        "destructive_justification": "Permanently deletes the monitor and stops all future runs; the monitor and its history cannot be recovered after deletion."
-      }
-    },
-    "parse-document": {
-      "annotations": {
-        "readOnlyHint": false,
+        "readOnlyHint": true,
         "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Sends user-supplied file bytes to the Context API and transforms their content into new Markdown, so it is not classified as read-only for OpenAI review.",
-        "open_world_justification": "Processes the supplied file within the authenticated Context service and does not access public websites, external accounts, or public platforms.",
-        "destructive_justification": "Creates a converted Markdown response without deleting, overwriting, or altering the user's original file."
+        "read_only_justification": "Retrieves a single monitor's configuration, schedule, and baseline data by ID without modifying any settings.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
     "update-monitor": {
@@ -288,27 +264,39 @@
         "destructive_justification": "Changing the target or detection definition permanently overwrites the existing baseline with a new one; the previous baseline cannot be recovered."
       }
     },
-    "web-styleguide": {
+    "delete-monitor": {
       "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true
       },
       "justifications": {
-        "read_only_justification": "Extracts a website's design system data including colors, typography, and spacing without writing to the site or account data.",
-        "open_world_justification": "Fetches visual design data from an arbitrary public website outside the user's private Context account, so its interaction domain includes external public-web entities without modifying them.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+        "read_only_justification": "Permanently deletes a monitor and cancels all future scheduled runs from the authenticated account.",
+        "open_world_justification": "Operates only on the authenticated user's private Context account and does not write to or alter any external internet systems.",
+        "destructive_justification": "Permanently deletes the monitor and stops all future runs; the monitor and its history cannot be recovered after deletion."
       }
     },
-    "get-monitor-run": {
+    "get-monitor-limits": {
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Retrieves the full outcome, lifecycle status, timing, credits, and detected change for one monitor run without modifying any records.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
+        "read_only_justification": "Reads the current monitor count and maximum allowed by the account.",
+        "open_world_justification": "Reads only delivery or monitor data in the authenticated Context account without contacting an external receiver.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "list-monitor-credit-usage": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reports credits charged by monitor over a configurable time window without modifying any account data.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account billing records and does not access external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
@@ -324,14 +312,26 @@
         "destructive_justification": "A successful run may replace the monitor's stored comparison baseline with the newly observed state, overwriting data used by future comparisons."
       }
     },
-    "get-batch-results": {
+    "list-monitor-runs": {
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Pages through the URL-level results of a completed batch as JSON without modifying any stored records.",
+        "read_only_justification": "Lists the execution history of one monitor including run status, timing, and credits without modifying any records.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "get-monitor-run": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves the full outcome, lifecycle status, timing, credits, and detected change for one monitor run without modifying any records.",
         "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
@@ -348,42 +348,6 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
-    "list-monitor-runs": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Lists the execution history of one monitor including run status, timing, and credits without modifying any records.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "web-scrape": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Reads one public page and returns the requested HTML, Markdown, screenshot, images, highlights, JSON, or product data without modifying the page or the user's account.",
-        "open_world_justification": "Fetches data from an arbitrary public URL outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
-        "destructive_justification": "The MCP schema excludes browser actions and arbitrary outbound headers, so the tool cannot submit forms, mutate third-party state, or perform irreversible actions."
-      }
-    },
-    "web-scrape-sitemap": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Retrieves discovered URLs from a website's sitemap without modifying the site or the user's account.",
-        "open_world_justification": "Fetches sitemap and URL data from an arbitrary public website outside the user's private Context account, so it interacts with an external public-web entity while remaining read-only.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
     "list-monitor-changes": {
       "annotations": {
         "readOnlyHint": true,
@@ -396,27 +360,111 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
-    "brand-retrieve-unified": {
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true,
-        "destructiveHint": false
-      },
-      "justifications": {
-        "read_only_justification": "Retrieves raw brand intelligence data by domain, name, email, ticker, ISIN, or transaction descriptor without modifying any records.",
-        "open_world_justification": "Retrieves public brand and company information for arbitrary external identifiers outside the user's private Context account, so it interacts with external public-web entities without modifying them.",
-        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
-      }
-    },
-    "list-monitor-credit-usage": {
+    "get-change": {
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Reports credits charged by monitor over a configurable time window without modifying any account data.",
-        "open_world_justification": "Reads only from the authenticated user's private Context account billing records and does not access external internet state.",
+        "read_only_justification": "Retrieves one detected change with full text diffs, semantic evidence, confidence, and snapshot data without modifying any records.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "list-changes": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists detected changes across all monitors in the authenticated account with filter parameters without modifying any records.",
+        "open_world_justification": "Reads only from the authenticated user's private Context account and does not access or alter any external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "rotate-monitor-webhook-secret": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Replaces the stored signing secret for one monitor.",
+        "open_world_justification": "Updates the monitor configuration in the authenticated account without sending a webhook.",
+        "destructive_justification": "The previous signing secret immediately stops signing new webhook deliveries."
+      }
+    },
+    "list-webhook-deliveries": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists stored batch or monitor webhook delivery records with filters and pagination.",
+        "open_world_justification": "Reads only delivery or monitor data in the authenticated Context account without contacting an external receiver.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get-webhook-delivery": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads one stored webhook delivery including its status and latest attempt.",
+        "open_world_justification": "Reads only delivery or monitor data in the authenticated Context account without contacting an external receiver.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "list-webhook-delivery-attempts": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads the attempt history for one stored webhook delivery.",
+        "open_world_justification": "Reads only delivery or monitor data in the authenticated Context account without contacting an external receiver.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "retry-webhook-delivery": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Queues another delivery attempt and updates delivery status.",
+        "open_world_justification": "Sends the webhook event to its configured external receiver again.",
+        "destructive_justification": "Adds a delivery attempt without deleting delivery history. The receiver may process repeated events."
+      }
+    },
+    "list-logs": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists API request metadata from the authenticated Context account with filters and pagination without modifying any records.",
+        "open_world_justification": "Reads only retained request metadata from the authenticated user's private Context account and does not access or alter external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "get-log": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one retained API request and its redacted input and response from the authenticated Context account without modifying any records.",
+        "open_world_justification": "Reads only one retained request from the authenticated user's private Context account and does not access or alter external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     }
@@ -425,7 +473,7 @@
   "app_info": {
     "category": "DEVELOPER_TOOLS",
     "subtitle": "Live web data for AI agents",
-    "description": "Context turns the live web and files into clean, agent-ready data inside ChatGPT. Search for current information and company news, scrape known pages into HTML, Markdown, screenshots, images, highlights, JSON, or product data, crawl websites, parse documents, retrieve company and brand intelligence, inspect visual design systems, run asynchronous scraping batches across thousands of URLs, and monitor websites for meaningful changes over time. Context does not provide general messaging, calendar, account-management, or social-publishing integrations.",
+    "description": "Context turns the live web and files into data inside ChatGPT. Search current information and company news; scrape pages into HTML, Markdown, screenshots, images, original bytes, CSS-selected fields, highlights, JSON, or product data; map and crawl websites; parse documents; retrieve brand and person intelligence; inspect design systems; run scraping batches; monitor changes; and manage webhook deliveries.",
     "display_name": "Context.dev"
   },
   "test_cases": [
@@ -465,7 +513,7 @@
       "description": "Extract a small, explicit JSON structure from a public website.",
       "user_prompt": "From https://docs.context.dev/, extract the top-level documentation sections as JSON. Return an object with a `sections` array; each item must contain a string `title` and string `url`. Do not include sections that are not present on the site.",
       "expected_output": "Returns valid JSON with a sections array containing only documentation section titles and URLs found on the site.",
-      "tools_triggered": "web-extract",
+      "tools_triggered": "web-scrape",
       "expected_output_url": null,
       "file_attachment_urls": null
     }
@@ -481,17 +529,17 @@
       "file_attachment_urls": null
     },
     {
-      "description": "Do not invoke Context for outbound email because no tool can send messages.",
+      "description": "Do not invoke Context for outbound email because the app has no email integration.",
       "user_prompt": "Send an email to my team with a summary of today's meeting notes.",
-      "expected_output": "The app should not be invoked because it cannot send emails or messages.",
+      "expected_output": "The app should not be invoked because it has no email integration for sending this message.",
       "tools_triggered": null,
       "expected_output_url": null,
       "file_attachment_urls": null
     },
     {
-      "description": "Do not invoke Context for publishing or editing third-party internet content.",
+      "description": "Do not invoke Context for social publishing because it has no linked social accounts.",
       "user_prompt": "Post a tweet announcing our product launch to our company Twitter account.",
-      "expected_output": "The app should not be invoked because it cannot publish content to social media or any external platform.",
+      "expected_output": "The app should not be invoked because it has no linked company Twitter account or social publishing integration.",
       "tools_triggered": null,
       "expected_output_url": null,
       "file_attachment_urls": null

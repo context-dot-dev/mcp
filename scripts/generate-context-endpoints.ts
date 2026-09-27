@@ -7,6 +7,8 @@ const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
 const CORE_TOOL_NAMES: Record<string, string> = {
   "POST /parse": "parse-document",
+  "POST /web/scrape": "web-scrape",
+  "GET /web/urls": "web-map",
   "GET /web/scrape/html": "web-scrape-html",
   "GET /web/scrape/markdown": "web-scrape-markdown",
   "GET /web/scrape/images": "web-scrape-images",
@@ -18,6 +20,8 @@ const CORE_TOOL_NAMES: Record<string, string> = {
   "POST /news/search": "get-news-search",
   "GET /web/competitors": "web-competitors",
   "POST /people/retrieve": "people-retrieve",
+  "POST /people/enrich": "people-enrich",
+  "GET /brand/search": "brand-search",
   "GET /brand/retrieve": "brand-retrieve",
   "POST /brand/retrieve": "brand-retrieve-unified",
   "GET /brand/retrieve-by-name": "brand-retrieve-by-name",
@@ -47,6 +51,8 @@ const READ_ONLY_POST_PATHS = new Set([
   "/web/answers",
   "/news/search",
   "/people/retrieve",
+  "/people/enrich",
+  "/webhooks/deliveries",
   "/brand/retrieve",
   "/brand/ai/query",
   "/brand/ai/product",

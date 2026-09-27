@@ -454,7 +454,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 35);
+  assert.equal(tools.length, 39);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -508,38 +508,61 @@ test("lists the public Context API with safety annotations", async () => {
   }
   assert.deepEqual(missingPropertyDescriptions, []);
   const names = new Set(tools.map((tool) => tool.name));
-  for (const requiredName of [
-    "parse-document",
+  assert.deepEqual(tools.map((tool) => tool.name), [
     "web-scrape",
-    "web-scrape-sitemap",
+    "web-map",
+    "web-crawl",
+    "web-search",
     "web-answers",
-    "get-news-search",
     "brand-retrieve-unified",
-    "web-fonts",
-    "web-naics",
-    "web-sic",
-    "create-monitor",
-    "list-monitors",
-    "get-monitor-run",
+    "get-brand",
+    "brand-search",
+    "web-styleguide",
+    "people-enrich",
+    "get-news-search",
+    "parse-document",
     "submit-batch",
     "list-batches",
     "get-batch",
     "get-batch-results",
     "cancel-batch",
     "delete-batch",
-    "get-brand",
-  ]) {
-    assert.ok(names.has(requiredName), `missing ${requiredName}`);
-  }
+    "create-monitor",
+    "list-monitors",
+    "get-monitor",
+    "update-monitor",
+    "delete-monitor",
+    "get-monitor-limits",
+    "list-monitor-credit-usage",
+    "run-monitor-now",
+    "list-monitor-runs",
+    "get-monitor-run",
+    "list-account-runs",
+    "list-monitor-changes",
+    "get-change",
+    "list-changes",
+    "rotate-monitor-webhook-secret",
+    "list-webhook-deliveries",
+    "get-webhook-delivery",
+    "list-webhook-delivery-attempts",
+    "retry-webhook-delivery",
+    "list-logs",
+    "get-log",
+  ]);
   for (const privateName of [
+    "utility-prefetch",
+    "brand-prefetch",
+    "brand-prefetch-by-email",
     "people-retrieve",
     "web-competitors",
     "brand-ai-query",
     "brand-ai-product",
     "brand-ai-products",
-    "utility-prefetch",
-    "rotate-monitor-webhook-secret",
-    "get-monitor-limits",
+    "web-scrape-sitemap",
+    "web-extract",
+    "web-fonts",
+    "web-naics",
+    "web-sic",
     "create-webdb-collection",
     "preview-webdb",
     "web-scrape-html",
@@ -591,8 +614,8 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(newsProperties.tags?.type, "array");
 
   const webScrape = tools.find((tool) => tool.name === "web-scrape");
-  assert.equal(webScrape?.annotations?.readOnlyHint, true);
-  assert.equal(webScrape?.annotations?.destructiveHint, false);
+  assert.equal(webScrape?.annotations?.readOnlyHint, false);
+  assert.equal(webScrape?.annotations?.destructiveHint, true);
   assert.equal(webScrape?.annotations?.openWorldHint, true);
   assert.deepEqual(webScrape?.inputSchema.required, ["url", "formats"]);
   const webScrapeProperties = (webScrape?.inputSchema.properties ?? {}) as Record<
@@ -608,12 +631,22 @@ test("lists the public Context API with safety annotations", async () => {
     "markdown",
     "screenshot",
     "images",
+    "bytes",
+    "parse",
     "highlights",
     "json",
     "product",
   ]);
-  assert.equal(JSON.stringify(webScrape?.inputSchema).includes("headers"), false);
-  assert.equal(JSON.stringify(webScrape?.inputSchema).includes("actions"), false);
+  for (const property of ["parseParams", "timeoutOpts", "zdr", "tags"]) {
+    assert.ok(webScrapeProperties[property], `missing scrape option ${property}`);
+  }
+  const sharedProperties = webScrapeProperties.sharedParams?.properties as Record<
+    string,
+    unknown
+  >;
+  assert.ok(sharedProperties.headers);
+  assert.ok(sharedProperties.actions);
+  assert.ok(sharedProperties.parsers);
 
   const brand = tools.find((tool) => tool.name === "get-brand");
   assert.equal(brand?.annotations?.readOnlyHint, true);
@@ -627,7 +660,7 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
 });
 
-test("scrapes one page into multiple curated outputs", async () => {
+test("forwards all scrape formats, browser actions, CSS rules, and request controls", async () => {
   captured.length = 0;
   const client = await connectClient();
   const arguments_ = {
@@ -637,6 +670,8 @@ test("scrapes one page into multiple curated outputs", async () => {
       markdown: true,
       screenshot: true,
       images: true,
+      bytes: true,
+      parse: true,
       highlights: true,
       json: true,
       product: true,
@@ -645,10 +680,31 @@ test("scrapes one page into multiple curated outputs", async () => {
       viewport: { width: 1440, height: 900 },
       mainContentOnly: true,
       includeSelectors: ["main"],
+      headers: { "Accept-Language": "en-US" },
+      actions: [
+        { type: "perform", action: "Click the product details tab" },
+        { type: "scroll", direction: "down", amount: "viewport" },
+        { type: "wait", milliseconds: 100 },
+        { type: "waitFor", selector: "#details" },
+      ],
+      parsers: { pdf: { startPage: 1, endPage: 2, ocr: "auto" } },
     },
     markdownParams: { includeLinks: true, includeImages: true },
     screenshotParams: { area: "fullPage", format: "webp" },
     imageParams: { enrich: ["dimensions"], dedupe: "visual" },
+    parseParams: {
+      rules: {
+        title: "h1",
+        products: {
+          selector: ".product",
+          type: "list",
+          output: {
+            name: "h2",
+            link: { selector: "a", output: "@href" },
+          },
+        },
+      },
+    },
     highlightsParams: {
       query: "pricing and availability",
       maxCharacters: 2000,
@@ -663,6 +719,10 @@ test("scrapes one page into multiple curated outputs", async () => {
       },
     },
     productParams: { useAIFallback: false },
+    timeoutOpts: { milliseconds: 45000, behavior: "return-partial" },
+    zdr: "enabled",
+    tags: ["integration-test"],
+    maxAgeMs: 0,
   };
 
   const result = await client.callTool({
@@ -676,6 +736,136 @@ test("scrapes one page into multiple curated outputs", async () => {
   assert.equal(captured[0]!.url, "/web/scrape");
   assert.deepEqual(JSON.parse(captured[0]!.body.toString()), arguments_);
   assert.deepEqual(resultObject(result), { ok: true });
+});
+
+test("maps URLs through the documented endpoint with query controls", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "web-map",
+    arguments: {
+      domain: "example.test",
+      includeSubdomains: true,
+      maxLinks: 50,
+      urlRegex: "/docs/",
+      search: "API documentation",
+      headers: { "Accept-Language": "en-US" },
+      timeoutOpts: { milliseconds: 30000, behavior: "return-partial" },
+      zdr: "enabled",
+      tags: ["map-test", "docs"],
+    },
+  });
+  await client.close();
+
+  assert.deepEqual(resultObject(result), { ok: true });
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.method, "GET");
+  const url = new URL(captured[0]!.url, upstreamBase);
+  assert.equal(url.pathname, "/web/urls");
+  assert.equal(url.searchParams.get("domain"), "example.test");
+  assert.equal(url.searchParams.get("includeSubdomains"), "true");
+  assert.equal(url.searchParams.get("maxLinks"), "50");
+  assert.equal(url.searchParams.get("urlRegex"), "/docs/");
+  assert.equal(url.searchParams.get("search"), "API documentation");
+  assert.equal(url.searchParams.get("headers[Accept-Language]"), "en-US");
+  assert.equal(url.searchParams.get("timeoutOpts[milliseconds]"), "30000");
+  assert.equal(url.searchParams.get("timeoutOpts[behavior]"), "return-partial");
+  assert.equal(url.searchParams.get("zdr"), "enabled");
+  assert.deepEqual(url.searchParams.getAll("tags"), ["map-test", "docs"]);
+});
+
+test("executes brand search and person enrichment", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const person = {
+    email: "ada@example.test",
+    name: { first: "Ada", last: "Lovelace" },
+    company: { name: "Example", domain: "example.test" },
+    social_urls: ["https://www.linkedin.com/in/ada-example/"],
+    education: [{ institution: { name: "Example College" }, graduation_year: 2010 }],
+    location: { city: "London", country: "GB" },
+    timeoutOpts: { milliseconds: 30000, behavior: "return-partial" },
+    zdr: "enabled",
+    tags: ["enrichment-test"],
+  };
+  const cases = [
+    {
+      name: "brand-search",
+      arguments: { query: "exam", queryBy: ["name", "domain"], autocomplete: true, typoTolerance: 1 },
+    },
+    { name: "people-enrich", arguments: person },
+  ];
+  for (const call of cases) {
+    assert.deepEqual(resultObject(await client.callTool(call)), { ok: true });
+  }
+  await client.close();
+
+  assert.equal(captured.length, 2);
+  assert.equal(captured[0]!.method, "GET");
+  const searchUrl = new URL(captured[0]!.url, upstreamBase);
+  assert.equal(searchUrl.pathname, "/brand/search");
+  assert.equal(searchUrl.searchParams.get("query"), "exam");
+  assert.deepEqual(searchUrl.searchParams.getAll("queryBy"), ["name", "domain"]);
+  assert.equal(searchUrl.searchParams.get("autocomplete"), "true");
+  assert.equal(searchUrl.searchParams.get("typoTolerance"), "1");
+  assert.equal(captured[1]!.method, "POST");
+  assert.equal(captured[1]!.url, "/people/enrich");
+  assert.deepEqual(JSON.parse(captured[1]!.body.toString()), person);
+});
+
+test("executes monitor limits, secret rotation, and webhook delivery operations", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const deliveryId = `whd_${"a".repeat(32)}`;
+  const attemptCursor = `wha_${"b".repeat(32)}`;
+  const filters = { type: "monitor", monitor_id: "mon_demo", run_id: "run_demo", status: "failed", limit: 10 };
+  const cases = [
+    { name: "get-monitor-limits", arguments: {} },
+    { name: "rotate-monitor-webhook-secret", arguments: { monitor_id: "mon_demo" } },
+    { name: "list-webhook-deliveries", arguments: { body: filters } },
+    { name: "list-webhook-deliveries", arguments: { body: { type: "batch", batch_id: "batch_demo" } } },
+    { name: "get-webhook-delivery", arguments: { delivery_id: deliveryId } },
+    { name: "list-webhook-delivery-attempts", arguments: { delivery_id: deliveryId, limit: 10, cursor: attemptCursor } },
+    { name: "retry-webhook-delivery", arguments: { delivery_id: deliveryId, "Idempotency-Key": "retry-test", force: true, tags: ["retry-test"] } },
+  ];
+  for (const call of cases) {
+    assert.deepEqual(resultObject(await client.callTool(call)), { ok: true });
+  }
+  await client.close();
+
+  assert.equal(captured.length, 7);
+  assert.deepEqual(captured.map((request) => [request.method, new URL(request.url, upstreamBase).pathname]), [
+    ["GET", "/monitors/limits"],
+    ["POST", "/monitors/mon_demo/webhook/rotate-secret"],
+    ["POST", "/webhooks/deliveries"],
+    ["POST", "/webhooks/deliveries"],
+    ["GET", `/webhooks/deliveries/${deliveryId}`],
+    ["GET", `/webhooks/deliveries/${deliveryId}/attempts`],
+    ["POST", `/webhooks/deliveries/${deliveryId}/retry`],
+  ]);
+  assert.deepEqual(JSON.parse(captured[2]!.body.toString()), filters);
+  assert.deepEqual(JSON.parse(captured[3]!.body.toString()), { type: "batch", batch_id: "batch_demo" });
+  const attemptsUrl = new URL(captured[5]!.url, upstreamBase);
+  assert.equal(attemptsUrl.searchParams.get("limit"), "10");
+  assert.equal(attemptsUrl.searchParams.get("cursor"), attemptCursor);
+  assert.equal(captured[6]!.idempotencyKey, "retry-test");
+  assert.deepEqual(JSON.parse(captured[6]!.body.toString()), { force: true, tags: ["retry-test"] });
+});
+
+test("rejects invalid new tool inputs before contacting the API", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  for (const call of [
+    { name: "web-map", arguments: { domain: "example.test", maxLinks: 100001 } },
+    { name: "list-webhook-deliveries", arguments: { body: { type: "batch", monitor_id: "mon_demo" } } },
+    { name: "retry-webhook-delivery", arguments: { delivery_id: "invalid" } },
+    { name: "web-scrape", arguments: { url: "https://example.test", formats: { markdown: true }, sharedParams: { actions: [{ type: "wait", milliseconds: -1 }] } } },
+  ]) {
+    const result = await client.callTool(call);
+    assert.equal(result.isError, true, call.name);
+  }
+  await client.close();
+  assert.equal(captured.length, 0);
 });
 
 test("lists and retrieves account logs through the MCP tools", async () => {
@@ -717,7 +907,7 @@ test("lists and retrieves account logs through the MCP tools", async () => {
   assert.equal(detail.request_id, "9d13e8f0-1111-4222-8333-444455556666");
 });
 
-test("searches company news with entity, source, date, and article filters", async () => {
+test("searches company news with an entity, article types, and a date range", async () => {
   captured.length = 0;
   const client = await connectClient();
   const result = await client.callTool({
@@ -732,9 +922,6 @@ test("searches company news with entity, source, date, and article filters", asy
         },
       },
       filterBy: {
-        sourceDomain: ["reuters.com", "apple.com"],
-        sourceCountry: ["us"],
-        articleLanguage: ["en"],
         articleType: ["editorial", "press_release"],
         date: {
           from: 1_725_148_800_000,
@@ -763,9 +950,6 @@ test("searches company news with entity, source, date, and article filters", asy
       },
     },
     filterBy: {
-      sourceDomain: ["reuters.com", "apple.com"],
-      sourceCountry: ["us"],
-      articleLanguage: ["en"],
       articleType: ["editorial", "press_release"],
       date: {
         from: 1_725_148_800_000,

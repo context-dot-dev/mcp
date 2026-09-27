@@ -2,7 +2,7 @@
 
 A remote MCP server that gives AI agents reliable context from the live web, company news, and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
 
-The server exposes a curated 35-tool surface from the public [Context API](https://context.dev). Internal and legacy endpoints are never registered. Public endpoints that do not improve an agent workflow, such as cache prefetching and webhook-secret rotation, are intentionally omitted to keep tool selection clear.
+The server exposes 39 tools: 38 operations in [API-reference sidebar order](https://docs.context.dev/api-reference/web-scraping/scrape), with the `get-brand` visual wrapper immediately after brand retrieval. Prefetch is intentionally excluded. Webhook event payload pages describe incoming notifications and are not callable tools. Request schemas are generated from the Context OpenAPI specification.
 
 ## Connect
 
@@ -30,18 +30,22 @@ Prefer OAuth or headers because URLs can be saved in client configuration, logs,
 
 | Group | Tools |
 | --- | --- |
-| Parse | `parse-document` |
-| Scrape and crawl | `web-scrape`, `web-scrape-sitemap`, `web-crawl` |
-| Extract and search | `web-extract`, `web-search`, `web-answers`, `web-naics`, `web-sic` |
+| Scrape and crawl | `web-scrape`, `web-map`, `web-crawl` |
+| Search and research | `web-search`, `web-answers` |
+| Brand and design | `brand-retrieve-unified`, `get-brand`, `brand-search`, `web-styleguide` |
+| People | `people-enrich` |
 | Company news | `get-news-search` |
-| Brand and design | `get-brand`, `brand-retrieve-unified`, `web-styleguide`, `web-fonts` |
-| API debugging | `list-logs`, `get-log` |
+| Parse | `parse-document` |
 | Batches | `submit-batch`, `list-batches`, `get-batch`, `get-batch-results`, `cancel-batch`, `delete-batch` |
-| Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `run-monitor-now`, run and change history, and credit usage |
+| Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `get-monitor-limits`, `list-monitor-credit-usage`, `run-monitor-now`, run and change history, `rotate-monitor-webhook-secret` |
+| Webhook deliveries | `list-webhook-deliveries`, `get-webhook-delivery`, `list-webhook-delivery-attempts`, `retry-webhook-delivery` |
+| API debugging | `list-logs`, `get-log` |
 
 `get-brand` includes a visual brand card. Tool descriptions explain when each tool should be used, which adjacent tool to choose instead, whether work is synchronous or asynchronous, and what the result contains. API-backed tools retain the public OpenAPI request validation with MCP safety annotations audited for account state, open-web access, and destructive operations.
 
-Use `web-scrape` for one known page. It can return HTML, Markdown, screenshots, page images, focused highlights, schema-shaped JSON, and product data in one request. Use `get-news-search` for live or historical news about one company, identified by exactly one name, domain, ticker, or ISIN; use `web-search` for broader topics or when the source is unknown; use `web-answers` when the user wants a sourced JSON answer rather than ranked links. Use `web-crawl` for a focused multi-page request, and `submit-batch` for up to 25,000 URLs or a large asynchronous crawl. A batch returns an ID; poll `get-batch`, then page through `get-batch-results` after completion.
+Use `web-scrape` for one known page. It can return HTML, Markdown, screenshots, page images, original bytes, CSS-selected fields, focused highlights, schema-shaped JSON, and product data in one request. It also supports browser actions, custom target headers, PDF parsing, `timeoutOpts`, `zdr`, and `tags`. Use `web-map` to map URLs through `/web/urls`. Use `get-news-search` for live or historical news about one company, identified by exactly one name, domain, ticker, or ISIN; use `web-search` for broader topics or when the source is unknown; use `web-answers` when the user wants a sourced JSON answer rather than ranked links. Use `web-crawl` for a focused multi-page request, and `submit-batch` for up to 25,000 URLs or a large asynchronous crawl. A batch returns an ID; poll `get-batch`, then page through `get-batch-results` after completion.
+
+Scrape browser instructions (`perform` actions) require the OAuth `api.write` scope. Captures that only read, scroll, or wait continue to work with `api.read`.
 
 Tool responses are capped at 40,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
 
