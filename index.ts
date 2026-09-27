@@ -48,11 +48,46 @@ const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   follow_subdomains: "Include target subdomains.",
   timeMs: "Wait in milliseconds.",
   url: "Target URL.",
+  width: "Width in CSS pixels.",
+  height: "Height in CSS pixels.",
+  x: "Left coordinate in CSS pixels.",
+  y: "Top coordinate in CSS pixels.",
+  direction: "Scroll direction.",
+  amount: "Scroll distance in pixels, one viewport, or the maximum distance.",
+  maxScrolls: "Maximum number of scroll steps.",
+  milliseconds: "Duration in milliseconds.",
+  selector: "CSS selector for the target element.",
+  "ScrapeMarkdownParams.includeLinks": "Preserve hyperlinks in Markdown.",
+  "ScrapeMarkdownParams.includeImages": "Include image references in Markdown.",
+  "ScrapeScreenshotParams.format": "Screenshot image format.",
+  "ScrapeParseRules.type": "Return one matching item or all matches as a list.",
+  "ScrapeParseRules.output":
+    "Return text, HTML, an attribute prefixed by @, or nested field rules.",
+  "PersonEnrichmentRequest.social_urls": "Public person-profile URLs.",
+  "PersonEnrichmentRequest.name": "The person's given and family names.",
+  "PersonEnrichmentRequest.name.first": "Given name.",
+  "PersonEnrichmentRequest.name.last": "Family name.",
+  "PersonEnrichmentRequest.email": "Email address identifying the person.",
+  "PersonEnrichmentRequest.company": "Company identity clues.",
+  "PersonEnrichmentRequest.company.name": "Company name.",
+  "PersonEnrichmentRequest.company.domain": "Company domain.",
+  "PersonEnrichmentRequest.education": "Education history used to match the person.",
+  "PersonEnrichmentRequest.education.institution": "Educational institution.",
+  "PersonEnrichmentRequest.education.institution.name": "Institution name.",
+  "PersonEnrichmentRequest.education.institution.domain": "Institution domain.",
+  "PersonEnrichmentRequest.education.degree": "Degree earned or pursued.",
+  "PersonEnrichmentRequest.education.field_of_study": "Field of study.",
+  "PersonEnrichmentRequest.education.graduation_year": "Graduation year.",
+  "PersonEnrichmentRequest.location": "Location clues used to match the person.",
+  "PersonEnrichmentRequest.location.city": "City name.",
+  "PersonEnrichmentRequest.location.region": "State, province, or region.",
+  "PersonEnrichmentRequest.location.country": "Country name or code.",
 };
 
 function mcpSchemaPropertyDescription(
   name: string,
   schema: JsonSchema,
+  path: string,
 ): string | undefined {
   const discriminatorValue =
     schema.const ?? (schema.enum?.length === 1 ? schema.enum[0] : undefined);
@@ -62,14 +97,21 @@ function mcpSchemaPropertyDescription(
   ) {
     return `Use \`${String(discriminatorValue)}\`.`;
   }
-  return MCP_SCHEMA_PROPERTY_DESCRIPTIONS[name];
+  return MCP_SCHEMA_PROPERTY_DESCRIPTIONS[`${path}.${name}`] ??
+    MCP_SCHEMA_PROPERTY_DESCRIPTIONS[name];
 }
 
-function withMcpSchemaDescriptions(schema: JsonSchema): JsonSchema {
+function withMcpSchemaDescriptions(
+  schema: JsonSchema,
+  path = "",
+): JsonSchema {
   const properties = schema.properties
     ? Object.fromEntries(
         Object.entries(schema.properties).map(([name, property]) => {
-          const describedProperty = withMcpSchemaDescriptions(property);
+          const describedProperty = withMcpSchemaDescriptions(
+            property,
+            path ? `${path}.${name}` : name,
+          );
           return [
             name,
             describedProperty.description
@@ -79,6 +121,7 @@ function withMcpSchemaDescriptions(schema: JsonSchema): JsonSchema {
                   description: mcpSchemaPropertyDescription(
                     name,
                     describedProperty,
+                    path,
                   ),
                 },
           ];
@@ -86,15 +129,15 @@ function withMcpSchemaDescriptions(schema: JsonSchema): JsonSchema {
       )
     : undefined;
   const items = schema.items
-    ? withMcpSchemaDescriptions(schema.items)
+    ? withMcpSchemaDescriptions(schema.items, path)
     : undefined;
-  const oneOf = schema.oneOf?.map(withMcpSchemaDescriptions);
-  const anyOf = schema.anyOf?.map(withMcpSchemaDescriptions);
-  const allOf = schema.allOf?.map(withMcpSchemaDescriptions);
+  const oneOf = schema.oneOf?.map((part) => withMcpSchemaDescriptions(part, path));
+  const anyOf = schema.anyOf?.map((part) => withMcpSchemaDescriptions(part, path));
+  const allOf = schema.allOf?.map((part) => withMcpSchemaDescriptions(part, path));
   const additionalProperties =
     schema.additionalProperties &&
     typeof schema.additionalProperties === "object"
-      ? withMcpSchemaDescriptions(schema.additionalProperties)
+      ? withMcpSchemaDescriptions(schema.additionalProperties, path)
       : schema.additionalProperties;
   return {
     ...schema,
@@ -110,7 +153,7 @@ function withMcpSchemaDescriptions(schema: JsonSchema): JsonSchema {
 const describedComponentSchemas = Object.fromEntries(
   Object.entries(COMPONENT_SCHEMAS).map(([name, schema]) => [
     name,
-    withMcpSchemaDescriptions(schema),
+    withMcpSchemaDescriptions(schema, name),
   ]),
 );
 const monitorIntervalSchedule =
@@ -144,8 +187,9 @@ const server = new MCPServer({
     "Turn the live web, company news, and files into reliable, agent-ready context. Connect with OAuth or a Context API key through the Authorization header, X-API-Key header, or api_key URL parameter.",
   instructions:
     "Use Context when a task needs current web data, company news, clean content from a URL, structured facts from a site, document parsing, brand intelligence, large-scale collection, or recurring change detection.\n\n" +
-    "Choose the smallest suitable tool: `get-news-search` finds verified news about one company; `web-search` discovers sources or researches broader topics; `web-answers` researches the live web into a requested JSON shape; `web-scrape` returns HTML, Markdown, screenshots, images, highlights, JSON, or product data from one known page; `web-scrape-sitemap` discovers a site's URLs; `web-crawl` reads several linked pages synchronously; `submit-batch` handles large asynchronous jobs; and `web-extract` returns schema-shaped JSON from a known site. Use `parse-document` for file bytes.\n\n" +
-    "Use `get-brand` for a visual domain profile and `brand-retrieve-unified` for raw brand data or non-domain identifiers. Monitors are for recurring checks, not one-time scraping. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
+    "Choose the smallest suitable tool: `get-news-search` finds verified news about one company; `web-search` discovers sources or researches broader topics; `web-answers` researches the live web into a requested JSON shape; `web-scrape` returns HTML, Markdown, screenshots, images, original bytes, CSS-selected fields, highlights, JSON, or product data from one known page; `web-map` maps a site's URLs with available page metadata; `web-crawl` reads several linked pages synchronously; and `submit-batch` handles large asynchronous jobs. Use `parse-document` for file bytes. Scrape browser actions can interact with the target site, so choose actions that match the user's request.\n\n" +
+    "Use `get-brand` for a visual domain profile, `brand-retrieve-unified` for raw brand data or non-domain identifiers, `brand-search` for lightweight brand matches, and `people-enrich` for person identity clues. Use `web-styleguide` for a website's design system. Monitors are for recurring checks, not one-time scraping. Use `get-monitor-limits` to check capacity. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
+    "Use `list-webhook-deliveries`, `get-webhook-delivery`, and `list-webhook-delivery-attempts` to inspect batch or monitor notifications. `retry-webhook-delivery` sends a delivery to its receiver again; `rotate-monitor-webhook-secret` replaces a monitor's signing secret and requires updating the receiver.\n\n" +
     "Use `list-logs` to investigate API failures in the authenticated account, then `get-log` with the request ID from a data entry for the redacted retained input and response.\n\n" +
     "Authenticate with Context OAuth or a Context API key. Send API keys as `Authorization: Bearer <key>`, `X-API-Key: <key>`, or, when a client cannot set headers, the `api_key` URL parameter. Prefer OAuth or headers because URLs may be recorded in configuration, logs, or history. Some operations consume Context credits, so avoid unnecessary duplicate calls and use idempotency keys for retried batch submissions.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
@@ -702,8 +746,8 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "update-monitor.name": "New human-readable name for the monitor.",
   "update-monitor.status":
     "New monitor lifecycle status: active continues scheduled runs; paused stops them until reactivated.",
-  "web-extract.pdf":
-    "PDF handling for discovered documents. Control whether PDFs are parsed and optionally restrict extraction to an inclusive page range.",
+  "list-webhook-deliveries.body":
+    "Webhook delivery filters. Choose batch or monitor as the source type, then optionally filter by source ID, status, creation time, and pagination cursor.",
   "web-answers.json_format":
     "Example object whose keys and value types define the answer shape. Unknown values may be null.",
 };
@@ -740,75 +784,77 @@ function withoutRedundantQueryNull(schema: JsonSchema): JsonSchema {
   };
 }
 
-server.tool(
-  {
-    name: "get-brand",
-    title: "Show a brand profile",
-    description:
-      "Retrieve live brand intelligence for a domain and render a visual Context card with its logo, colors, slogan, description, social profiles, industry, location, and key links. Use this when a user wants to see or inspect a company's brand. Use brand-retrieve-unified instead for raw structured data or lookup by name, email, ticker, ISIN, transaction descriptor, or direct URL.",
-    schema: z.object({
-      domain: z
-        .string()
-        .describe(
-          "Domain to look up, e.g. 'stripe.com'. Bare domain, no https://.",
-        ),
-      maxSpeed: z
-        .boolean()
-        .optional()
-        .describe("Optimize for speed, skipping slower enrichment steps."),
-    }),
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: true,
+function registerBrandTool(): void {
+  server.tool(
+    {
+      name: "get-brand",
+      title: "Show a brand profile",
+      description:
+        "Retrieve live brand intelligence for a domain and render a visual Context card with its logo, colors, slogan, description, social profiles, industry, location, and key links. Use this when a user wants to see or inspect a company's brand. Use brand-retrieve-unified instead for raw structured data or lookup by name, email, ticker, ISIN, transaction descriptor, or direct URL.",
+      schema: z.object({
+        domain: z
+          .string()
+          .describe(
+            "Domain to look up, e.g. 'stripe.com'. Bare domain, no https://.",
+          ),
+        maxSpeed: z
+          .boolean()
+          .optional()
+          .describe("Optimize for speed, skipping slower enrichment steps."),
+      }),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: true,
+      },
+      outputSchema: z.object({ brand: brandSchema }),
+      widget: {
+        name: "context-brand",
+        invoking: "Querying Context...",
+        invoked: "Brand loaded",
+      },
     },
-    outputSchema: z.object({ brand: brandSchema }),
-    widget: {
-      name: "context-brand",
-      invoking: "Querying Context...",
-      invoked: "Brand loaded",
+    async ({ domain, maxSpeed }, context) => {
+      const credential = resolveContextCredential(context);
+      if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
+      const clean = domain
+        .trim()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/.*$/, "");
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/brand/retrieve`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${credential.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "by_domain",
+            domain: clean,
+            ...(maxSpeed ? { maxSpeed: true } : {}),
+          }),
+        });
+      } catch (e: any) {
+        return error(`Failed to reach Context API: ${e?.message ?? e}`);
+      }
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          (payload as any)?.message || `Context API returned ${res.status}`;
+        return error(`${msg} (domain: ${clean})`);
+      }
+      const brand = normalizeBrand(payload);
+      const summary =
+        `${brand.title} (${brand.domain})` +
+        (brand.slogan ? ` — ${brand.slogan}` : "") +
+        (brand.colors.length
+          ? `. Colors: ${brand.colors.map((c) => c.hex).join(", ")}`
+          : "");
+      return widget({ props: { brand }, output: text(summary) });
     },
-  },
-  async ({ domain, maxSpeed }, context) => {
-    const credential = resolveContextCredential(context);
-    if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
-    const clean = domain
-      .trim()
-      .replace(/^https?:\/\//, "")
-      .replace(/\/.*$/, "");
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE}/brand/retrieve`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${credential.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "by_domain",
-          domain: clean,
-          ...(maxSpeed ? { maxSpeed: true } : {}),
-        }),
-      });
-    } catch (e: any) {
-      return error(`Failed to reach Context API: ${e?.message ?? e}`);
-    }
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg =
-        (payload as any)?.message || `Context API returned ${res.status}`;
-      return error(`${msg} (domain: ${clean})`);
-    }
-    const brand = normalizeBrand(payload);
-    const summary =
-      `${brand.title} (${brand.domain})` +
-      (brand.slogan ? ` — ${brand.slogan}` : "") +
-      (brand.colors.length
-        ? `. Colors: ${brand.colors.map((c) => c.hex).join(", ")}`
-        : "");
-    return widget({ props: { brand }, output: text(summary) });
-  },
-);
+  );
+}
 
 function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
   const shape: Record<string, z.ZodTypeAny> = {};
@@ -902,6 +948,9 @@ for (const ep of registeredEndpoints as Endpoint[]) {
       });
     },
   );
+  if (ep.name === "brand-retrieve-unified") {
+    registerBrandTool();
+  }
 }
 
 server.listen().then(() => {

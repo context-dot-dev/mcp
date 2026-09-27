@@ -56,6 +56,18 @@ function buildRequestBody(
   );
 }
 
+function isReadOnlyRequest(endpoint: Endpoint, args: ToolArguments): boolean {
+  if (endpoint.name !== "web-scrape") {
+    return endpoint.annotations.readOnlyHint;
+  }
+  const body = buildRequestBody(endpoint, args) as {
+    sharedParams?: { actions?: Array<{ type: string }> };
+  } | undefined;
+  return !body?.sharedParams?.actions?.some(
+    (action) => !["scroll", "wait", "waitFor"].includes(action.type),
+  );
+}
+
 function contextErrorMessage(
   status: number,
   parsed: unknown
@@ -229,7 +241,7 @@ export async function callContextApi({
   credential: ContextCredential;
   clientUserAgent?: string;
 }) {
-  const requiredScope = endpoint.annotations.readOnlyHint
+  const requiredScope = isReadOnlyRequest(endpoint, args)
     ? "api.read"
     : "api.write";
   if (credential.scopes && !credential.scopes.includes(requiredScope)) {

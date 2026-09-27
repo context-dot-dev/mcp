@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { after, before, test } from "node:test";
-import type { Endpoint } from "../context-endpoints";
+import { ENDPOINTS, type Endpoint } from "../context-endpoints";
 import { callContextApi } from "./context-client";
+import { selectEndpoints } from "./toolset";
 
 type CapturedRequest = {
   method: string;
@@ -219,6 +220,50 @@ test("returns MCP errors for upstream failures and missing scopes", async () => 
       : "",
     /api\.write/
   );
+});
+
+test("preserves read-only scraping and requires write scope for browser instructions", async () => {
+  captured.length = 0;
+  const scrape = selectEndpoints(ENDPOINTS).find((tool) => tool.name === "web-scrape");
+  assert.ok(scrape);
+  const base = { url: "https://example.test", formats: { markdown: true } };
+  for (const args of [
+    base,
+    { ...base, sharedParams: { actions: [{ type: "scroll" }, { type: "wait", milliseconds: 100 }] } },
+  ]) {
+    const result = await callContextApi({
+      apiBase,
+      endpoint: scrape,
+      args,
+      credential: { apiKey: "key", scopes: ["api.read"] },
+    });
+    assert.notEqual(result.isError, true);
+  }
+  assert.equal(captured.length, 2);
+
+  const interactive = {
+    ...base,
+    sharedParams: { actions: [{ type: "perform", action: "Click the details tab" }] },
+  };
+  for (const args of [interactive, { body: interactive }]) {
+    const denied = await callContextApi({
+      apiBase,
+      endpoint: scrape,
+      args,
+      credential: { apiKey: "key", scopes: ["api.read"] },
+    });
+    assert.equal(denied.isError, true);
+    assert.equal(captured.length, 2);
+  }
+  const allowed = await callContextApi({
+    apiBase,
+    endpoint: scrape,
+    args: interactive,
+    credential: { apiKey: "key", scopes: ["api.read", "api.write"] },
+  });
+  assert.notEqual(allowed.isError, true);
+  assert.equal(captured.length, 3);
+  assert.deepEqual(JSON.parse(captured[2]!.body.toString()), interactive);
 });
 
 test("bounds oversized tool responses while preserving structured data", async () => {

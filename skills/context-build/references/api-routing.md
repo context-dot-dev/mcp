@@ -8,24 +8,29 @@ Use the API reference linked for each capability before implementing request or 
 |---|---|---|---|
 | Find current sources when the URL is unknown | Web Search | `POST /web/search` | Can return ranked results and optionally scrape their content. |
 | Find company-specific coverage | News Search | `POST /news/search` | Requires exactly one company identifier: name, domain, ticker, or ISIN. |
-| Read one known page | Markdown Scrape | `GET /web/scrape/markdown` | Default for summaries, RAG, and readable page content. |
-| Inspect the DOM or raw markup | HTML Scrape | `GET /web/scrape/html` | Use only when HTML structure matters. |
-| Discover images on one page | Image Scrape | `GET /web/scrape/images` | Returns image assets and metadata. |
-| Discover URLs without fetching every body | Sitemap | `GET /web/scrape/sitemap` | Use `search` to rank URLs by topic when needed. |
+| Read one known page | Scrape | `POST /web/scrape` | Enable `formats.markdown` for summaries, RAG, and readable page content. |
+| Inspect the DOM or raw markup | Scrape | `POST /web/scrape` | Enable `formats.html` when HTML structure matters. |
+| Discover images on one page | Scrape | `POST /web/scrape` | Enable `formats.images` for image assets and metadata. |
+| Download the original response bytes | Scrape | `POST /web/scrape` | Enable `formats.bytes`. |
+| Discover URLs without fetching every body | Map | `GET /web/urls` | Returns available page metadata; use `search` to rank URLs by topic when needed. |
 | Read a focused set of linked pages now | Crawl | `POST /web/crawl` | Synchronous multi-page collection. |
-| Return schema-shaped data | Extract | `POST /web/extract` | Provide an explicit JSON Schema and focused instructions. |
+| Return schema-shaped page data | Scrape | `POST /web/scrape` | Enable `formats.json` and supply `jsonParams.schema` and optional instructions. |
+| Extract fields with CSS selectors | Scrape | `POST /web/scrape` | Enable `formats.parse` and supply `parseParams.rules`. |
+| Research a question into sourced JSON | Answers | `POST /web/answers` | Supply a task and optional output shape. |
 | Convert an uploaded file to Markdown | Parse | `POST /parse` | Send file bytes server-side and enforce the documented size limit. |
 | Retrieve company and brand data | Brand Retrieve | `POST /brand/retrieve` | Supports domain, name, work email, ticker, ISIN, transaction descriptor, or direct URL lookups. |
+| Find a brand by name or domain | Brand Search | `GET /brand/search` | Lightweight matches for autocomplete. |
+| Enrich a person | Person Enrichment | `POST /people/enrich` | Combine identity clues and inspect the returned match score. |
 | Reproduce a site's design system | Styleguide | `GET /web/styleguide` | Returns colors, typography, spacing, shadows, and related design cues. |
-| Identify website typography | Fonts | `GET /web/fonts` | Use for font families, fallbacks, and usage. |
-| Capture a rendered page | Screenshot | `GET /web/screenshot` | Use for visual QA and previews, not content extraction. |
-| Classify a company by industry | NAICS or SIC | `GET /web/naics`, `GET /web/sic` | Use domain or company name. |
+| Identify website typography | Styleguide | `GET /web/styleguide` | Includes typography and font assets. |
+| Capture a rendered page | Scrape | `POST /web/scrape` | Enable `formats.screenshot` for visual QA and previews. |
 | Detect changes repeatedly | Monitors | `/monitors` routes | Creation starts an initial baseline and consumes credits. Webhooks can notify external systems. |
 | Process many URLs asynchronously | Batches | `POST /batch/submit` | Supports up to 25,000 URLs. Follow with status and results routes. |
+| Inspect or retry webhook notifications | Webhook Deliveries | `/webhooks/deliveries` routes | List, retrieve, inspect attempts, or retry a delivery. |
 
 ## Company news request
 
-`POST /news/search` uses a structured body. Do not send the retired flat query-parameter shape.
+`POST /news/search` uses a structured body. Choose at most one filter category (publisher domain, publisher country, article language, or article type), optionally with a date range. Do not send the retired flat query-parameter shape.
 
 ```json
 {
@@ -38,7 +43,6 @@ Use the API reference linked for each capability before implementing request or 
     }
   },
   "filterBy": {
-    "articleLanguage": ["en"],
     "articleType": ["editorial", "press_release"],
     "date": {
       "from": 1725148800000,

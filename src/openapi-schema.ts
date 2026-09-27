@@ -173,9 +173,10 @@ export function schemaToZod(
     return input.description ? schema.describe(input.description) : schema;
   }
   if (input.allOf?.length) {
-    const [first, ...rest] = input.allOf.map((part) =>
-      schemaToZod(part, components, resolving)
-    );
+    const { allOf, ...base } = input;
+    const [first, ...rest] = [base, ...allOf]
+      .map((part) => schemaToZod(part, components, resolving))
+      .filter((part) => !(part instanceof z.ZodUnknown));
     const schema = rest.reduce<z.ZodTypeAny>(
       (combined, current) => z.intersection(combined, current),
       first ?? z.unknown()

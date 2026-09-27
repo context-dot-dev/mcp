@@ -4,50 +4,66 @@ import { test } from "node:test";
 import { ENDPOINTS } from "../context-endpoints";
 import { selectEndpoints } from "./toolset";
 
-test("toolset exposes the curated public API surface", () => {
-  const selected = selectEndpoints(ENDPOINTS);
+test("toolset follows API reference order and excludes prefetch", () => {
+  const selected = selectEndpoints([...ENDPOINTS].reverse());
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 34);
-  assert.ok(names.has("web-scrape"));
-  assert.ok(names.has("web-scrape-sitemap"));
-  assert.ok(names.has("web-answers"));
-  assert.ok(names.has("get-news-search"));
-  assert.ok(names.has("brand-retrieve-unified"));
-  assert.ok(names.has("web-fonts"));
-  assert.ok(names.has("web-naics"));
-  assert.ok(names.has("web-sic"));
-  assert.ok(names.has("list-logs"));
-  assert.ok(names.has("get-log"));
-  assert.ok(names.has("create-monitor"));
-  assert.ok(names.has("get-monitor-run"));
-  assert.ok(names.has("list-monitor-changes"));
-  assert.ok(names.has("submit-batch"));
-  assert.ok(names.has("list-batches"));
-  assert.ok(names.has("get-batch"));
-  assert.ok(names.has("get-batch-results"));
-  assert.ok(names.has("cancel-batch"));
-  assert.ok(names.has("delete-batch"));
-  assert.equal(names.has("brand-ai-product"), false);
-  assert.equal(names.has("brand-ai-products"), false);
-  assert.equal(names.has("utility-prefetch"), false);
-  assert.equal(names.has("rotate-monitor-webhook-secret"), false);
-  assert.equal(names.has("create-webdb-collection"), false);
-  assert.equal(names.has("people-retrieve"), false);
-  assert.equal(names.has("web-competitors"), false);
-  assert.equal(names.has("brand-ai-query"), false);
-  assert.equal(names.has("brand-retrieve"), false);
-  assert.equal(names.has("get-monitor-limits"), false);
-  assert.equal(names.has("web-scrape-html"), false);
-  assert.equal(names.has("web-scrape-markdown"), false);
-  assert.equal(names.has("web-scrape-images"), false);
-  assert.equal(names.has("web-screenshot"), false);
-  for (const endpoint of selected) {
-    assert.equal(
-      endpoint.parameters.some((parameter) => parameter.name === "headers"),
-      false,
-      endpoint.name,
-    );
+  assert.equal(selected.length, 38);
+  assert.equal(names.size, selected.length);
+  assert.deepEqual(
+    selected.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
+    [
+      "POST /web/scrape",
+      "GET /web/urls",
+      "POST /web/crawl",
+      "POST /web/search",
+      "POST /web/answers",
+      "POST /brand/retrieve",
+      "GET /brand/search",
+      "GET /web/styleguide",
+      "POST /people/enrich",
+      "POST /news/search",
+      "POST /parse",
+      "POST /batch/submit",
+      "GET /batch/list",
+      "GET /batch/{batch_id}",
+      "GET /batch/{batch_id}/results",
+      "POST /batch/{batch_id}/cancel",
+      "DELETE /batch/{batch_id}",
+      "POST /monitors",
+      "GET /monitors",
+      "GET /monitors/{monitor_id}",
+      "PATCH /monitors/{monitor_id}",
+      "DELETE /monitors/{monitor_id}",
+      "GET /monitors/limits",
+      "GET /monitors/credit-usage",
+      "POST /monitors/{monitor_id}/run",
+      "GET /monitors/{monitor_id}/runs",
+      "GET /monitors/{monitor_id}/runs/{run_id}",
+      "GET /monitors/runs",
+      "GET /monitors/{monitor_id}/changes",
+      "GET /monitors/changes/{change_id}",
+      "GET /monitors/changes",
+      "POST /monitors/{monitor_id}/webhook/rotate-secret",
+      "POST /webhooks/deliveries",
+      "GET /webhooks/deliveries/{delivery_id}",
+      "GET /webhooks/deliveries/{delivery_id}/attempts",
+      "POST /webhooks/deliveries/{delivery_id}/retry",
+      "GET /logs",
+      "GET /logs/{request_id}",
+    ],
+  );
+  for (const removedName of [
+    "utility-prefetch",
+    "brand-prefetch",
+    "brand-prefetch-by-email",
+    "web-scrape-sitemap",
+    "web-extract",
+    "web-fonts",
+    "web-naics",
+    "web-sic",
+  ]) {
+    assert.equal(names.has(removedName), false, removedName);
   }
 });
 
@@ -74,7 +90,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
   );
   assert.match(
     tools.get("web-answers")?.description ?? "",
-    /web-search.*web-scrape.*web-extract/i,
+    /web-search.*web-scrape.*jsonParams/i,
   );
   assert.match(
     tools.get("web-search")?.description ?? "",
@@ -113,21 +129,23 @@ test("tool descriptions route agents between overlapping workflows", () => {
 
 test("every public tool has annotations that match its most privileged behavior", () => {
   const readOnlyExternalTools = new Set([
-    "web-scrape",
-    "web-scrape-sitemap",
+    "web-map",
     "web-crawl",
-    "web-extract",
     "web-search",
     "web-answers",
     "get-news-search",
     "brand-retrieve-unified",
+    "brand-search",
     "web-styleguide",
-    "web-fonts",
-    "web-naics",
-    "web-sic",
+    "people-enrich",
   ]);
-  const additiveExternalTools = new Set(["create-monitor", "submit-batch"]);
+  const additiveExternalTools = new Set([
+    "create-monitor",
+    "submit-batch",
+    "retry-webhook-delivery",
+  ]);
   const destructiveExternalTools = new Set([
+    "web-scrape",
     "run-monitor-now",
     "update-monitor",
   ]);
@@ -135,6 +153,7 @@ test("every public tool has annotations that match its most privileged behavior"
     "delete-monitor",
     "cancel-batch",
     "delete-batch",
+    "rotate-monitor-webhook-secret",
   ]);
 
   for (const tool of selectEndpoints(ENDPOINTS)) {

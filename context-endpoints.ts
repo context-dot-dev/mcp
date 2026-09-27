@@ -60,7 +60,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List request logs",
     "method": "GET",
     "path": "/logs",
-    "description": "List request logs — List your organization's API requests, newest first. Defaults to the last 24 hours. Use `errors_only`, `error_code`, `path`, `tags` or `search` to narrow down to the calls you are debugging, then fetch a single entry for its full response.",
+    "description": "List request logs — List your organization's API requests, newest first. Defaults to the last 24 hours.",
     "parameters": [
       {
         "name": "from",
@@ -210,7 +210,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Get a request log",
     "method": "GET",
     "path": "/logs/{request_id}",
-    "description": "Get a request log — Get one logged API call, including the request input and the response body that was returned.",
+    "description": "Get a request log — Get one logged API call, including its request input and response body.",
     "parameters": [
       {
         "name": "request_id",
@@ -371,8 +371,8 @@ export const ENDPOINTS: Endpoint[] = [
       "binary": false
     },
     "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
+      "readOnlyHint": true,
+      "destructiveHint": false,
       "openWorldHint": true
     }
   },
@@ -523,11 +523,32 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "web-scrape",
+    "title": "Scrape",
+    "method": "POST",
+    "path": "/web/scrape",
+    "description": "Scrape — Reuse cached outputs independently and capture missing formats in one page visit. Each cache key includes only the settings that affect that output. HTML is shared with Markdown, parsed fields, product data, highlights, and JSON extraction. Cached outputs can come from different visits within maxAgeMs; use 0 for a fresh capture. HTML-only requests use the existing fast acquisition path. Highlights return Markdown excerpts most relevant to highlightsParams.query. Requests with at least one successful output cost one base credit, including cache hits, or two with browser actions. All-failed responses are unbilled except missing pages, which retain the base price and the one-credit product charge when product was requested. Highlights add 3 credits when passages are returned. JSON extraction runs an LLM over nonempty page Markdown and adds four credits only when its result is returned successfully. PDF OCR adds one credit per recovered page on fresh extraction. Product adds one credit when its successful result is returned, plus six if that result used the specialized model. Original response bytes and screenshots are limited to 20 MiB each, screenshots to 40 megapixels, and the combined response to 60 MiB. An oversized output has success: false and data: null. If the combined response exceeds its limit, the largest outputs are marked failed until the remaining outputs f…",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/ScrapeRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "get-news-search",
     "title": "Search company news",
     "method": "POST",
     "path": "/news/search",
-    "description": "Search company news — Searches live and historical company news for one company, identified in searchBy by name, domain, ticker (optionally disambiguated by exchange), or ISIN. Results can be filtered by publisher domain, publisher country, article language, article type, and published-at date, and include stable story IDs, source metadata, verified entity relevance, and cursor pagination.",
+    "description": "Search company news — Searches live and historical company news for one company, identified in searchBy by name, domain, ticker (optionally disambiguated by exchange), or ISIN. Results can be filtered by one of publisher domain, publisher country, article language, or article type, optionally combined with a published-at date range, and include stable story IDs, source metadata, verified entity relevance, and cursor pagination.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -681,11 +702,61 @@ export const ENDPOINTS: Endpoint[] = [
                   }
                 },
                 "additionalProperties": false,
-                "description": "Published-at window in epoch milliseconds."
+                "description": "Published-at window in epoch milliseconds. from must be before or equal to to."
               }
             },
             "additionalProperties": false,
-            "description": "Optional result filters."
+            "description": "Optional result filters. Use at most one of sourceDomain, sourceCountry, articleLanguage, or articleType. A date range may accompany that category; date.from must not exceed date.to.",
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "sourceDomain",
+                    "sourceCountry"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceDomain",
+                    "articleLanguage"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceDomain",
+                    "articleType"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceCountry",
+                    "articleLanguage"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceCountry",
+                    "articleType"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "articleLanguage",
+                    "articleType"
+                  ]
+                }
+              }
+            ]
           },
           "sortBy": {
             "type": "object",
@@ -731,6 +802,261 @@ export const ENDPOINTS: Endpoint[] = [
           "searchBy"
         ],
         "additionalProperties": false
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "post-news-query",
+    "title": "News search by natural language query",
+    "method": "POST",
+    "path": "/news_query",
+    "description": "News search by natural language query — Search news by natural language! Use explicit date filters; relevance sorting only, up to 800 ranked matches.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "filterBy": {
+            "type": "object",
+            "properties": {
+              "sourceDomain": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Publisher domains to include. Up to 3."
+              },
+              "sourceCountry": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ae",
+                    "ar",
+                    "au",
+                    "ca",
+                    "cg",
+                    "ch",
+                    "cl",
+                    "cz",
+                    "de",
+                    "fi",
+                    "fr",
+                    "gb",
+                    "hk",
+                    "il",
+                    "in",
+                    "jp",
+                    "kr",
+                    "mx",
+                    "ng",
+                    "nl",
+                    "qa",
+                    "sa",
+                    "se",
+                    "sg",
+                    "us",
+                    "za"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Publisher countries to include, as lowercase ISO 3166-1 alpha-2 codes. Up to 3."
+              },
+              "articleLanguage": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ar",
+                    "de",
+                    "en",
+                    "es",
+                    "fr",
+                    "hi",
+                    "it",
+                    "ja",
+                    "ko",
+                    "nl",
+                    "pt",
+                    "ru",
+                    "zh"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Article languages to include. Up to 3."
+              },
+              "articleType": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "editorial",
+                    "press_release",
+                    "regulatory_filing",
+                    "advisory"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Article types to include. Up to 3."
+              },
+              "date": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "integer",
+                    "description": "Inclusive start of the published-at window, in epoch milliseconds."
+                  },
+                  "to": {
+                    "type": "integer",
+                    "description": "Inclusive end of the published-at window, in epoch milliseconds."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Published-at window in epoch milliseconds. from must be before or equal to to."
+              }
+            },
+            "additionalProperties": false,
+            "description": "Optional result filters. Use at most one of sourceDomain, sourceCountry, articleLanguage, or articleType. A date range may accompany that category; date.from must not exceed date.to.",
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "sourceDomain",
+                    "sourceCountry"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceDomain",
+                    "articleLanguage"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceDomain",
+                    "articleType"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceCountry",
+                    "articleLanguage"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "sourceCountry",
+                    "articleType"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "articleLanguage",
+                    "articleType"
+                  ]
+                }
+              }
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10,
+            "description": "Maximum results to return. Defaults to 10."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "query"
+            ]
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "sortBy": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "relevance"
+                ]
+              }
+            },
+            "default": {
+              "type": "relevance"
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "required": [
+          "type",
+          "query"
+        ],
+        "additionalProperties": false,
+        "description": "Search news articles using a natural-language query. Results are ordered by relevance, with up to 100 reranked matches per query. Use date filters to restrict publication dates."
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "web-answers",
+    "title": "Answer a research task from the live web",
+    "method": "POST",
+    "path": "/web/answers",
+    "description": "Answer a research task from the live web — Researches the live web and returns a sourced answer in your requested JSON shape. Select fast for a smaller research budget at 10 credits or ultra for deeper reasoning at 100 credits. Defaults to ultra. Fast research is limited to 30 seconds and ultra to 50 seconds; timeoutOpts.milliseconds can shorten either deadline.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/AnswersRequest"
       },
       "contentType": "application/json",
       "binary": false
@@ -924,7 +1250,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
         "schema": {
           "type": "string",
           "enum": [
@@ -932,7 +1258,7 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -947,7 +1273,7 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     "requestBody": {
       "required": true,
-      "description": "Raw file bytes. The request body must not exceed 25 MiB.",
+      "description": "Raw file bytes. The request body must not exceed 50 MiB.",
       "schema": {
         "type": "string",
         "format": "binary"
@@ -962,11 +1288,125 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "get-web-scrape-bytes",
+    "title": "Scrape raw bytes",
+    "method": "GET",
+    "path": "/web/scrape/bytes",
+    "description": "Scrape raw bytes — Downloads a resource and returns its bytes as base64. Without waitForMs, returns the original HTTP response without image conversion, text extraction, or character-encoding changes. HTTP compression is decoded before base64 encoding. Supply waitForMs to render HTML with JavaScript in the browser and return the resulting HTML as UTF-8 bytes after the wait. Non-HTML resources, including images and PDFs, keep their original bytes and do not incur a browser wait. Follows public redirects and retries failed downloads through ISP and residential proxies, with a direct fallback. When country is specified, only a residential proxy in that country is used. Supply headers such as Referer for images that require a referring page. Cached results are reused according to maxAgeMs (default: 1 day; maximum: 30 days). Set maxAgeMs=0 to fetch fresh and refresh the cache. Cache identity includes the exact URL, country, waitForMs, and normalized outbound headers. Credential-bearing headers and zero data retention bypass cache reads and writes. cache_metadata reports hit, miss, or zdr and the cached result age in milliseconds. Maximum decoded resource size: 20 MiB (20971520 bytes), before base64 encoding. Successful requests cost 1 credit; errors are not billed.",
+    "parameters": [
+      {
+        "name": "url",
+        "in": "query",
+        "required": true,
+        "description": "Full HTTP(S) URL of the resource to download, such as an image, PDF, or page.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "description": "Full HTTP(S) URL of the resource to download, such as an image, PDF, or page."
+        }
+      },
+      {
+        "name": "headers",
+        "in": "query",
+        "required": false,
+        "description": "Optional outbound HTTP headers, such as Referer, Cookie, or Authorization. Send as a JSON object or deep-object query params such as headers[Referer]=https://example.com/. Host, Content-Length, and hop-by-hop transport headers are rejected. Authorization and cookies are removed when a redirect changes origin. Credential-bearing headers bypass cache reads and writes; other headers are included in the cache key.",
+        "schema": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 8192,
+            "pattern": "^[^\\r\\n]*$"
+          },
+          "description": "Optional outbound HTTP headers, such as Referer, Cookie, or Authorization. Send as a JSON object or deep-object query params such as headers[Referer]=https://example.com/. Host, Content-Length, and hop-by-hop transport headers are rejected. Authorization and cookies are removed when a redirect changes origin. Credential-bearing headers bypass cache reads and writes; other headers are included in the cache key."
+        }
+      },
+      {
+        "name": "country",
+        "in": "query",
+        "required": false,
+        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "schema": {
+          "$ref": "#/components/schemas/BrowserCountryCode"
+        }
+      },
+      {
+        "name": "waitForMs",
+        "in": "query",
+        "required": false,
+        "description": "Optional browser wait time after initial page load, in milliseconds (0–30000; 0 uses 500). When supplied, HTML is rendered with JavaScript and returned as UTF-8 bytes. Other resources keep their original bytes without a browser wait. Omit to download the original HTTP response. When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 30000,
+          "description": "Optional browser wait time after initial page load, in milliseconds (0–30000; 0 uses 500). When supplied, HTML is rendered with JavaScript and returned as UTF-8 bytes. Other resources keep their original bytes without a browser wait. Omit to download the original HTTP response. When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
+        }
+      },
+      {
+        "name": "timeoutOpts",
+        "in": "query",
+        "required": false,
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "schema": {
+          "$ref": "#/components/schemas/LenientTimeout"
+        }
+      },
+      {
+        "name": "maxAgeMs",
+        "in": "query",
+        "required": false,
+        "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh.",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 2592000000,
+          "default": 86400000,
+          "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestTags"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "web-scrape-html",
     "title": "Scrape HTML",
     "method": "GET",
     "path": "/web/scrape/html",
-    "description": "Scrape HTML — Scrapes the given URL and returns the raw HTML content of the page. The base request costs 1 credit; requests with browser actions cost 2 credits.",
+    "description": "Scrape HTML — Scrapes the given URL and returns the HTML content of the page. Optional extractRules return deterministic structured data in extracted using CSS selectors, attributes, lists, and nested rules, without an LLM or additional credits. Rules run on the returned HTML after selector and main-content filtering. Send extractRules as a JSON-encoded query parameter. The base request costs 1 credit; requests with browser actions cost 2 credits. A request that hits its timeoutOpts.milliseconds deadline fails with 408 and is not billed, unless timeoutOpts.behavior=return-partial is set — then the page as rendered so far is returned with `finalDOMState: \"still-loading\"` and billed at the base cost of 1 credit.",
     "parameters": [
       {
         "name": "url",
@@ -1039,6 +1479,64 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
+        "name": "extractRules",
+        "in": "query",
+        "required": false,
+        "description": "Optional CSS extraction rules applied to the returned HTML after selector and main-content filtering. Use selector strings (\"h1\", \"a@href\") or objects with selector, type (item or list), and output (text, html, @attribute, or nested rules). Text whitespace is normalized; html includes the matched element; attributes are returned as written. Missing items are null and missing lists are empty. CSS only; XPath is not supported. Maximum: 100 fields across 5 levels. Send a JSON-encoded string in the extractRules query parameter.",
+        "schema": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "selector": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "item",
+                      "list"
+                    ]
+                  },
+                  "output": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "text",
+                          "html"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^@.*$"
+                      },
+                      {
+                        "$ref": "#/components/schemas/HtmlExtractionRules"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "selector"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "description": "Optional CSS extraction rules applied to the returned HTML after selector and main-content filtering. Use selector strings (\"h1\", \"a@href\") or objects with selector, type (item or list), and output (text, html, @attribute, or nested rules). Text whitespace is normalized; html includes the matched element; attributes are returned as written. Missing items are null and missing lists are empty. CSS only; XPath is not supported. Maximum: 100 fields across 5 levels. Send a JSON-encoded string in the extractRules query parameter."
+        }
+      },
+      {
         "name": "includeSelectors",
         "in": "query",
         "required": false,
@@ -1096,7 +1594,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
+        "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds). When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -1104,7 +1602,7 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "minimum": 0,
           "maximum": 30000,
-          "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
+          "description": "Optional browser wait time in milliseconds after initial page load. Min: 0. Max: 30000 (30 seconds). When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -1160,19 +1658,19 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/LenientTimeoutMS"
+          "$ref": "#/components/schemas/ScrapeTimeout"
         }
       },
       {
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
         "schema": {
           "type": "string",
           "enum": [
@@ -1180,7 +1678,7 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -1204,7 +1702,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Scrape Markdown",
     "method": "GET",
     "path": "/web/scrape/markdown",
-    "description": "Scrape Markdown — Scrapes the given URL into LLM usable Markdown. Inspect key_metadata on JSON responses from a recognized API key; use error_code to distinguish stable failure categories. ### YouTube YouTube URLs return the video or channel itself rather than the surrounding player and navigation chrome. A URL addressing a single video (`/watch`, `youtu.be`, `/shorts`, `/embed`, `/live`) returns its title, channel, duration, view count, keywords, full description, and the transcript when the video has captions that can be retrieved; videos without captions return everything except the transcript. A channel URL (`/channel/UC…`, `/@handle`, `/c/…`, `/user/…`) returns its name, handle, subscriber count, video count, and full description. When `includeImages=true`, video responses also include the thumbnail and channel responses include the avatar. Costs the same as any other scrape. ### Billing & errors | HTTP status | Billed? | Meaning | | --- | --- | --- | | 200 | Yes — 1 credit, or 2 credits with actions | Successful scrape, including a zero-length result when includeSelectors matched nothing | | 400 | No | Invalid input, skipped PDF, or the page could not be scraped. error_code WEBSITE_BLOCKED specifically means the site answered with an anti-bot challenge, CAPTCHA wall, or login shell instead of the page (even when the site returned HTTP 200) — retrying later or from anothe…",
+    "description": "Scrape Markdown — Scrapes the given URL into LLM usable Markdown. Inspect key_metadata on JSON responses from a recognized API key; use error_code to distinguish stable failure categories. ### YouTube YouTube URLs return the video or channel itself rather than the surrounding player and navigation chrome. A URL addressing a single video (`/watch`, `youtu.be`, `/shorts`, `/embed`, `/live`) returns its title, channel, duration, view count, keywords, full description, and the transcript when the video has captions that can be retrieved; videos without captions return everything except the transcript. A channel URL (`/channel/UC…`, `/@handle`, `/c/…`, `/user/…`) returns its name, handle, subscriber count, video count, and full description. When `includeImages=true`, video responses also include the thumbnail and channel responses include the avatar. Costs the same as any other scrape. ### Billing & errors | HTTP status | Billed? | Meaning | | --- | --- | --- | | 200 | Yes — 1 credit, or 2 credits with actions | Successful scrape, including a zero-length result when includeSelectors matched nothing. A partial result (`finalDOMState: \"still-loading\"`, only with timeoutOpts.behavior=return-partial) is billed at the base 1 credit with no OCR or actions surcharge | | 400 | No | Invalid input, skipped PDF, or the page could not be scraped. error_code WEBSITE_BLOCKED specifically means t…",
     "parameters": [
       {
         "name": "url",
@@ -1378,7 +1876,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
+        "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds). When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -1386,7 +1884,7 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "minimum": 0,
           "maximum": 30000,
-          "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
+          "description": "Optional browser wait time in milliseconds after initial page load before converting the page to Markdown. Min: 0. Max: 30000 (30 seconds). When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -1442,19 +1940,19 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/LenientTimeoutMS"
+          "$ref": "#/components/schemas/ScrapeTimeout"
         }
       },
       {
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
         "schema": {
           "type": "string",
           "enum": [
@@ -1462,7 +1960,7 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -1535,7 +2033,7 @@ export const ENDPOINTS: Endpoint[] = [
             "hostedUrl": {
               "type": "boolean",
               "default": false,
-              "description": "Host materializable images on the Brand.dev CDN and return their URL and MIME type."
+              "description": "Host materializable images on the Brand.dev CDN and return their URL and MIME type. Ignored when zero data retention is enabled."
             },
             "classification": {
               "type": "boolean",
@@ -1569,7 +2067,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
+        "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds). When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -1577,7 +2075,7 @@ export const ENDPOINTS: Endpoint[] = [
           ],
           "minimum": 0,
           "maximum": 30000,
-          "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds). When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
+          "description": "Optional browser wait time in milliseconds after initial page load before collecting images. Min: 0. Max: 30000 (30 seconds). When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -1613,12 +2111,36 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "country",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
         "schema": {
-          "$ref": "#/components/schemas/LenientTimeoutMS"
+          "$ref": "#/components/schemas/BrowserCountryCode"
+        }
+      },
+      {
+        "name": "timeoutOpts",
+        "in": "query",
+        "required": false,
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "schema": {
+          "$ref": "#/components/schemas/ScrapeTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -1731,19 +2253,19 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/LenientTimeoutMS"
+          "$ref": "#/components/schemas/LenientPartialTimeout"
         }
       },
       {
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
         "schema": {
           "type": "string",
           "enum": [
@@ -1751,7 +2273,140 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestTags"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "web-map",
+    "title": "Discover URLs with Page Metadata",
+    "method": "GET",
+    "path": "/web/urls",
+    "description": "Discover URLs with Page Metadata — Discovers URLs using the same sitemap crawl, filters, and limits as /web/scrape/sitemap. Each URL includes its available title, description, keywords, and language. URLs without stored enrichment are returned immediately with only the URL and queued for background HTML scraping, so later requests can include their metadata. Responses are never cached as a whole; every request reads the current per-URL enrichment. Zero data retention and credential-bearing discovery requests return URLs without reading or storing shared enrichment or queuing background scrapes. Costs 1 credit, or 2 credits with search.",
+    "parameters": [
+      {
+        "name": "domain",
+        "in": "query",
+        "required": true,
+        "description": "Domain to build a sitemap for",
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Domain to build a sitemap for"
+        }
+      },
+      {
+        "name": "includeSubdomains",
+        "in": "query",
+        "required": false,
+        "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, discover and include public pages and sitemaps on subdomains of the requested domain. Defaults to false."
+        }
+      },
+      {
+        "name": "maxLinks",
+        "in": "query",
+        "required": false,
+        "description": "Maximum number of links to return from the sitemap crawl. Defaults to 10,000. Minimum is 1, maximum is 100,000.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000,
+          "default": 10000,
+          "description": "Maximum number of links to return from the sitemap crawl. Defaults to 10,000. Minimum is 1, maximum is 100,000."
+        }
+      },
+      {
+        "name": "sitemapUrl",
+        "in": "query",
+        "required": false,
+        "description": "Optional explicit sitemap URL. When provided, exactly this sitemap is crawled instead of discovering the domain's sitemaps.",
+        "schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional explicit sitemap URL. When provided, exactly this sitemap is crawled instead of discovering the domain's sitemaps."
+        }
+      },
+      {
+        "name": "urlRegex",
+        "in": "query",
+        "required": false,
+        "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
+        "schema": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
+          "example": "^https?://[^/]+/blog/"
+        }
+      },
+      {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+        "schema": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200,
+          "description": "Optional search phrase. When provided, the crawled sitemap is filtered to the pages whose URLs are about that phrase, most relevant first, and the request costs 2 credits instead of 1.",
+          "example": "help center and troubleshooting articles"
+        }
+      },
+      {
+        "name": "headers",
+        "in": "query",
+        "required": false,
+        "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache.",
+        "schema": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 8192,
+            "pattern": "^[^\\r\\n]*$"
+          },
+          "description": "Optional outbound HTTP headers forwarded only to the target URL, sent as deep-object query params such as headers[X-Custom]=value. When provided, caching is bypassed: the result is neither read from nor written to cache."
+        }
+      },
+      {
+        "name": "timeoutOpts",
+        "in": "query",
+        "required": false,
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "schema": {
+          "$ref": "#/components/schemas/LenientPartialTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -1912,8 +2567,8 @@ export const ENDPOINTS: Endpoint[] = [
           "country": {
             "$ref": "#/components/schemas/BrowserCountryCode"
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
           },
           "zdr": {
             "type": "string",
@@ -2085,8 +2740,17 @@ export const ENDPOINTS: Endpoint[] = [
             "default": 80000,
             "description": "Soft time budget for the crawl in milliseconds. Min: 10000 (10s). Max: 110000 (110s). Defaults to 80000 (80s), or 110000 (110s) when browser actions are provided."
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
+          },
+          "zdr": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "default": "disabled",
+            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -2478,90 +3142,13 @@ export const ENDPOINTS: Endpoint[] = [
                 "maximum": 30000,
                 "description": "Extra wait after page load before rendering, in ms (0–30000). Useful for JS-heavy pages."
               },
-              "timeoutMS": {
-                "$ref": "#/components/schemas/TimeoutMS"
+              "timeoutOpts": {
+                "$ref": "#/components/schemas/ScrapeTimeout"
               }
             }
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "additionalProperties": false
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "web-answers",
-    "title": "Answer a research task from the live web",
-    "method": "POST",
-    "path": "/web/answers",
-    "description": "Answer a research task from the live web — Researches the live web and returns a sourced answer in your requested JSON shape. Select fast for a smaller research budget at 10 credits or ultra for deeper reasoning at 100 credits. Defaults to ultra. Fast research is limited to 30 seconds and ultra to 50 seconds; timeoutOpts.milliseconds can shorten either deadline.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "type": "object",
-        "properties": {
-          "mode": {
-            "type": "string",
-            "enum": [
-              "fast",
-              "ultra"
-            ],
-            "description": "Research level: fast uses a smaller model and research budget for 10 credits; ultra uses deeper reasoning and research for 100 credits. Defaults to ultra. Only successful requests consume credits."
-          },
-          "task": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000,
-            "description": "What to research and answer, in plain language. Naming a domain in the task (for example \"pricing on context.dev\") makes the agent read that site before it searches."
-          },
-          "json_format": {
-            "type": "object",
-            "additionalProperties": {},
-            "description": "An example object with placeholder values. Object keys and value types are preserved; unknown values may be null. Empty arrays accept any JSON items. Defaults to {\"result\": \"\"}."
-          },
           "timeoutOpts": {
-            "type": "object",
-            "properties": {
-              "milliseconds": {
-                "type": "integer",
-                "minimum": 1000,
-                "maximum": 300000,
-                "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
-              },
-              "behavior": {
-                "type": "string",
-                "enum": [
-                  "fail",
-                  "return-partial"
-                ],
-                "default": "fail",
-                "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far."
-              }
-            },
-            "required": [
-              "milliseconds"
-            ],
-            "additionalProperties": false,
-            "description": "Optional request deadline and behavior on timeout."
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
+            "$ref": "#/components/schemas/PartialTimeout"
           },
           "zdr": {
             "type": "string",
@@ -2569,11 +3156,15 @@ export const ENDPOINTS: Endpoint[] = [
               "enabled",
               "disabled"
             ],
-            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization, otherwise the request fails with ZDR_NOT_ENABLED."
+            "default": "disabled",
+            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
           }
         },
         "required": [
-          "task"
+          "query"
         ],
         "additionalProperties": false
       },
@@ -2618,12 +3209,27 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -2643,7 +3249,7 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "post-people-enrich",
+    "name": "people-enrich",
     "title": "Enrich Person",
     "method": "POST",
     "path": "/people/enrich",
@@ -2658,8 +3264,8 @@ export const ENDPOINTS: Endpoint[] = [
       "binary": false
     },
     "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
+      "readOnlyHint": true,
+      "destructiveHint": false,
       "openWorldHint": true
     }
   },
@@ -2770,23 +3376,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -2888,23 +3494,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -2924,7 +3530,7 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "get-brand-search",
+    "name": "brand-search",
     "title": "Brand Search",
     "method": "GET",
     "path": "/brand/search",
@@ -3057,23 +3663,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -3155,23 +3761,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -3244,23 +3850,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -3329,12 +3935,12 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -3439,23 +4045,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
         }
       },
       {
@@ -3521,23 +4127,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/ScrapeTimeout"
         }
       },
       {
@@ -3552,6 +4158,21 @@ export const ENDPOINTS: Endpoint[] = [
             "dark"
           ],
           "description": "Optional browser color scheme to emulate for websites that respond to prefers-color-scheme. This value is part of the styleguide cache key."
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -3603,23 +4224,23 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year.",
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "default": 7776000000,
-          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+          "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/ScrapeTimeout"
         }
       },
       {
@@ -3639,32 +4260,35 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "web-screenshot",
+    "name": "get-web-scrape-screenshot",
     "title": "Scrape Screenshot",
     "method": "GET",
-    "path": "/web/screenshot",
-    "description": "Scrape Screenshot — Capture a screenshot of a website.",
+    "path": "/web/scrape/screenshot",
+    "description": "Scrape Screenshot — Capture the given HTTP or HTTPS URL with configurable viewport, full-page capture, wait time, popup handling, theme, scroll offset, cache age, country, and request timeout. Defaults to a 1920x1080 viewport, a 3-second wait, and a cache age of 1 day. With timeoutOpts.behavior=return-partial, a screenshot of the page rendered so far may be returned; inspect finalDOMState to identify an incomplete render. Successful requests cost 1 credit; errors are not billed.",
     "parameters": [
       {
-        "name": "domain",
+        "name": "url",
         "in": "query",
-        "required": false,
-        "description": "Domain name to take screenshot of (e.g., 'example.com', 'google.com'). The domain will be automatically normalized and validated. You must provide either 'domain' or 'directUrl', but not both.",
+        "required": true,
         "schema": {
           "type": "string",
-          "minLength": 3,
-          "description": "Domain name to take screenshot of (e.g., 'example.com', 'google.com'). The domain will be automatically normalized and validated. You must provide either 'domain' or 'directUrl', but not both."
+          "minLength": 1,
+          "format": "uri"
         }
       },
       {
-        "name": "directUrl",
+        "name": "headers",
         "in": "query",
         "required": false,
-        "description": "A specific URL to screenshot directly, bypassing domain resolution (e.g., 'https://example.com/pricing'). When provided, the screenshot is taken of this exact URL. You must provide either 'domain' or 'directUrl', but not both.",
+        "description": "Optional outbound HTTP headers, using the same JSON object or deep-object query format as other scrape endpoints (for example headers[Authorization]=Bearer token). Headers are scoped to the target origin during capture. For domain/page requests, discovery receives no custom headers and only pages on the resolved origin are eligible. Non-empty headers bypass screenshot caching and return an in-memory data URL; no screenshot is uploaded. Empty objects behave like omitted headers.",
         "schema": {
-          "type": "string",
-          "format": "uri",
-          "description": "A specific URL to screenshot directly, bypassing domain resolution (e.g., 'https://example.com/pricing'). When provided, the screenshot is taken of this exact URL. You must provide either 'domain' or 'directUrl', but not both."
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 8192,
+            "pattern": "^[^\\r\\n]*$"
+          },
+          "description": "Optional outbound HTTP headers, using the same JSON object or deep-object query format as other scrape endpoints (for example headers[Authorization]=Bearer token). Headers are scoped to the target origin during capture. For domain/page requests, discovery receives no custom headers and only pages on the resolved origin are eligible. Non-empty headers bypass screenshot caching and return an in-memory data URL; no screenshot is uploaded. Empty objects behave like omitted headers."
         }
       },
       {
@@ -3682,30 +4306,10 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "page",
-        "in": "query",
-        "required": false,
-        "description": "Optional parameter to specify which page type to screenshot. If provided, the system will scrape the domain's links and use heuristics to find the most appropriate URL for the specified page type (30 supported languages). If not provided, screenshots the main domain landing page. Only applicable when using 'domain', not 'directUrl'.",
-        "schema": {
-          "type": "string",
-          "enum": [
-            "login",
-            "signup",
-            "blog",
-            "careers",
-            "pricing",
-            "terms",
-            "privacy",
-            "contact"
-          ],
-          "description": "Optional parameter to specify which page type to screenshot. If provided, the system will scrape the domain's links and use heuristics to find the most appropriate URL for the specified page type (30 supported languages). If not provided, screenshots the main domain landing page. Only applicable when using 'domain', not 'directUrl'."
-        }
-      },
-      {
         "name": "waitForMs",
         "in": "query",
         "required": false,
-        "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
+        "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
         "schema": {
           "type": [
             "integer",
@@ -3714,7 +4318,7 @@ export const ENDPOINTS: Endpoint[] = [
           "minimum": 0,
           "maximum": 30000,
           "default": 3000,
-          "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutMS, timeoutMS must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
+          "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
         }
       },
       {
@@ -3824,19 +4428,19 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/LenientTimeoutMS"
+          "$ref": "#/components/schemas/ScrapeTimeout"
         }
       },
       {
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
         "schema": {
           "type": "string",
           "enum": [
@@ -3844,7 +4448,247 @@ export const ENDPOINTS: Endpoint[] = [
             "disabled"
           ],
           "default": "disabled",
-          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
+        }
+      },
+      {
+        "name": "tags",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated tags for tracking request usage. Up to 20 tags, each 1-50 characters.",
+        "schema": {
+          "$ref": "#/components/schemas/RequestTags"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "web-screenshot",
+    "title": "Scrape Screenshot",
+    "method": "GET",
+    "path": "/web/screenshot",
+    "description": "Scrape Screenshot — Capture a screenshot of a website.",
+    "parameters": [
+      {
+        "name": "headers",
+        "in": "query",
+        "required": false,
+        "description": "Optional outbound HTTP headers, using the same JSON object or deep-object query format as other scrape endpoints (for example headers[Authorization]=Bearer token). Headers are scoped to the target origin during capture. For domain/page requests, discovery receives no custom headers and only pages on the resolved origin are eligible. Non-empty headers bypass screenshot caching and return an in-memory data URL; no screenshot is uploaded. Empty objects behave like omitted headers.",
+        "schema": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 8192,
+            "pattern": "^[^\\r\\n]*$"
+          },
+          "description": "Optional outbound HTTP headers, using the same JSON object or deep-object query format as other scrape endpoints (for example headers[Authorization]=Bearer token). Headers are scoped to the target origin during capture. For domain/page requests, discovery receives no custom headers and only pages on the resolved origin are eligible. Non-empty headers bypass screenshot caching and return an in-memory data URL; no screenshot is uploaded. Empty objects behave like omitted headers."
+        }
+      },
+      {
+        "name": "domain",
+        "in": "query",
+        "required": false,
+        "description": "Domain name to take screenshot of (e.g., 'example.com', 'google.com'). The domain will be automatically normalized and validated. You must provide either 'domain' or 'directUrl', but not both.",
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Domain name to take screenshot of (e.g., 'example.com', 'google.com'). The domain will be automatically normalized and validated. You must provide either 'domain' or 'directUrl', but not both."
+        }
+      },
+      {
+        "name": "directUrl",
+        "in": "query",
+        "required": false,
+        "description": "A specific URL to screenshot directly, bypassing domain resolution (e.g., 'https://example.com/pricing'). When provided, the screenshot is taken of this exact URL. You must provide either 'domain' or 'directUrl', but not both.",
+        "schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "A specific URL to screenshot directly, bypassing domain resolution (e.g., 'https://example.com/pricing'). When provided, the screenshot is taken of this exact URL. You must provide either 'domain' or 'directUrl', but not both."
+        }
+      },
+      {
+        "name": "fullScreenshot",
+        "in": "query",
+        "required": false,
+        "description": "Optional parameter to determine screenshot type. If 'true', takes a full page screenshot capturing all content. If 'false' or not provided, takes a viewport screenshot (standard browser view).",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "description": "Optional parameter to determine screenshot type. If 'true', takes a full page screenshot capturing all content. If 'false' or not provided, takes a viewport screenshot (standard browser view)."
+        }
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Optional parameter to specify which page type to screenshot. If provided, the system will scrape the domain's links and use heuristics to find the most appropriate URL for the specified page type (30 supported languages). If not provided, screenshots the main domain landing page. Only applicable when using 'domain', not 'directUrl'.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "login",
+            "signup",
+            "blog",
+            "careers",
+            "pricing",
+            "terms",
+            "privacy",
+            "contact"
+          ],
+          "description": "Optional parameter to specify which page type to screenshot. If provided, the system will scrape the domain's links and use heuristics to find the most appropriate URL for the specified page type (30 supported languages). If not provided, screenshots the main domain landing page. Only applicable when using 'domain', not 'directUrl'."
+        }
+      },
+      {
+        "name": "waitForMs",
+        "in": "query",
+        "required": false,
+        "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT.",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 30000,
+          "default": 3000,
+          "description": "Optional browser wait time in milliseconds after initial page load before taking the screenshot. Min: 0. Max: 30000 (30 seconds). Defaults to 3000 ms when omitted. When combined with timeoutOpts, timeoutOpts.milliseconds must be at least waitForMs + 10000 ms; a shorter deadline is rejected with 400 TIMEOUT_TOO_SHORT_FOR_WAIT."
+        }
+      },
+      {
+        "name": "viewport",
+        "in": "query",
+        "required": false,
+        "description": "Optional browser viewport dimensions for the screenshot. Defaults to 1920x1080.",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 240,
+              "maximum": 7680,
+              "default": 1920,
+              "description": "Viewport width in pixels."
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 240,
+              "maximum": 4320,
+              "default": 1080,
+              "description": "Viewport height in pixels."
+            }
+          },
+          "default": {
+            "width": 1920,
+            "height": 1080
+          },
+          "description": "Optional browser viewport dimensions for the screenshot. Defaults to 1920x1080."
+        }
+      },
+      {
+        "name": "handleCookiePopup",
+        "in": "query",
+        "required": false,
+        "description": "Optional parameter to control cookie/consent popup handling. If 'true', we dismiss cookie banner before capture. If 'false' or not provided, captures the page without that step.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Optional parameter to control cookie/consent popup handling. If 'true', we dismiss cookie banner before capture. If 'false' or not provided, captures the page without that step."
+        }
+      },
+      {
+        "name": "clearPopups",
+        "in": "query",
+        "required": false,
+        "description": "Optional parameter for comprehensive popup cleanup. If 'true', the browser dismisses detected cookie/consent UI and clears other detected obstructive popups and overlays before capture. If 'false' or not provided, this parameter requests no cleanup; handleCookiePopup can still request cookie/consent handling independently.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Optional parameter for comprehensive popup cleanup. If 'true', the browser dismisses detected cookie/consent UI and clears other detected obstructive popups and overlays before capture. If 'false' or not provided, this parameter requests no cleanup; handleCookiePopup can still request cookie/consent handling independently."
+        }
+      },
+      {
+        "name": "colorScheme",
+        "in": "query",
+        "required": false,
+        "description": "Optional parameter to choose the site's visual theme in the screenshot. Use 'light' or 'dark' when the site offers both appearances.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark"
+          ],
+          "description": "Optional parameter to choose the site's visual theme in the screenshot. Use 'light' or 'dark' when the site offers both appearances."
+        }
+      },
+      {
+        "name": "scrollOffset",
+        "in": "query",
+        "required": false,
+        "description": "Optional vertical scroll offset in pixels for capturing a long page in viewport-sized chunks. When provided, the full page is captured once and the returned image is the viewport-sized slice that begins at this Y offset (e.g. request scrollOffset=0, then 1080, then 2160 to walk a 1920x1080 landing page top to bottom). The final slice may be shorter than the viewport height. Takes precedence over fullScreenshot. Max: 100000.",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Optional vertical scroll offset in pixels for capturing a long page in viewport-sized chunks. When provided, the full page is captured once and the returned image is the viewport-sized slice that begins at this Y offset (e.g. request scrollOffset=0, then 1080, then 2160 to walk a 1920x1080 landing page top to bottom). The final slice may be shorter than the viewport height. Takes precedence over fullScreenshot. Max: 100000."
+        }
+      },
+      {
+        "name": "maxAgeMs",
+        "in": "query",
+        "required": false,
+        "description": "Return a cached screenshot if a prior screenshot for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always capture fresh.",
+        "schema": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 2592000000,
+          "default": 86400000,
+          "description": "Return a cached screenshot if a prior screenshot for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always capture fresh."
+        }
+      },
+      {
+        "name": "country",
+        "in": "query",
+        "required": false,
+        "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2).",
+        "schema": {
+          "$ref": "#/components/schemas/BrowserCountryCode"
+        }
+      },
+      {
+        "name": "timeoutOpts",
+        "in": "query",
+        "required": false,
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
+        "schema": {
+          "$ref": "#/components/schemas/ScrapeTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -3908,12 +4752,27 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -3992,12 +4851,27 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
-        "name": "timeoutMS",
+        "name": "timeoutOpts",
         "in": "query",
         "required": false,
-        "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes).",
+        "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object.",
         "schema": {
-          "$ref": "#/components/schemas/TimeoutMS"
+          "$ref": "#/components/schemas/PartialTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "default": "disabled",
+          "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
         }
       },
       {
@@ -4150,8 +5024,8 @@ export const ENDPOINTS: Endpoint[] = [
               }
             }
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -4194,8 +5068,17 @@ export const ENDPOINTS: Endpoint[] = [
             "default": 604800000,
             "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 7 days (604800000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
+          },
+          "zdr": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "default": "disabled",
+            "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -4246,8 +5129,8 @@ export const ENDPOINTS: Endpoint[] = [
                 "default": 604800000,
                 "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 7 days (604800000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
               },
-              "timeoutMS": {
-                "$ref": "#/components/schemas/TimeoutMS"
+              "timeoutOpts": {
+                "$ref": "#/components/schemas/PartialTimeout"
               },
               "tags": {
                 "$ref": "#/components/schemas/RequestTags"
@@ -4279,8 +5162,8 @@ export const ENDPOINTS: Endpoint[] = [
                 "default": 604800000,
                 "description": "Return a cached result if a prior scrape for the same parameters exists and is younger than this many milliseconds. Defaults to 7 days (604800000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always scrape fresh."
               },
-              "timeoutMS": {
-                "$ref": "#/components/schemas/TimeoutMS"
+              "timeoutOpts": {
+                "$ref": "#/components/schemas/PartialTimeout"
               },
               "tags": {
                 "$ref": "#/components/schemas/RequestTags"
@@ -4317,8 +5200,8 @@ export const ENDPOINTS: Endpoint[] = [
             "type": "string",
             "description": "Domain name to prefetch brand data for"
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/Timeout"
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -4354,8 +5237,8 @@ export const ENDPOINTS: Endpoint[] = [
             "format": "email",
             "description": "Email address to prefetch brand data for. The domain will be extracted from the email. Free email providers (gmail.com, yahoo.com, etc.) and disposable email addresses are not allowed."
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/Timeout"
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -4398,8 +5281,8 @@ export const ENDPOINTS: Endpoint[] = [
           "identifier": {
             "$ref": "#/components/schemas/UtilityPrefetchIdentifier"
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/Timeout"
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -6393,8 +7276,8 @@ export const ENDPOINTS: Endpoint[] = [
             "type": "string",
             "description": "The domain name of the company to retrieve funding history for."
           },
-          "timeoutMS": {
-            "$ref": "#/components/schemas/TimeoutMS"
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -6425,6 +7308,298 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "example": [
       "production",
       "team-alpha"
+    ]
+  },
+  "ScrapeRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "url": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://",
+        "description": "The URL to scrape."
+      },
+      "formats": {
+        "$ref": "#/components/schemas/ScrapeFormats",
+        "description": "Outputs to return. Enable at least one; omitted formats are false."
+      },
+      "sharedParams": {
+        "$ref": "#/components/schemas/ScrapeSharedParams",
+        "description": "Shared browser and content settings. Content filters leave screenshots and original bytes unchanged."
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams",
+        "description": "Markdown options. Requires formats.markdown: true."
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams",
+        "description": "Screenshot options. Requires formats.screenshot: true."
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams",
+        "description": "Image options. Requires formats.images: true."
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams",
+        "description": "Required when formats.parse is true."
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams",
+        "description": "Highlight options. Requires formats.highlights: true."
+      },
+      "maxAgeMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2592000000,
+        "default": 86400000,
+        "description": "Maximum age of each cached output. Defaults to 1 day; 0 fetches fresh and updates the requested outputs. Compatible outputs are shared with the individual scrape endpoints. Image results with hosted files refresh after 23 hours; other outputs retain their own freshness."
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "default": "disabled",
+        "description": "Zero data retention. Bypasses caches and uploads; excludes request/response content and tags from logs. Must be enabled for your organization."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/ScrapeTimeout",
+        "default": {
+          "milliseconds": 60000,
+          "behavior": "fail"
+        },
+        "description": "Total deadline, including navigation, actions, waiting, and all outputs. Defaults to 60000 milliseconds with behavior fail. Individual outputs have internal deadlines that reserve time to return completed outputs; timed-out outputs have success: false and data: null under either behavior. The overall request deadline remains enforced: fail returns an error if that deadline is reached. Use return-partial to allow the current page state and available outputs when the page is still loading. Partial responses set isPartial. Failed retrievals and incomplete captures are not cached; valid captured pieces may be cached independently. Fixed waits must fit before a response reserve of up to 5000 milliseconds (at most one quarter of the timeout) when using return-partial."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags",
+        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams",
+        "description": "Required when formats.json is true."
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams",
+        "description": "Product options. Requires formats.product: true."
+      }
+    },
+    "required": [
+      "url",
+      "formats"
+    ],
+    "allOf": [
+      {
+        "if": {
+          "required": [
+            "markdownParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "markdown"
+              ],
+              "properties": {
+                "markdown": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "screenshotParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "screenshot"
+              ],
+              "properties": {
+                "screenshot": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "imageParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "images"
+              ],
+              "properties": {
+                "images": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "parseParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "parse"
+              ],
+              "properties": {
+                "parse": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "formats": {
+              "required": [
+                "parse"
+              ],
+              "properties": {
+                "parse": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "parseParams"
+          ]
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "highlightsParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "highlights"
+              ],
+              "properties": {
+                "highlights": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "formats": {
+              "required": [
+                "highlights"
+              ],
+              "properties": {
+                "highlights": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "highlightsParams"
+          ]
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "jsonParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "json"
+              ],
+              "properties": {
+                "json": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "formats": {
+              "required": [
+                "json"
+              ],
+              "properties": {
+                "json": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "jsonParams"
+          ]
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "productParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "product"
+              ],
+              "properties": {
+                "product": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      }
     ]
   },
   "NewsSearchEntityByName": {
@@ -6601,27 +7776,47 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "description": "Identify the company by International Securities Identification Number.",
     "title": "By ISIN"
   },
-  "WebScrapeAction": {
-    "oneOf": [
-      {
-        "$ref": "#/components/schemas/WebScrapeWaitAction"
+  "AnswersRequest": {
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": [
+          "fast",
+          "ultra"
+        ],
+        "description": "Research level: fast uses a smaller model and research budget for 10 credits; ultra uses deeper reasoning and research for 100 credits. Defaults to ultra. Only successful requests consume credits."
       },
-      {
-        "$ref": "#/components/schemas/WebScrapePerformAction"
+      "task": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000,
+        "description": "What to research and answer, in plain language. Naming a domain in the task (for example \"pricing on context.dev\") makes the agent read that site before it searches."
       },
-      {
-        "$ref": "#/components/schemas/WebScrapeScrollAction"
-      }
-    ],
-    "discriminator": {
-      "propertyName": "do",
-      "mapping": {
-        "wait": "#/components/schemas/WebScrapeWaitAction",
-        "perform": "#/components/schemas/WebScrapePerformAction",
-        "scroll": "#/components/schemas/WebScrapeScrollAction"
+      "json_format": {
+        "type": "object",
+        "additionalProperties": {},
+        "description": "An example object with placeholder values (for example {\"pricing_page_url\": \"\", \"plans\": [{\"name\": \"\", \"price\": 0}]}). Object keys and value types are preserved; unknown values may be null. Empty arrays accept any JSON items. Defaults to {\"result\": \"\"}. Maximum 8 levels, 500 values, and 16000 characters."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags"
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
       }
     },
-    "description": "Browser action discriminated by `do`. Each variant exposes only its applicable fields."
+    "required": [
+      "task"
+    ],
+    "additionalProperties": false
   },
   "BrowserCountryCode": {
     "type": "string",
@@ -6834,17 +8029,177 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "example": "de",
     "description": "Fetch the target page through a residential proxy in this country (ISO 3166-1 alpha-2)."
   },
-  "LenientTimeoutMS": {
-    "type": "integer",
-    "minimum": 1,
-    "maximum": 300000,
-    "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes)."
+  "LenientTimeout": {
+    "type": "object",
+    "properties": {
+      "milliseconds": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 300000,
+        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+      },
+      "behavior": {
+        "type": "string",
+        "enum": [
+          "fail"
+        ],
+        "default": "fail",
+        "description": "What to do at the deadline. This endpoint supports \"fail\": return 408 REQUEST_TIMEOUT without charging credits."
+      }
+    },
+    "required": [
+      "milliseconds"
+    ],
+    "additionalProperties": false,
+    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
   },
-  "TimeoutMS": {
-    "type": "integer",
-    "minimum": 1000,
-    "maximum": 300000,
-    "description": "Optional timeout in milliseconds for the request. If the request takes longer than this value, it will be aborted with a 408 status code. Maximum allowed value is 300000ms (5 minutes)."
+  "HtmlExtractionRules": {
+    "type": "object",
+    "additionalProperties": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "item",
+                "list"
+              ]
+            },
+            "output": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "html"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "pattern": "^@.*$"
+                },
+                {
+                  "$ref": "#/components/schemas/HtmlExtractionRules"
+                }
+              ]
+            }
+          },
+          "required": [
+            "selector"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "WebScrapeAction": {
+    "oneOf": [
+      {
+        "$ref": "#/components/schemas/WebScrapeWaitAction"
+      },
+      {
+        "$ref": "#/components/schemas/WebScrapePerformAction"
+      },
+      {
+        "$ref": "#/components/schemas/WebScrapeScrollAction"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "do",
+      "mapping": {
+        "wait": "#/components/schemas/WebScrapeWaitAction",
+        "perform": "#/components/schemas/WebScrapePerformAction",
+        "scroll": "#/components/schemas/WebScrapeScrollAction"
+      }
+    },
+    "description": "Browser action discriminated by `do`. Each variant exposes only its applicable fields."
+  },
+  "ScrapeTimeout": {
+    "type": "object",
+    "properties": {
+      "milliseconds": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 300000,
+        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+      },
+      "behavior": {
+        "type": "string",
+        "enum": [
+          "fail",
+          "return-partial"
+        ],
+        "default": "fail",
+        "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far; if none are available, the request still fails without charging credits. Partial results are not cached as complete results. \"return-partial\" requires milliseconds of at least 5000."
+      }
+    },
+    "required": [
+      "milliseconds"
+    ],
+    "additionalProperties": false,
+    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+  },
+  "LenientPartialTimeout": {
+    "type": "object",
+    "properties": {
+      "milliseconds": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 300000,
+        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+      },
+      "behavior": {
+        "type": "string",
+        "enum": [
+          "fail",
+          "return-partial"
+        ],
+        "default": "fail",
+        "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far; if none are available, the request still fails without charging credits. Partial results are not cached as complete results."
+      }
+    },
+    "required": [
+      "milliseconds"
+    ],
+    "additionalProperties": false,
+    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
+  },
+  "PartialTimeout": {
+    "type": "object",
+    "properties": {
+      "milliseconds": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 300000,
+        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+      },
+      "behavior": {
+        "type": "string",
+        "enum": [
+          "fail",
+          "return-partial"
+        ],
+        "default": "fail",
+        "description": "What to do at the deadline. \"fail\" returns 408 REQUEST_TIMEOUT without charging credits. \"return-partial\" returns usable results collected so far; if none are available, the request still fails without charging credits. Partial results are not cached as complete results."
+      }
+    },
+    "required": [
+      "milliseconds"
+    ],
+    "additionalProperties": false,
+    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
   },
   "PersonEnrichmentRequest": {
     "type": "object",
@@ -6958,8 +8313,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         },
         "additionalProperties": false
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "Set to enabled to bypass shared caches and omit request and response content from retained usage logs. Asset uploads are skipped, so hosted image URLs are omitted. Requires zero data retention to be enabled for your organization (contact support@context.dev), otherwise the request fails with ZDR_NOT_ENABLED. Successful ZDR responses include X-Context-ZDR: true."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -6983,8 +8346,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "additionalProperties": false,
         "description": "Known identifiers for the person. At least one identifier is required."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -7477,6 +8840,30 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "zw"
     ],
     "description": "Two-letter ISO 3166-1 alpha-2 country code (GL parameter) used to localize search."
+  },
+  "Timeout": {
+    "type": "object",
+    "properties": {
+      "milliseconds": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 300000,
+        "description": "Request deadline in milliseconds. Maximum: 300000 (5 minutes)."
+      },
+      "behavior": {
+        "type": "string",
+        "enum": [
+          "fail"
+        ],
+        "default": "fail",
+        "description": "What to do at the deadline. This endpoint supports \"fail\": return 408 REQUEST_TIMEOUT without charging credits."
+      }
+    },
+    "required": [
+      "milliseconds"
+    ],
+    "additionalProperties": false,
+    "description": "Optional request deadline and behavior on timeout. For GET requests, use timeoutOpts[milliseconds]=30000&timeoutOpts[behavior]=fail or a JSON-encoded timeoutOpts object."
   },
   "UtilityPrefetchIdentifier": {
     "oneOf": [
@@ -9052,6 +10439,553 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "title": "Submit batch request",
     "description": "Create an asynchronous scraping job."
   },
+  "ScrapeFormats": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "html": {
+        "type": "boolean",
+        "default": false,
+        "description": "Rendered HTML."
+      },
+      "markdown": {
+        "type": "boolean",
+        "default": false,
+        "description": "Page content as Markdown."
+      },
+      "screenshot": {
+        "type": "boolean",
+        "default": false,
+        "description": "An inline image of the page."
+      },
+      "images": {
+        "type": "boolean",
+        "default": false,
+        "description": "Images found on the page."
+      },
+      "bytes": {
+        "type": "boolean",
+        "default": false,
+        "description": "The original HTTP response body."
+      },
+      "parse": {
+        "type": "boolean",
+        "default": false,
+        "description": "Fields selected by parseParams.rules."
+      },
+      "highlights": {
+        "type": "boolean",
+        "default": false,
+        "description": "Relevant Markdown excerpts for your question or topic, preserving code, lists, and tables, with headings included when needed for context. Adds 3 credits when passages are returned."
+      },
+      "json": {
+        "type": "boolean",
+        "default": false,
+        "description": "Page data extracted using your schema. Adds 4 credits when extraction succeeds and its result is returned."
+      },
+      "product": {
+        "type": "boolean",
+        "default": false,
+        "description": "Product details such as name, price, and availability. Adds 1 credit when its successful result is returned or the target page is missing."
+      }
+    },
+    "not": {
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "html"
+            ],
+            "properties": {
+              "html": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "markdown"
+            ],
+            "properties": {
+              "markdown": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "screenshot"
+            ],
+            "properties": {
+              "screenshot": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "images"
+            ],
+            "properties": {
+              "images": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "bytes"
+            ],
+            "properties": {
+              "bytes": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "parse"
+            ],
+            "properties": {
+              "parse": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "highlights"
+            ],
+            "properties": {
+              "highlights": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "json"
+            ],
+            "properties": {
+              "json": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "product"
+            ],
+            "properties": {
+              "product": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ScrapeSharedParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "country": {
+        "type": "string",
+        "pattern": "^[A-Za-z]{2}$",
+        "examples": [
+          "US"
+        ],
+        "description": "Supported two-letter country code, case-insensitive. Applies to every output, including image downloads."
+      },
+      "headers": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
+          "not": {
+            "pattern": "^(?:[Hh][Oo][Ss][Tt]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ll][Ee][Nn][Gg][Tt][Hh]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Kk][Ee][Ee][Pp]-[Aa][Ll][Ii][Vv][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Pp][Rr][Oo][Xx][Yy]-[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Tt][Ee]|[Tt][Rr][Aa][Ii][Ll][Ee][Rr]|[Tt][Rr][Aa][Nn][Ss][Ff][Ee][Rr]-[Ee][Nn][Cc][Oo][Dd][Ii][Nn][Gg]|[Uu][Pp][Gg][Rr][Aa][Dd][Ee]|[Ee][Xx][Pp][Ee][Cc][Tt])$"
+          }
+        },
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 8192,
+          "pattern": "^[^\\r\\n]*$"
+        },
+        "description": "Headers for the target origin. Requests with custom headers bypass caching.",
+        "examples": [
+          {
+            "Accept-Language": "en-US"
+          }
+        ]
+      },
+      "viewport": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 7680,
+            "default": 1440
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 4320,
+            "default": 900
+          }
+        },
+        "description": "Browser dimensions in pixels."
+      },
+      "theme": {
+        "type": "string",
+        "enum": [
+          "light",
+          "dark"
+        ],
+        "description": "Override the browser color scheme."
+      },
+      "dismissCookies": {
+        "type": "boolean",
+        "default": true,
+        "description": "Dismiss cookie banners by accepting cookies before actions."
+      },
+      "dismissPopups": {
+        "type": "boolean",
+        "default": false,
+        "description": "Dismiss other popups before actions."
+      },
+      "actions": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 5,
+        "items": {
+          "$ref": "#/components/schemas/ScrapeAction"
+        },
+        "description": "Run in order before capture. A failed action fails the request. Bypasses caching."
+      },
+      "waitFor": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "title": "Milliseconds"
+          },
+          {
+            "type": "string",
+            "pattern": "\\S",
+            "maxLength": 2048,
+            "title": "CSS selector"
+          }
+        ],
+        "examples": [
+          500,
+          "#content"
+        ],
+        "description": "After actions, wait this many milliseconds or until a CSS selector is visible. Defaults to 500 ms, or 2000 ms with frames or an XML URL. Set 0 to skip."
+      },
+      "settleAnimations": {
+        "type": "boolean",
+        "description": "Settle animations before capture. Defaults to true with screenshots, otherwise false."
+      },
+      "mainContentOnly": {
+        "type": "boolean",
+        "default": false,
+        "description": "Keep only main content in HTML, Markdown, images, and parsed fields."
+      },
+      "includeSelectors": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 50,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "\\S",
+          "maxLength": 2048
+        },
+        "description": "Keep matching content after mainContentOnly."
+      },
+      "excludeSelectors": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 50,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "\\S",
+          "maxLength": 2048
+        },
+        "description": "Remove matching content. Exclusions win."
+      },
+      "includeFrames": {
+        "type": "boolean",
+        "default": false,
+        "description": "Include iframe content in extraction. Screenshots show visible frames regardless."
+      },
+      "parsers": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Document parsing options.",
+        "properties": {
+          "pdf": {
+            "$ref": "#/components/schemas/ScrapePdfOptions",
+            "description": "PDF text options for HTML, Markdown, and parsed fields."
+          }
+        }
+      }
+    }
+  },
+  "ScrapeMarkdownParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "includeLinks": {
+        "type": "boolean",
+        "default": true
+      },
+      "includeImages": {
+        "type": "boolean",
+        "default": false
+      },
+      "inlineImages": {
+        "type": "string",
+        "enum": [
+          "placeholder",
+          "preserve"
+        ],
+        "description": "Base64 images use placeholders by default. Requires includeImages: true."
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "required": [
+            "inlineImages"
+          ]
+        },
+        "then": {
+          "required": [
+            "includeImages"
+          ],
+          "properties": {
+            "includeImages": {
+              "const": true
+            }
+          }
+        }
+      }
+    ]
+  },
+  "ScrapeScreenshotParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "area": {
+        "default": "viewport",
+        "description": "Viewport, full page, one visible element, or a rectangle. Maximum 40 megapixels.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "viewport",
+              "fullPage"
+            ],
+            "title": "Page"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "selector": {
+                "type": "string",
+                "pattern": "\\S",
+                "maxLength": 2048,
+                "description": "Must match one visible element."
+              }
+            },
+            "required": [
+              "selector"
+            ],
+            "title": "Element"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "y": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7680
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "title": "Rectangle",
+            "description": "Pixels from the document origin."
+          }
+        ]
+      },
+      "format": {
+        "type": "string",
+        "enum": [
+          "png",
+          "jpeg",
+          "webp"
+        ],
+        "default": "png"
+      }
+    }
+  },
+  "ScrapeImageParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enrich": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 3,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "dimensions",
+            "classification",
+            "file"
+          ]
+        },
+        "description": "Add dimensions, a visual category, or a hosted file URL. Each image has a maximum processing time of 30000 milliseconds, bounded by the remaining request deadline."
+      },
+      "dedupe": {
+        "type": "string",
+        "enum": [
+          "none",
+          "visual"
+        ],
+        "default": "none",
+        "description": "For visual duplicates, keep the largest image."
+      }
+    }
+  },
+  "ScrapeParseParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "rules": {
+        "$ref": "#/components/schemas/ScrapeParseRules"
+      }
+    },
+    "required": [
+      "rules"
+    ]
+  },
+  "ScrapeHighlightsParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000,
+        "description": "The question or topic to find passages for."
+      },
+      "maxCharacters": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 20000,
+        "default": 4000,
+        "description": "Maximum combined length of the returned passages, in characters."
+      }
+    },
+    "required": [
+      "query"
+    ]
+  },
+  "ScrapeJsonParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "schema": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "JSON Schema for the returned object. Must describe a top-level object; at most 50 KB serialized. Optional fields the page does not state are omitted, or null when their type allows null, while required non-nullable fields always receive a best-effort value, so prefer nullable or optional fields for data a page may omit. Zod users can pass the output of z.toJSONSchema().",
+        "example": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Product name."
+            },
+            "price": {
+              "type": "number",
+              "description": "Current price as a plain number."
+            },
+            "inStock": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "instructions": {
+        "type": "string",
+        "maxLength": 2000,
+        "description": "Optional guidance on which facts to prioritize or how to interpret schema fields."
+      }
+    },
+    "required": [
+      "schema"
+    ]
+  },
+  "ScrapeProductParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "useAIFallback": {
+        "type": "boolean",
+        "default": false,
+        "description": "Extract the product with a specialized model when the page has no structured product data. Adds six credits when the model verdict is returned successfully. If the fallback fails, the product output has success: false and data: null with no fallback charge; other outputs remain available. Request deadlines and client disconnects still apply."
+      }
+    }
+  },
   "WebScrapeWaitAction": {
     "type": "object",
     "properties": {
@@ -9176,10 +11110,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "type": {
         "type": "string",
@@ -9227,10 +11161,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "type": {
         "type": "string",
@@ -9283,10 +11217,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "type": {
         "type": "string",
@@ -9335,10 +11269,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "maxAgeMs": {
         "type": "integer",
-        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Values below 1 day (86400000 ms) are clamped to 1 day; values above 1 year (31536000000 ms) are clamped to 1 year."
+        "description": "Maximum age in milliseconds for cached brand data before the API performs a hard refresh. Defaults to 3 months (7776000000 ms). Set to 0 to always perform a hard refresh. Negative values are clamped to 0; values above 1 year (31536000000 ms) are clamped to 1 year."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "type": {
         "type": "string",
@@ -9385,8 +11319,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "format": "uri",
         "description": "Full http(s) URL to fetch brand data from (e.g., 'https://stripe.com/enterprise'). Only this URL is fetched — not the entire internet."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -9433,8 +11367,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "boolean",
         "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
       },
-      "timeoutMS": {
-        "$ref": "#/components/schemas/TimeoutMS"
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/PartialTimeout"
       },
       "country_gl": {
         "type": "string",
@@ -9813,6 +11747,226 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       ]
     }
   },
+  "ScrapeAction": {
+    "title": "Browser action",
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "perform"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "examples": [
+              "Click the product details tab"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "action"
+        ],
+        "title": "Instruction"
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "scroll"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "down",
+              "up",
+              "left",
+              "right"
+            ],
+            "default": "down"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "viewport",
+                  "max"
+                ]
+              }
+            ],
+            "default": "viewport"
+          },
+          "selector": {
+            "type": "string",
+            "pattern": "\\S",
+            "maxLength": 2000,
+            "description": "Scroll this container. Omit to scroll the page."
+          },
+          "maxScrolls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 1
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "Scroll"
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "wait"
+            ]
+          },
+          "milliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000
+          }
+        },
+        "required": [
+          "type",
+          "milliseconds"
+        ],
+        "title": "Wait"
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "waitFor"
+            ]
+          },
+          "selector": {
+            "type": "string",
+            "pattern": "\\S",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "type",
+          "selector"
+        ],
+        "title": "Wait for element"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    }
+  },
+  "ScrapePdfOptions": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "startPage": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "First page to parse, starting at 1."
+      },
+      "endPage": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Last page to parse. Must be at least startPage."
+      },
+      "ocr": {
+        "type": "string",
+        "enum": [
+          "off",
+          "auto"
+        ],
+        "default": "off",
+        "description": "Read text from scanned pages."
+      }
+    }
+  },
+  "ScrapeParseRules": {
+    "type": "object",
+    "additionalProperties": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "item",
+                "list"
+              ]
+            },
+            "output": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "html"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "pattern": "^@.*$"
+                },
+                {
+                  "$ref": "#/components/schemas/ScrapeParseRules"
+                }
+              ]
+            }
+          },
+          "required": [
+            "selector"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "minProperties": 1,
+    "description": "Map field names to CSS selectors or rules. Missing items return null; missing lists return [].",
+    "examples": [
+      {
+        "title": "h1",
+        "links": {
+          "selector": "a",
+          "type": "list",
+          "output": "@href"
+        }
+      }
+    ]
+  },
   "MonitorsPageTarget": {
     "type": "object",
     "properties": {
@@ -9838,6 +11992,33 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "boolean",
         "default": true,
         "description": "Normalize whitespace before comparing or analyzing text."
+      },
+      "include_selectors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "maxItems": 50,
+        "description": "CSS selectors defining the HTML regions to monitor. Matching subtrees are combined in document order before text extraction, instead of automatic main-content selection. Omit or pass an empty array to use automatic main-content extraction. If the filtered page has no usable text, the run fails without replacing the baseline. Changing these selectors creates a new baseline.",
+        "example": [
+          "#attraction-details"
+        ]
+      },
+      "exclude_selectors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "maxItems": 50,
+        "description": "CSS selectors for HTML regions to remove before text extraction. Applied after include_selectors; exclusion takes precedence when an element matches both. Omit or pass an empty array to apply no explicit exclusions. Changing these selectors creates a new baseline.",
+        "example": [
+          ".carousel",
+          "[id^=\"TA_\"]"
+        ]
       }
     },
     "required": [
@@ -10054,7 +12235,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "url": {
         "type": "string",
         "format": "uri",
-        "description": "Webhook URL events are delivered to.",
+        "description": "Webhook URL events are delivered to. Slack incoming webhook URLs are automatically formatted as Slack messages.",
         "example": "https://example.com/webhook"
       },
       "events": {
@@ -10081,7 +12262,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "secret": {
         "type": "string",
         "readOnly": true,
-        "description": "Signing secret used to verify webhook authenticity. Each delivery includes an `X-Context-Signature: t=<unix>,v1=<hmac>` header, where the HMAC is SHA-256 over `\"{t}.{rawRequestBody}\"` keyed by this secret. Recompute it with a constant-time compare and reject stale timestamps to prevent replay. Generated by the API; cannot be set by clients.",
+        "description": "Signing secret used to verify webhook authenticity. Omitted unless the API key has monitors:write permission or full access. Each delivery includes an `X-Context-Signature: t=<unix>,v1=<hmac>` header, where the HMAC is SHA-256 over `\"{t}.{rawRequestBody}\"` keyed by this secret. Recompute it with a constant-time compare and reject stale timestamps to prevent replay. Generated by the API; cannot be set by clients.",
         "example": "whsec_8f3a…"
       }
     },

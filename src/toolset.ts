@@ -1,350 +1,61 @@
 import type { Endpoint } from "../context-endpoints";
 
-const PUBLIC_API_TOOLS = new Set([
-  "parse-document",
+const API_REFERENCE_TOOL_ORDER = [
   "web-scrape",
-  "web-scrape-sitemap",
+  "web-map",
   "web-crawl",
-  "web-extract",
   "web-search",
   "web-answers",
-  "get-news-search",
   "brand-retrieve-unified",
+  "brand-search",
   "web-styleguide",
-  "web-fonts",
-  "web-naics",
-  "web-sic",
-  "list-logs",
-  "get-log",
-  "list-monitors",
-  "create-monitor",
-  "get-monitor",
-  "update-monitor",
-  "delete-monitor",
-  "list-monitor-runs",
-  "get-monitor-run",
-  "list-monitor-changes",
-  "list-account-runs",
-  "list-monitor-credit-usage",
-  "list-changes",
-  "get-change",
-  "run-monitor-now",
+  "people-enrich",
+  "get-news-search",
+  "parse-document",
   "submit-batch",
   "list-batches",
   "get-batch",
   "get-batch-results",
   "cancel-batch",
   "delete-batch",
-]);
-
-const CURATED_PUBLIC_ENDPOINTS: Endpoint[] = [
-  {
-    name: "web-scrape",
-    title: "Scrape a web page",
-    method: "POST",
-    path: "/web/scrape",
-    description:
-      "Scrape one known URL once and return any combination of HTML, Markdown, a screenshot, page images, relevant highlights, schema-shaped JSON, or product data. Use web-search when the URL is unknown, web-crawl for several linked pages, web-extract for structured data spanning several pages, or submit-batch for large asynchronous jobs.",
-    parameters: [],
-    requestBody: {
-      required: true,
-      contentType: "application/json",
-      binary: false,
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          url: {
-            type: "string",
-            format: "uri",
-            pattern: "^https?://",
-            description: "HTTP or HTTPS URL to scrape.",
-          },
-          formats: {
-            type: "object",
-            additionalProperties: false,
-            description: "Outputs to return. Enable at least one format.",
-            properties: {
-              html: {
-                type: "boolean",
-                description: "Return rendered page HTML.",
-              },
-              markdown: {
-                type: "boolean",
-                description: "Return clean page content as Markdown.",
-              },
-              screenshot: {
-                type: "boolean",
-                description: "Return an inline image of the rendered page.",
-              },
-              images: {
-                type: "boolean",
-                description: "Return images found on the page.",
-              },
-              highlights: {
-                type: "boolean",
-                description:
-                  "Return Markdown passages relevant to highlightsParams.query.",
-              },
-              json: {
-                type: "boolean",
-                description:
-                  "Return page data matching jsonParams.schema.",
-              },
-              product: {
-                type: "boolean",
-                description:
-                  "Return product details such as name, price, and availability.",
-              },
-            },
-          },
-          sharedParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Browser and content settings shared by every output.",
-            properties: {
-              country: {
-                type: "string",
-                pattern: "^[A-Za-z]{2}$",
-                description: "Two-letter country code for the page request.",
-              },
-              viewport: {
-                type: "object",
-                additionalProperties: false,
-                description: "Browser viewport dimensions in pixels.",
-                properties: {
-                  width: {
-                    type: "integer",
-                    minimum: 240,
-                    maximum: 7680,
-                    description: "Viewport width in pixels.",
-                  },
-                  height: {
-                    type: "integer",
-                    minimum: 240,
-                    maximum: 4320,
-                    description: "Viewport height in pixels.",
-                  },
-                },
-              },
-              theme: {
-                type: "string",
-                enum: ["light", "dark"],
-                description: "Preferred page color scheme.",
-              },
-              dismissCookies: {
-                type: "boolean",
-                description: "Dismiss cookie banners before capture.",
-              },
-              dismissPopups: {
-                type: "boolean",
-                description: "Dismiss other obstructive popups before capture.",
-              },
-              waitFor: {
-                oneOf: [
-                  { type: "integer", minimum: 0, maximum: 30000 },
-                  { type: "string", minLength: 1, maxLength: 2048 },
-                ],
-                description:
-                  "Milliseconds to wait or a CSS selector that must become visible before capture.",
-              },
-              settleAnimations: {
-                type: "boolean",
-                description: "Wait briefly for animations to settle.",
-              },
-              mainContentOnly: {
-                type: "boolean",
-                description:
-                  "Keep only the page's primary content when detectable.",
-              },
-              includeSelectors: {
-                type: "array",
-                minItems: 1,
-                maxItems: 50,
-                uniqueItems: true,
-                items: { type: "string", minLength: 1, maxLength: 2048 },
-                description: "Keep content matching these CSS selectors.",
-              },
-              excludeSelectors: {
-                type: "array",
-                minItems: 1,
-                maxItems: 50,
-                uniqueItems: true,
-                items: { type: "string", minLength: 1, maxLength: 2048 },
-                description: "Remove content matching these CSS selectors.",
-              },
-              includeFrames: {
-                type: "boolean",
-                description: "Include iframe content in extracted outputs.",
-              },
-            },
-          },
-          markdownParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Markdown output settings.",
-            properties: {
-              includeLinks: {
-                type: "boolean",
-                description: "Preserve hyperlinks in Markdown.",
-              },
-              includeImages: {
-                type: "boolean",
-                description: "Include image references in Markdown.",
-              },
-              inlineImages: {
-                type: "string",
-                enum: ["placeholder", "preserve"],
-                description:
-                  "Replace inline base64 images with placeholders or preserve them.",
-              },
-            },
-          },
-          screenshotParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Screenshot output settings.",
-            properties: {
-              area: {
-                type: "string",
-                enum: ["viewport", "fullPage"],
-                description: "Capture the viewport or the full page.",
-              },
-              format: {
-                type: "string",
-                enum: ["png", "jpeg", "webp"],
-                description: "Screenshot image format.",
-              },
-            },
-          },
-          imageParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Page image output settings.",
-            properties: {
-              enrich: {
-                type: "array",
-                minItems: 1,
-                maxItems: 3,
-                uniqueItems: true,
-                items: {
-                  type: "string",
-                  enum: ["dimensions", "classification", "file"],
-                },
-                description:
-                  "Add dimensions, visual classification, or a hosted file URL.",
-              },
-              dedupe: {
-                type: "string",
-                enum: ["none", "visual"],
-                description: "Keep all images or remove visual duplicates.",
-              },
-            },
-          },
-          highlightsParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Settings for relevant Markdown highlights.",
-            properties: {
-              query: {
-                type: "string",
-                minLength: 1,
-                maxLength: 2000,
-                description: "Question or topic to find passages for.",
-              },
-              maxCharacters: {
-                type: "integer",
-                minimum: 100,
-                maximum: 20000,
-                description: "Maximum combined highlight length.",
-              },
-            },
-            required: ["query"],
-          },
-          jsonParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Settings for schema-shaped JSON extraction.",
-            properties: {
-              schema: {
-                type: "object",
-                additionalProperties: true,
-                description:
-                  "JSON Schema describing the top-level object to return.",
-              },
-              instructions: {
-                type: "string",
-                maxLength: 2000,
-                description: "Optional extraction guidance.",
-              },
-            },
-            required: ["schema"],
-          },
-          productParams: {
-            type: "object",
-            additionalProperties: false,
-            description: "Product extraction settings.",
-            properties: {
-              useAIFallback: {
-                type: "boolean",
-                description:
-                  "Use the specialized model when structured product data is unavailable.",
-              },
-            },
-          },
-          maxAgeMs: {
-            type: "integer",
-            minimum: 0,
-            maximum: 2592000000,
-            description:
-              "Maximum cached result age in milliseconds. Use 0 to fetch fresh.",
-          },
-        },
-        required: ["url", "formats"],
-      },
-    },
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: true,
-    },
-  },
-  {
-    name: "get-monitor-run",
-    title: "Get a monitor run",
-    method: "GET",
-    path: "/monitors/{monitor_id}/runs/{run_id}",
-    description:
-      "Retrieve one run for a monitor, including lifecycle status, timing, credits charged, and the detected change when present. Use after list-monitor-runs or run-monitor-now when the full outcome of one check is needed.",
-    parameters: [
-      {
-        name: "monitor_id",
-        in: "path",
-        required: true,
-        description: "Monitor ID.",
-        schema: { type: "string" },
-      },
-      {
-        name: "run_id",
-        in: "path",
-        required: true,
-        description: "Monitor run ID.",
-        schema: { type: "string" },
-      },
-    ],
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: false,
-    },
-  },
-];
+  "create-monitor",
+  "list-monitors",
+  "get-monitor",
+  "update-monitor",
+  "delete-monitor",
+  "get-monitor-limits",
+  "list-monitor-credit-usage",
+  "run-monitor-now",
+  "list-monitor-runs",
+  "get-monitor-run",
+  "list-account-runs",
+  "list-monitor-changes",
+  "get-change",
+  "list-changes",
+  "rotate-monitor-webhook-secret",
+  "list-webhook-deliveries",
+  "get-webhook-delivery",
+  "list-webhook-delivery-attempts",
+  "retry-webhook-delivery",
+  "list-logs",
+  "get-log",
+] as const;
 
 type ToolOverride = Partial<
   Pick<Endpoint, "title" | "description" | "annotations">
 >;
 
 const TOOL_OVERRIDES: Record<string, ToolOverride> = {
+  "web-scrape": {
+    title: "Scrape a URL",
+    description:
+      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing, deadlines, and zero data retention. Browser clicks can change the target site's state. Use web-search when the URL is unknown, web-map for URLs only, web-crawl for linked pages, or submit-batch for large asynchronous jobs.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    },
+  },
   "parse-document": {
     title: "Parse a file to Markdown",
     description:
@@ -355,10 +66,10 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       openWorldHint: false,
     },
   },
-  "web-scrape-sitemap": {
-    title: "Discover website URLs",
+  "web-map": {
+    title: "Map URLs",
     description:
-      "Discover URLs from a website's sitemap without fetching every page body. Use this to inventory a site or locate relevant pages cheaply. Use web-scrape for one page, web-crawl to collect content from several pages, or submit-batch for large asynchronous collection.",
+      "Map a website's URLs using Context's index, with available page titles, descriptions, keywords, and languages. Filter by URL pattern or search phrase without retrieving every page body. Use web-scrape for one page, web-crawl for content from several pages, or submit-batch for large asynchronous collection.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -368,17 +79,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-crawl": {
     title: "Crawl a website",
     description:
-      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Use this for focused multi-page research when results are needed immediately. Use web-scrape-sitemap for URLs only or submit-batch for large jobs that should run asynchronously.",
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: true,
-    },
-  },
-  "web-extract": {
-    title: "Extract structured web data",
-    description:
-      "Crawl the relevant pages of a website and return data shaped by the supplied JSON Schema and instructions. Use this when the requested output has defined fields, such as pricing, locations, jobs, or company facts. Use web-scrape when readable content from one known page is more useful than multi-page structured JSON.",
+      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Use this for focused multi-page research when results are needed immediately. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -398,7 +99,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-answers": {
     title: "Answer a web research question",
     description:
-      "Research the live web and return a sourced answer in the exact JSON shape requested. Use fast for focused questions that should finish quickly or ultra for deeper research. Use web-search when ranked links or snippets are enough, web-scrape when the source URL is already known, or web-extract when the task is to extract a fixed schema from one website.",
+      "Research the live web and return a sourced answer in the exact JSON shape requested. Use fast for focused questions that should finish quickly or ultra for deeper research. Use web-search when ranked links or snippets are enough, or web-scrape with jsonParams when the source URL and extraction schema are already known.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -408,7 +109,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-news-search": {
     title: "Search company news",
     description:
-      "Search live and historical news for one company, identified by exactly one name, domain, ticker with an optional exchange, or ISIN. Filter by publisher domain or country, article language or type, and publication date; paginate results with stable story IDs and verified entity relevance. Use web-search for broader topics or news that is not tied to one company.",
+      "Search live and historical news for one company, identified by exactly one name, domain, ticker with an optional exchange, or ISIN. Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Paginate results with stable story IDs and verified entity relevance. Use web-search for broader topics or news that is not tied to one company.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -435,30 +136,20 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       openWorldHint: true,
     },
   },
-  "web-fonts": {
-    title: "Inspect website fonts",
+  "brand-search": {
+    title: "Search brands",
     description:
-      "Identify the font families used by a website, with fallbacks and usage statistics. Use this when typography must be matched or audited; use web-styleguide for the broader visual system.",
+      "Search indexed brands by company name or domain and return up to 10 lightweight matches. Supports prefix autocomplete, field selection, and typo tolerance. Use brand-retrieve-unified for a full profile or get-brand for a visual domain card.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
       openWorldHint: true,
     },
   },
-  "web-naics": {
-    title: "Classify a company by NAICS",
+  "people-enrich": {
+    title: "Enrich a person",
     description:
-      "Classify a company into 2022 NAICS industry codes from its domain or name. Use this for standardized segmentation, routing, market analysis, or CRM enrichment.",
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: true,
-    },
-  },
-  "web-sic": {
-    title: "Classify a company by SIC",
-    description:
-      "Classify a company into SIC industry codes from its domain or name. Choose the original SIC taxonomy or the latest SEC-maintained list. Use this for finance, compliance, segmentation, or company enrichment.",
+      "Enrich one person from combined identity clues and return a profile with an identity match score. Provide a person email, a person-profile social URL, or both first and last name with company, education, or location. Use brand-retrieve-unified for company data.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -546,6 +237,9 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     },
   },
   "get-monitor-run": {
+    title: "Get a monitor run",
+    description:
+      "Retrieve one run for a monitor, including lifecycle status, timing, credits charged, and the detected change when present. Use after list-monitor-runs or run-monitor-now when the full outcome of one check is needed.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -580,6 +274,66 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       readOnlyHint: true,
       destructiveHint: false,
       openWorldHint: false,
+    },
+  },
+  "get-monitor-limits": {
+    title: "Get monitor limits",
+    description:
+      "Retrieve the authenticated account's current monitor count and maximum allowed monitors. Use before create-monitor when checking available capacity.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "rotate-monitor-webhook-secret": {
+    title: "Rotate a monitor webhook secret",
+    description:
+      "Replace a monitor's webhook signing secret and return its updated configuration. The previous secret stops signing deliveries immediately; update the webhook receiver to use the returned secret. Requires a monitor with a configured webhook URL.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: false,
+    },
+  },
+  "list-webhook-deliveries": {
+    title: "List webhook deliveries",
+    description:
+      "List the authenticated account's batch or monitor webhook deliveries, newest first. Select the source type and filter by batch, monitor, run, status, or creation time. Use get-webhook-delivery or list-webhook-delivery-attempts for delivery details.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "get-webhook-delivery": {
+    title: "Get a webhook delivery",
+    description:
+      "Retrieve one webhook delivery from the authenticated account, including its status and latest attempt. Use list-webhook-deliveries to find its delivery_id.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "list-webhook-delivery-attempts": {
+    title: "List webhook delivery attempts",
+    description:
+      "List attempts for one webhook delivery, newest first, with delivery outcomes for troubleshooting. Use retry-webhook-delivery when another delivery attempt is needed.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "retry-webhook-delivery": {
+    title: "Retry a webhook delivery",
+    description:
+      "Queue another attempt for a webhook delivery created within the last seven days. This can send the event to its configured external receiver again. Use get-webhook-delivery or list-webhook-delivery-attempts to inspect the outcome.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
     },
   },
   "list-changes": {
@@ -679,27 +433,15 @@ function applyToolOverride(endpoint: Endpoint): Endpoint {
   return {
     ...endpoint,
     ...override,
-    parameters: endpoint.parameters.filter(
-      (parameter) => parameter.name !== "headers",
-    ),
   };
 }
 
 export function selectEndpoints(endpoints: Endpoint[]): Endpoint[] {
-  const curatedNames = new Set(
-    CURATED_PUBLIC_ENDPOINTS.map((endpoint) => endpoint.name),
+  const endpointsByName = new Map(
+    endpoints.map((endpoint) => [endpoint.name, endpoint]),
   );
-  const selectedEndpoints = endpoints.filter(
-    (endpoint) =>
-      PUBLIC_API_TOOLS.has(endpoint.name) && !curatedNames.has(endpoint.name),
-  );
-  const selectedNames = new Set(
-    selectedEndpoints.map((endpoint) => endpoint.name),
-  );
-  return [
-    ...selectedEndpoints,
-    ...CURATED_PUBLIC_ENDPOINTS.filter(
-      (endpoint) => !selectedNames.has(endpoint.name),
-    ),
-  ].map(applyToolOverride);
+  return API_REFERENCE_TOOL_ORDER.flatMap((name) => {
+    const endpoint = endpointsByName.get(name);
+    return endpoint ? [applyToolOverride(endpoint)] : [];
+  });
 }
