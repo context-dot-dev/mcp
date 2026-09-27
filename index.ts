@@ -19,7 +19,12 @@ import {
   MISSING_CREDENTIAL_MESSAGE,
   resolveContextCredential,
 } from "./src/auth";
-import { callContextApi } from "./src/context-client";
+import { callContextApi, contextErrorMessage } from "./src/context-client";
+import {
+  contextApiError,
+  contextRequestId,
+  FEEDBACK_INSTRUCTIONS,
+} from "./src/feedback";
 import {
   decodeDcrClientId,
   deriveDcrClientSigningKey,
@@ -191,7 +196,7 @@ const server = new MCPServer({
     "Use `get-brand` for a visual domain profile, `brand-retrieve-unified` for raw brand data or non-domain identifiers, `brand-search` for lightweight brand matches, and `people-enrich` for person identity clues. Use `web-styleguide` for a website's design system. Monitors are for recurring checks, not one-time scraping. Use `get-monitor-limits` to check capacity. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
     "Use `list-webhook-deliveries`, `get-webhook-delivery`, and `list-webhook-delivery-attempts` to inspect batch or monitor notifications. `retry-webhook-delivery` sends a delivery to its receiver again; `rotate-monitor-webhook-secret` replaces a monitor's signing secret and requires updating the receiver.\n\n" +
     "Use `list-logs` to investigate API failures in the authenticated account, then `get-log` with the request ID from a data entry for the redacted retained input and response.\n\n" +
-    "If a Context tool returns a wrong or incomplete result, an unexpected error, or behavior that differs from the docs, report it once with `submit-feedback`, including the request_id from the affected result.\n\n" +
+    FEEDBACK_INSTRUCTIONS + "\n\n" +
     "Authenticate with Context OAuth or a Context API key. Send API keys as `Authorization: Bearer <key>`, `X-API-Key: <key>`, or, when a client cannot set headers, the `api_key` URL parameter. Prefer OAuth or headers because URLs may be recorded in configuration, logs, or history. Some operations consume Context credits, so avoid unnecessary duplicate calls and use idempotency keys for retried batch submissions.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
@@ -837,13 +842,17 @@ function registerBrandTool(): void {
           }),
         });
       } catch (e: any) {
-        return error(`Failed to reach Context API: ${e?.message ?? e}`);
+        return contextApiError(
+          "get-brand",
+          `Failed to reach Context API: ${e?.message ?? e}`,
+        );
       }
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg =
-          (payload as any)?.message || `Context API returned ${res.status}`;
-        return error(`${msg} (domain: ${clean})`);
+        return contextApiError(
+          "get-brand",
+          contextErrorMessage(res.status, payload, res.headers),
+        );
       }
       const brand = normalizeBrand(payload);
       const summary =
@@ -852,7 +861,11 @@ function registerBrandTool(): void {
         (brand.colors.length
           ? `. Colors: ${brand.colors.map((c) => c.hex).join(", ")}`
           : "");
-      return widget({ props: { brand }, output: text(summary) });
+      const requestId = contextRequestId(payload, res.headers);
+      return widget({
+        props: { brand },
+        output: text(summary + (requestId ? `\nrequest_id: ${requestId}` : "")),
+      });
     },
   );
 }
