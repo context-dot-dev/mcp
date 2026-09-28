@@ -407,6 +407,70 @@ test("includes request IDs in upstream API errors", async () => {
   }
 });
 
+test("renders field-level validation issues from array error messages", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const scenario of [
+      {
+        payload: {
+          message: [{ code: "custom", path: ["highlightsParams"], message: "Set formats.highlights to true to use highlightsParams" }],
+          error_code: "INPUT_VALIDATION_ERROR",
+          key_metadata: { credits_consumed: 0, credits_remaining: 4970 },
+        },
+        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: highlightsParams: Set formats.highlights to true to use highlightsParams (request_id: req_validation)",
+      },
+      {
+        payload: {
+          message: [{ code: "custom", message: "schema must describe a top-level JSON object. Wrap arrays or scalar values in an object property.", path: ["jsonParams", "schema"] }],
+          error_code: "INPUT_VALIDATION_ERROR",
+          key_metadata: { credits_consumed: 0, credits_remaining: 4970 },
+        },
+        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: jsonParams.schema: schema must describe a top-level JSON object. Wrap arrays or scalar values in an object property. (request_id: req_validation)",
+      },
+      {
+        payload: {
+          message: [
+            { origin: "array", code: "too_big", maximum: 10, inclusive: true, path: ["includeDomains"], message: "Too big: expected array to have <=10 items" },
+            { code: "invalid_format", path: ["urls", 2], message: "Invalid URL" },
+            { code: "custom", path: [], message: "Provide url or urls" },
+            { code: "custom", message: "Request body is required" },
+          ],
+          error_code: "INPUT_VALIDATION_ERROR",
+        },
+        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: includeDomains: Too big: expected array to have <=10 items; urls.2: Invalid URL; Provide url or urls; Request body is required (request_id: req_validation)",
+      },
+      {
+        payload: { message: ["url is required", "formats must not be empty"] },
+        expected: "Context API 400: url is required; formats must not be empty (request_id: req_validation)",
+      },
+      {
+        payload: { error: [{ path: ["url"], message: "Invalid URL" }], error_code: "INPUT_VALIDATION_ERROR" },
+        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: url: Invalid URL (request_id: req_validation)",
+      },
+      {
+        payload: { message: [{ code: "custom" }], error: "Bad request" },
+        expected: "Context API 400: Bad request (request_id: req_validation)",
+      },
+    ]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(scenario.payload), {
+        status: 400,
+        headers: { "x-request-id": "req_validation" },
+      });
+      const result = await callContextApi({
+        apiBase,
+        endpoint: endpoint({ path: "/test" }),
+        args: {},
+        credential: { apiKey: "key" },
+      });
+      assert.equal(result.isError, true);
+      const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+      assert.equal(message.split("\n\n")[0], scenario.expected);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("forwards the calling MCP client in a header-safe X-Context-Agent", async () => {
   captured.length = 0;
   const call = (clientUserAgent?: string) =>
