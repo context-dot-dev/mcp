@@ -417,7 +417,7 @@ test("renders field-level validation issues from array error messages", async ()
           error_code: "INPUT_VALIDATION_ERROR",
           key_metadata: { credits_consumed: 0, credits_remaining: 4970 },
         },
-        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: highlightsParams: Set formats.highlights to true to use highlightsParams (request_id: req_validation)",
+        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: highlightsParams: Set formats.highlights to true to use highlightsParams (request_id: req_validation; credits_remaining: 4970)",
       },
       {
         payload: {
@@ -425,7 +425,7 @@ test("renders field-level validation issues from array error messages", async ()
           error_code: "INPUT_VALIDATION_ERROR",
           key_metadata: { credits_consumed: 0, credits_remaining: 4970 },
         },
-        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: jsonParams.schema: schema must describe a top-level JSON object. Wrap arrays or scalar values in an object property. (request_id: req_validation)",
+        expected: "Context API 400 [INPUT_VALIDATION_ERROR]: jsonParams.schema: schema must describe a top-level JSON object. Wrap arrays or scalar values in an object property. (request_id: req_validation; credits_remaining: 4970)",
       },
       {
         payload: {
@@ -465,6 +465,104 @@ test("renders field-level validation issues from array error messages", async ()
       assert.equal(result.isError, true);
       const message = result.content[0]?.type === "text" ? result.content[0].text : "";
       assert.equal(message.split("\n\n")[0], scenario.expected);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("account limits show limit details and the next step instead of a feedback nudge", async () => {
+  const originalFetch = globalThis.fetch;
+  const accountLimitGuidance =
+    "This is an account limit working as intended; do not call submit-feedback.";
+  try {
+    for (const scenario of [
+      {
+        status: 429,
+        headers: new Headers({
+          "retry-after": "37",
+          "x-ratelimit-limit": "10",
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": "1790000000",
+          "x-request-id": "req_limit",
+        }),
+        payload: {
+          message: "API rate limit exceeded: 10 request units are allowed per minute and this request uses 1. Retry in 37 seconds.",
+          error_code: "RATE_LIMITED",
+          key_metadata: { credits_consumed: 0, credits_remaining: 48 },
+        },
+        expected: "Context API 429 [RATE_LIMITED]: API rate limit exceeded: 10 request units are allowed per minute and this request uses 1. Retry in 37 seconds. (request_id: req_limit; Retry-After: 37; X-RateLimit-Remaining: 0; X-RateLimit-Limit: 10; credits_remaining: 48)\n\n" +
+          `${accountLimitGuidance} Wait for the Retry-After window before retrying, and make fewer parallel calls.`,
+      },
+      {
+        status: 401,
+        headers: new Headers({ "x-request-id": "req_limit" }),
+        payload: {
+          message: "Usage limit exceeded",
+          error_code: "USAGE_EXCEEDED",
+          key_metadata: { credits_consumed: 0, credits_remaining: 0 },
+        },
+        expected: "Context API 401 [USAGE_EXCEEDED]: Usage limit exceeded (request_id: req_limit; credits_remaining: 0)\n\n" +
+          `${accountLimitGuidance} Stop making credit-consuming calls and tell the user to add credits at https://www.context.dev/dashboard/subscription.`,
+      },
+      {
+        status: 403,
+        headers: new Headers({ "x-request-id": "req_limit" }),
+        payload: { message: "Browser actions require a paid plan", error_code: "PAID_PLAN_REQUIRED" },
+        expected: "Context API 403 [PAID_PLAN_REQUIRED]: Browser actions require a paid plan (request_id: req_limit)\n\n" +
+          `${accountLimitGuidance} Retry without \`sharedParams.actions\`; use \`sharedParams.waitFor\` to wait for content instead.`,
+      },
+    ]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(scenario.payload), {
+        status: scenario.status,
+        headers: scenario.headers,
+      });
+      const result = await callContextApi({
+        apiBase,
+        endpoint: endpoint({ path: "/test" }),
+        args: {},
+        credential: { apiKey: "key" },
+      });
+      assert.equal(result.isError, true);
+      const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+      assert.equal(message, scenario.expected);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("other error codes keep the feedback nudge and show rate-limit counters only on 429", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const scenario of [
+      {
+        status: 401,
+        headers: new Headers({ "x-ratelimit-limit": "10", "x-ratelimit-remaining": "9", "x-request-id": "req_other" }),
+        payload: { message: "Invalid key", error_code: "AUTHENTICATION_FAILED", key_metadata: { credits_remaining: 12 } },
+        expected: "Context API 401 [AUTHENTICATION_FAILED]: Invalid key (request_id: req_other; credits_remaining: 12)",
+      },
+      {
+        status: 503,
+        headers: new Headers({ "retry-after": "1", "x-ratelimit-limit": "10", "x-ratelimit-remaining": "9", "x-request-id": "req_other" }),
+        payload: { message: "Document parsing is at capacity. Please retry shortly.", error_code: "INTERNAL_ERROR" },
+        expected: "Context API 503 [INTERNAL_ERROR]: Document parsing is at capacity. Please retry shortly. (request_id: req_other; Retry-After: 1)",
+      },
+    ]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(scenario.payload), {
+        status: scenario.status,
+        headers: scenario.headers,
+      });
+      const result = await callContextApi({
+        apiBase,
+        endpoint: endpoint({ path: "/test" }),
+        args: {},
+        credential: { apiKey: "key" },
+      });
+      const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+      const [firstLine, guidance] = message.split("\n\n");
+      assert.equal(firstLine, scenario.expected);
+      assert.match(guidance ?? "", /^If this behavior is unexpected, always call submit-feedback once/);
     }
   } finally {
     globalThis.fetch = originalFetch;

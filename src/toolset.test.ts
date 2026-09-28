@@ -109,6 +109,14 @@ test("tool descriptions route agents between overlapping workflows", () => {
     tools.get("submit-feedback")?.description ?? "",
     /category.*note.*request_id.*feedback_id/i,
   );
+  assert.match(
+    tools.get("run-monitor-now")?.description ?? "",
+    /409 MONITOR_PAUSED.*update-monitor.*superseded/,
+  );
+  assert.match(
+    tools.get("update-monitor")?.description ?? "",
+    /resuming a paused monitor.*runs it promptly/,
+  );
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,

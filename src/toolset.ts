@@ -220,7 +220,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "update-monitor": {
     title: "Update a monitor",
     description:
-      "Update an existing monitor's configuration, including its optional external webhook. Changes affect future runs, and changing the target or change-detection definition creates a new baseline. Use get-monitor first when the current configuration must be preserved.",
+      "Update an existing monitor's configuration, including its optional external webhook. Changes affect future runs, changing the target or change-detection definition creates a new baseline, and resuming a paused monitor (status=active) runs it promptly. Use get-monitor first when the current configuration must be preserved.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
@@ -370,7 +370,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "run-monitor-now": {
     title: "Run a monitor now",
     description:
-      "Queue an immediate check for a monitor outside its regular schedule. This starts an asynchronous network run, may advance the monitor's stored comparison baseline, and can notify its configured external webhook when a change is detected. Use get-monitor-run or list-monitor-runs to follow its outcome.",
+      "Queue an immediate check for a monitor outside its regular schedule. This starts an asynchronous network run, may advance the monitor's stored comparison baseline, and can notify its configured external webhook when a change is detected. Use get-monitor-run or list-monitor-runs to follow its outcome. Paused monitors return 409 MONITOR_PAUSED. Setting status=active with update-monitor already runs the monitor promptly; don't call run-monitor-now right after resuming or its run may be skipped as superseded.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,

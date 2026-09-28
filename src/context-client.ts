@@ -9,6 +9,7 @@ const OMITTED_RESPONSE_FIELDS = new Set([
   "trace_id",
   "debug",
 ]);
+const RATE_LIMIT_HEADERS = ["X-RateLimit-Remaining", "X-RateLimit-Limit"];
 
 export type ContextCredential = {
   apiKey: string;
@@ -84,11 +85,37 @@ export function contextErrorMessage(
     (typeof payload.error_description === "string"
       ? payload.error_description
       : "Request failed");
-  const code =
-    typeof payload.error_code === "string" ? ` [${payload.error_code}]` : "";
-  const id = contextRequestId(parsed, headers);
-  const requestId = id ? ` (request_id: ${id})` : "";
-  return `Context API ${status}${code}: ${message || "Request failed"}${requestId}`;
+  const errorCode = contextErrorCode(parsed);
+  const code = errorCode ? ` [${errorCode}]` : "";
+  // The API sends X-RateLimit-* on every response; they only matter once a request is rejected.
+  const rateLimitHeaders = status === 429 ? RATE_LIMIT_HEADERS : [];
+  const details: Array<[string, unknown]> = [
+    ["request_id", contextRequestId(parsed, headers)],
+    ["Retry-After", headers.get("Retry-After")],
+    ...rateLimitHeaders.map((name): [string, unknown] => [name, headers.get(name)]),
+    [
+      "credits_remaining",
+      (payload.key_metadata as Record<string, unknown> | null | undefined)
+        ?.credits_remaining,
+    ],
+  ];
+  const detailText = details
+    .filter(
+      ([, value]) =>
+        typeof value === "number" || (typeof value === "string" && value !== ""),
+    )
+    .map(([name, value]) => `${name}: ${value}`)
+    .join("; ");
+  const suffix = detailText ? ` (${detailText})` : "";
+  return `Context API ${status}${code}: ${message || "Request failed"}${suffix}`;
+}
+
+export function contextErrorCode(parsed: unknown): string | undefined {
+  const errorCode =
+    parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>).error_code
+      : undefined;
+  return typeof errorCode === "string" ? errorCode : undefined;
 }
 
 function formatErrorDetail(detail: unknown): string | undefined {
@@ -339,6 +366,7 @@ export async function callContextApi({
     return contextApiError(
       endpoint.name,
       contextErrorMessage(response.status, parsed, response.headers),
+      contextErrorCode(parsed),
     );
   }
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
