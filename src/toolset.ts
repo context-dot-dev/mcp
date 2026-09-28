@@ -91,7 +91,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-search": {
     title: "Search the live web",
     description:
-      "Search the live web and optionally scrape ranked results to Markdown in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
+      "Search the live web and optionally return Markdown or query-relevant highlights for ranked results in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
