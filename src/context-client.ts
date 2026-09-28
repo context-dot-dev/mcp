@@ -79,18 +79,32 @@ export function contextErrorMessage(
       ? (parsed as Record<string, unknown>)
       : {};
   const message =
-    typeof payload.message === "string"
-      ? payload.message
-      : typeof payload.error === "string"
-        ? payload.error
-        : typeof payload.error_description === "string"
-          ? payload.error_description
-          : "Request failed";
+    formatErrorDetail(payload.message) ??
+    formatErrorDetail(payload.error) ??
+    (typeof payload.error_description === "string"
+      ? payload.error_description
+      : "Request failed");
   const code =
     typeof payload.error_code === "string" ? ` [${payload.error_code}]` : "";
   const id = contextRequestId(parsed, headers);
   const requestId = id ? ` (request_id: ${id})` : "";
   return `Context API ${status}${code}: ${message || "Request failed"}${requestId}`;
+}
+
+function formatErrorDetail(detail: unknown): string | undefined {
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) return undefined;
+  const issues = detail.map(formatValidationIssue).filter(Boolean);
+  return issues.length > 0 ? issues.join("; ") : undefined;
+}
+
+function formatValidationIssue(issue: unknown): string | undefined {
+  if (typeof issue === "string") return issue;
+  if (!issue || typeof issue !== "object") return undefined;
+  const { path, message } = issue as Record<string, unknown>;
+  if (typeof message !== "string") return undefined;
+  const hasPath = Array.isArray(path) && path.length > 0;
+  return hasPath ? `${path.join(".")}: ${message}` : message;
 }
 
 function minimizeContextResponse(
