@@ -2842,7 +2842,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Search the web",
     "method": "POST",
     "path": "/web/search",
-    "description": "Search the web — Search the web and optionally return page content with each result.",
+    "description": "Search the web — Search the web and optionally return page content or relevant passages with each result.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -3143,7 +3143,7 @@ export const ENDPOINTS: Endpoint[] = [
               "enabled": {
                 "type": "boolean",
                 "default": false,
-                "description": "Scrape each result to Markdown. Off by default to keep search cheap and fast."
+                "description": "Scrape each result to Markdown. Adds 1 credit per 10 results."
               },
               "includeLinks": {
                 "type": "boolean",
@@ -3199,8 +3199,8 @@ export const ENDPOINTS: Endpoint[] = [
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 2592000000,
-                "default": 86400000,
-                "description": "Cache TTL in ms for scraped Markdown keyed by URL + options. Default 1 day, max 30 days. Set to 0 to force a fresh scrape."
+                "default": 1296000000,
+                "description": "Cache TTL in ms for scraped Markdown keyed by URL + options. Default 15 days, max 30 days. Set to 0 to force a fresh scrape."
               },
               "waitForMs": {
                 "type": "integer",
@@ -3210,6 +3210,25 @@ export const ENDPOINTS: Endpoint[] = [
               },
               "timeoutOpts": {
                 "$ref": "#/components/schemas/ScrapeTimeout"
+              }
+            }
+          },
+          "highlightsOptions": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Passages from each result page that are relevant to the query. Pages are read with the `markdownOptions` settings.",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return relevant passages for each result. Adds 1 credit per 10 results."
+              },
+              "maxCharacters": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 20000,
+                "default": 4000,
+                "description": "Maximum combined length of passages per result."
               }
             }
           },
