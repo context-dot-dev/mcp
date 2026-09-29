@@ -2867,8 +2867,8 @@ export const ENDPOINTS: Endpoint[] = [
             "items": {
               "type": "string"
             },
-            "maxItems": 10,
-            "description": "Allowlist — only return results from these domains. Up to 10 domains. Example: [\"arxiv.org\", \"github.com\"]."
+            "maxItems": 100,
+            "description": "Allowlist — only return results from these domains. Up to 100 domains. Example: [\"arxiv.org\", \"github.com\"]."
           },
           "excludeDomains": {
             "type": "array",
