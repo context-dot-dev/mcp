@@ -587,10 +587,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "web-scrape",
-    "title": "Scrape a URL",
+    "title": "Scrape Anything",
     "method": "POST",
     "path": "/web/scrape",
-    "description": "Scrape a URL — Returns the outputs you enable in `formats` from one visit to a URL. Each output reports its own `success`, so a failed output does not fail the request.",
+    "description": "Scrape Anything — Scrape anything from a URL on the internet. Returns the outputs you enable in formats. Handles PDFs, DOCX, PPT, XLSX, and 40 other file formats.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -1355,7 +1355,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Scrape raw bytes",
     "method": "GET",
     "path": "/web/scrape/bytes",
-    "description": "Scrape raw bytes — Downloads a resource and returns its bytes as base64. Without waitForMs, returns the original HTTP response without image conversion, text extraction, or character-encoding changes. HTTP compression is decoded before base64 encoding. Supply waitForMs to render HTML with JavaScript in the browser and return the resulting HTML as UTF-8 bytes after the wait. Non-HTML resources, including images and PDFs, keep their original bytes and do not incur a browser wait. Follows public redirects and retries failed downloads through ISP and residential proxies, with a direct fallback. When country is specified, only a residential proxy in that country is used. Supply headers such as Referer for images that require a referring page. Cached results are reused according to maxAgeMs (default: 1 day; maximum: 30 days). Set maxAgeMs=0 to fetch fresh and refresh the cache. Cache identity includes the exact URL, country, waitForMs, and normalized outbound headers. Credential-bearing headers and zero data retention bypass cache reads and writes. cache_metadata reports hit, miss, or zdr and the cached result age in milliseconds. Maximum decoded resource size: 20 MiB (20971520 bytes), before base64 encoding. Successful requests cost 1 credit; errors are not billed.",
+    "description": "Scrape raw bytes — Downloads a resource and returns its bytes as base64. Without waitForMs, returns the original HTTP response without image conversion, text extraction, or character-encoding changes. HTTP compression is decoded before base64 encoding. Supply waitForMs to render HTML with JavaScript in the browser and return the resulting HTML as UTF-8 bytes after the wait. Non-HTML resources, including images and PDFs, keep their original bytes and do not incur a browser wait. Follows public redirects and retries failed downloads through ISP and residential proxies, with a direct fallback. When country is specified, only a residential proxy in that country is used. Supply headers such as Referer for images that require a referring page. Cached results are reused according to maxAgeMs (default: 3 days; maximum: 1 year). Set maxAgeMs=0 to fetch fresh and refresh the cache. Cache identity includes the exact URL, country, waitForMs, and normalized outbound headers. Credential-bearing headers and zero data retention bypass cache reads and writes. cache_metadata reports hit, miss, or zdr and the cached result age in milliseconds. Maximum decoded resource size: 20 MiB (20971520 bytes), before base64 encoding. Successful requests cost 1 credit; errors are not billed.",
     "parameters": [
       {
         "name": "url",
@@ -1421,16 +1421,16 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0,
-          "maximum": 2592000000,
-          "default": 86400000,
-          "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+          "maximum": 31536000000,
+          "default": 259200000,
+          "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
         }
       },
       {
@@ -1641,16 +1641,16 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0,
-          "maximum": 2592000000,
-          "default": 86400000,
-          "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+          "maximum": 31536000000,
+          "default": 259200000,
+          "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
         }
       },
       {
@@ -1923,16 +1923,16 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0,
-          "maximum": 2592000000,
-          "default": 86400000,
-          "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+          "maximum": 31536000000,
+          "default": 259200000,
+          "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
         }
       },
       {
@@ -2065,16 +2065,16 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Reuse a cached result this many milliseconds old or newer. Default: 86400000 (1 day). Set to 0 to bypass cache. Maximum: 2592000000 (30 days).",
+        "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0,
-          "maximum": 2592000000,
-          "default": 86400000,
-          "description": "Reuse a cached result this many milliseconds old or newer. Default: 86400000 (1 day). Set to 0 to bypass cache. Maximum: 2592000000 (30 days)."
+          "maximum": 31536000000,
+          "default": 259200000,
+          "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
         }
       },
       {
@@ -2680,7 +2680,7 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "schema": {
             "type": "object",
-            "description": "JSON Schema for the returned object. Image fields include relevant page image references.",
+            "description": "JSON Schema (not an example object) for the returned object. Image fields include relevant page image references.",
             "additionalProperties": true,
             "example": {
               "type": "object",
@@ -2867,14 +2867,16 @@ export const ENDPOINTS: Endpoint[] = [
             "items": {
               "type": "string"
             },
-            "description": "Allowlist — only return results from these domains. Example: [\"arxiv.org\", \"github.com\"]."
+            "maxItems": 100,
+            "description": "Allowlist — only return results from these domains. Up to 100 domains. Example: [\"arxiv.org\", \"github.com\"]."
           },
           "excludeDomains": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Blocklist — drop results from these domains. Example: [\"pinterest.com\", \"reddit.com\"]."
+            "maxItems": 100,
+            "description": "Blocklist — drop results from these domains. Up to 100 domains. Example: [\"pinterest.com\", \"reddit.com\"]."
           },
           "freshness": {
             "type": "string",
@@ -4349,7 +4351,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Scrape Screenshot",
     "method": "GET",
     "path": "/web/scrape/screenshot",
-    "description": "Scrape Screenshot — Capture the given HTTP or HTTPS URL with configurable viewport, full-page capture, wait time, popup handling, theme, scroll offset, cache age, country, and request timeout. Defaults to a 1920x1080 viewport, a 3-second wait, and a cache age of 1 day. With timeoutOpts.behavior=return-partial, a screenshot of the page rendered so far may be returned; inspect finalDOMState to identify an incomplete render. Successful requests cost 1 credit; errors are not billed.",
+    "description": "Scrape Screenshot — Capture the given HTTP or HTTPS URL with configurable viewport, full-page capture, wait time, popup handling, theme, scroll offset, cache age, country, and request timeout. Defaults to a 1920x1080 viewport, a 3-second wait, and a cache age of 3 days. With timeoutOpts.behavior=return-partial, a screenshot of the page rendered so far may be returned; inspect finalDOMState to identify an incomplete render. Successful requests cost 1 credit; errors are not billed.",
     "parameters": [
       {
         "name": "url",
@@ -4491,16 +4493,16 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "maxAgeMs",
         "in": "query",
         "required": false,
-        "description": "Return a cached screenshot if a prior screenshot for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always capture fresh.",
+        "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh.",
         "schema": {
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0,
-          "maximum": 2592000000,
-          "default": 86400000,
-          "description": "Return a cached screenshot if a prior screenshot for the same parameters exists and is younger than this many milliseconds. Defaults to 1 day (86400000 ms) when omitted. Max is 30 days (2592000000 ms). Set to 0 to always capture fresh."
+          "maximum": 31536000000,
+          "default": 259200000,
+          "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
         }
       },
       {
@@ -7443,15 +7445,15 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "parseParams": {
         "$ref": "#/components/schemas/ScrapeParseParams",
-        "description": "Required when formats.parse is true."
+        "description": "Requires `formats.parse: true`; required when it is set."
       },
       "highlightsParams": {
         "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Required when `formats.highlights` is `true`."
+        "description": "Requires `formats.highlights: true`; required when it is set."
       },
       "jsonParams": {
         "$ref": "#/components/schemas/ScrapeJsonParams",
-        "description": "Required when formats.json is true."
+        "description": "Requires `formats.json: true`; required when it is set."
       },
       "productParams": {
         "$ref": "#/components/schemas/ScrapeProductParams",
@@ -7464,9 +7466,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "maxAgeMs": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 2592000000,
-        "default": 86400000,
-        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 1 day."
+        "maximum": 31536000000,
+        "default": 259200000,
+        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
       },
       "zdr": {
         "type": "string",
@@ -7894,13 +7896,13 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "fast",
           "ultra"
         ],
-        "description": "`fast` for short tasks; `ultra` for deeper research (default)."
+        "description": "`fast` prioritizes speed, with extra verification for people and companies; `ultra` supports deeper research (default)."
       },
       "task": {
         "type": "string",
         "minLength": 1,
         "maxLength": 2000,
-        "description": "Research task. Name a domain to have it read before searching."
+        "description": "Research task. The agent selects company/profile lookups, web searches, or page reads. Include domains or URLs to focus the research."
       },
       "json_format": {
         "type": "object",
@@ -9795,9 +9797,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "null"
                             ],
                             "minimum": 0,
-                            "maximum": 2592000000,
-                            "default": 86400000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+                            "maximum": 31536000000,
+                            "default": 259200000,
+                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -9811,7 +9813,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "ocr": false
                           },
                           "settleAnimations": false,
-                          "maxAgeMs": 86400000
+                          "maxAgeMs": 259200000
                         },
                         "additionalProperties": false,
                         "description": "Options for Markdown output."
@@ -9953,9 +9955,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "null"
                             ],
                             "minimum": 0,
-                            "maximum": 2592000000,
-                            "default": 86400000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+                            "maximum": 31536000000,
+                            "default": 259200000,
+                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -9965,7 +9967,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "ocr": false
                           },
                           "settleAnimations": false,
-                          "maxAgeMs": 86400000
+                          "maxAgeMs": 259200000
                         },
                         "additionalProperties": false,
                         "description": "Options for HTML output."
@@ -10238,9 +10240,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "null"
                             ],
                             "minimum": 0,
-                            "maximum": 2592000000,
-                            "default": 86400000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+                            "maximum": 31536000000,
+                            "default": 259200000,
+                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -10254,7 +10256,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "ocr": false
                           },
                           "settleAnimations": false,
-                          "maxAgeMs": 86400000
+                          "maxAgeMs": 259200000
                         },
                         "additionalProperties": false,
                         "description": "Options for Markdown output."
@@ -10479,9 +10481,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "null"
                             ],
                             "minimum": 0,
-                            "maximum": 2592000000,
-                            "default": 86400000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 1 day. `0` fetches fresh."
+                            "maximum": 31536000000,
+                            "default": 259200000,
+                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
                           }
                         },
                         "default": {
@@ -10491,7 +10493,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                             "ocr": false
                           },
                           "settleAnimations": false,
-                          "maxAgeMs": 86400000
+                          "maxAgeMs": 259200000
                         },
                         "additionalProperties": false,
                         "description": "Options for HTML output."
@@ -10932,7 +10934,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "schema": {
         "type": "object",
         "additionalProperties": true,
-        "description": "JSON Schema for a top-level object, up to 50 KB. Use optional or nullable fields for missing facts.",
+        "description": "JSON Schema (not an example object) for a top-level object, up to 50 KB. Use optional or nullable fields for missing facts.",
         "example": {
           "type": "object",
           "properties": {
@@ -12181,6 +12183,17 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           ".carousel",
           "[id^=\"TA_\"]"
         ]
+      },
+      "actions": {
+        "type": [
+          "array",
+          "null"
+        ],
+        "items": {
+          "$ref": "#/components/schemas/WebScrapeAction"
+        },
+        "maxItems": 5,
+        "description": "Optional browser actions executed in array order after the page loads, before content is captured, on every run. Requires a paid plan. Maximum: 5 actions. Changes create a new baseline."
       }
     },
     "required": [
