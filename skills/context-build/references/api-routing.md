@@ -6,7 +6,7 @@ Use the API reference linked for each capability before implementing request or 
 
 | Need | Capability | REST route | Notes |
 |---|---|---|---|
-| Find current sources when the URL is unknown | Web Search | `POST /web/search` | Can return ranked results and optionally scrape their content. |
+| Find current sources when the URL is unknown | Web Search | `POST /web/search` | Returns ranked results and can include page Markdown or query-relevant highlights. |
 | Find company-specific coverage | News Search | `POST /news/search` | Requires exactly one company identifier: name, domain, ticker, or ISIN. |
 | Read one known page | Scrape | `POST /web/scrape` | Enable `formats.markdown` for summaries, RAG, and readable page content. |
 | Inspect the DOM or raw markup | Scrape | `POST /web/scrape` | Enable `formats.html` when HTML structure matters. |
