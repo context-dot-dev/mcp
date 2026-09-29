@@ -81,6 +81,16 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
         },
       };
     }
+    if (args.domain === "usage-exceeded.test") {
+      return {
+        status: 401,
+        body: {
+          message: "Usage limit exceeded",
+          error_code: "USAGE_EXCEEDED",
+          key_metadata: { credits_consumed: 0, credits_remaining: 0 },
+        },
+      };
+    }
     return {
       status: 200,
       body: {
@@ -976,10 +986,28 @@ test("delivers actionable feedback guidance at initialization and discovery", as
     assert.match(instructions, /otherwise use a relevant public page or docs url/);
     assert.match(instructions, /never include API keys, tokens, cookies, private page contents/);
     assert.match(instructions, /do not report that failure through submit-feedback/);
+    assert.match(instructions, /Never report account limits working as intended \(401 USAGE_EXCEEDED, 429 RATE_LIMITED, 403 PAID_PLAN_REQUIRED\)/);
+    assert.match(instructions, /on 403 PAID_PLAN_REQUIRED, retry without actions/);
     const { tools } = await client.listTools();
     const feedback = tools.find((tool) => tool.name === "submit-feedback");
     assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
     assert.match(feedback?.description ?? "", /wrong or incomplete successful results/);
+    assert.match(feedback?.description ?? "", /Never use it for account limits working as intended: 401 USAGE_EXCEEDED, 429 RATE_LIMITED, or 403 PAID_PLAN_REQUIRED/);
+  } finally {
+    await client.close();
+  }
+});
+
+test("brand account-limit errors give the next step instead of a feedback nudge", async () => {
+  const client = await connectClient();
+  try {
+    const failed = await client.callTool({ name: "get-brand", arguments: { domain: "usage-exceeded.test" } });
+    assert.equal(failed.isError, true);
+    const content = failed.content as Array<{ type: string; text?: string }>;
+    const message = content.find((block) => block.type === "text")?.text ?? "";
+    assert.match(message, /\[USAGE_EXCEEDED\].*\(credits_remaining: 0\)/);
+    assert.match(message, /account limit working as intended; do not call submit-feedback\. Stop making credit-consuming calls/);
+    assert.doesNotMatch(message, /always call submit-feedback/);
   } finally {
     await client.close();
   }
