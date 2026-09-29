@@ -485,7 +485,7 @@
   "app_info": {
     "category": "DEVELOPER_TOOLS",
     "subtitle": "Live web data for AI agents",
-    "description": "Context turns the live web and files into data inside ChatGPT. Search current information and company news; scrape pages into HTML, Markdown, screenshots, images, original bytes, CSS-selected fields, highlights, JSON, or product data; map and crawl websites; parse documents; retrieve brand and person intelligence; inspect design systems; run scraping batches; monitor changes; and manage webhook deliveries.",
+    "description": "Context turns the live web and files into data inside ChatGPT. Search current information and optionally include page Markdown or relevant passages; search company news; scrape pages into HTML, Markdown, screenshots, images, original bytes, CSS-selected fields, highlights, JSON, or product data; map and crawl websites; parse documents; retrieve brand and person intelligence; inspect design systems; run scraping batches; monitor changes; and manage webhook deliveries.",
     "display_name": "Context.dev"
   },
   "test_cases": [
@@ -498,9 +498,9 @@
       "file_attachment_urls": null
     },
     {
-      "description": "Search the live web when the user needs current information and does not know the source URL.",
-      "user_prompt": "Find recent official announcements about the Model Context Protocol from the past 30 days. Give me the title, publisher, publication date, and URL for each result, and clearly say if there are no matching official announcements.",
-      "expected_output": "Returns relevant recent results from official sources with titles, publishers, dates, and URLs, or clearly states that no matching official announcements were found.",
+      "description": "Search the live web with opt-in source highlights when the user needs current information.",
+      "user_prompt": "Find recent official announcements about the Model Context Protocol from the past 30 days. Give me the title, publisher, publication date, URL, and the most relevant passage from each result. Clearly say if there are no matching official announcements.",
+      "expected_output": "Calls web-search with highlightsOptions.enabled set to true and returns relevant recent results from official sources with titles, publishers, dates, URLs, and grounded passages, or clearly states that no matching official announcements were found.",
       "tools_triggered": "web-search",
       "expected_output_url": null,
       "file_attachment_urls": null

@@ -2573,11 +2573,11 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
               }
             },
-            "additionalProperties": false,
             "default": {
               "shouldParse": true,
               "ocr": false
             },
+            "additionalProperties": false,
             "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
           },
           "includeFrames": {
@@ -2587,20 +2587,20 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "includeSelectors": {
             "type": "array",
-            "maxItems": 50,
             "items": {
               "type": "string",
               "maxLength": 2048
             },
+            "maxItems": 50,
             "description": "Keep matching HTML subtrees before converting each page to Markdown."
           },
           "excludeSelectors": {
             "type": "array",
-            "maxItems": 50,
             "items": {
               "type": "string",
               "maxLength": 2048
             },
+            "maxItems": 50,
             "description": "Remove matching elements after inclusions. Exclusions take precedence."
           },
           "maxAgeMs": {
@@ -2680,8 +2680,8 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "schema": {
             "type": "object",
+            "additionalProperties": {},
             "description": "JSON Schema (not an example object) for the returned object. Image fields include relevant page image references.",
-            "additionalProperties": true,
             "example": {
               "type": "object",
               "properties": {
@@ -2744,7 +2744,6 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "Optional maximum link depth from the starting URL (0 = only the starting page). If omitted, there is no crawl depth limit."
           },
           "pdf": {
-            "description": "PDF parsing options, including whether to parse PDFs and the inclusive page range.",
             "type": "object",
             "properties": {
               "shouldParse": {
@@ -2763,10 +2762,11 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Last 1-based PDF page to parse. Must be greater than or equal to start when both are provided."
               }
             },
-            "additionalProperties": false,
             "default": {
               "shouldParse": true
-            }
+            },
+            "additionalProperties": false,
+            "description": "PDF parsing options, including whether to parse PDFs and the inclusive page range."
           },
           "includeFrames": {
             "type": "boolean",
@@ -2793,11 +2793,11 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "actions": {
             "type": "array",
-            "maxItems": 5,
-            "description": "Browser steps before page discovery. Requires a paid plan; defaults the crawl budget to 110000 ms.",
             "items": {
               "$ref": "#/components/schemas/WebScrapeAction"
-            }
+            },
+            "maxItems": 5,
+            "description": "Browser steps before page discovery. Requires a paid plan; defaults the crawl budget to 110000 ms."
           },
           "stopAfterMs": {
             "type": "integer",
@@ -3139,8 +3139,6 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "markdownOptions": {
             "type": "object",
-            "additionalProperties": false,
-            "description": "Inline Markdown scraping for each result. Set `enabled: true` to activate.",
             "properties": {
               "enabled": {
                 "type": "boolean",
@@ -3186,10 +3184,10 @@ export const ENDPOINTS: Endpoint[] = [
                     "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
                   }
                 },
-                "additionalProperties": false,
                 "default": {
                   "shouldParse": true
                 },
+                "additionalProperties": false,
                 "description": "PDF handling. Use start/end to bound text extraction and OCR to a page range."
               },
               "includeFrames": {
@@ -3200,9 +3198,9 @@ export const ENDPOINTS: Endpoint[] = [
               "maxAgeMs": {
                 "type": "integer",
                 "minimum": 0,
-                "maximum": 2592000000,
-                "default": 1296000000,
-                "description": "Cache TTL in ms for scraped Markdown keyed by URL + options. Default 15 days, max 30 days. Set to 0 to force a fresh scrape."
+                "maximum": 31536000000,
+                "default": 15552000000,
+                "description": "Maximum cache age in milliseconds for result page content. Defaults to 180 days (15552000000 ms) when Markdown is requested, or 365 days (31536000000 ms) when only highlights are requested. Explicit values override either default. Maximum: 365 days. Set to 0 to force a fresh scrape."
               },
               "waitForMs": {
                 "type": "integer",
@@ -3213,12 +3211,12 @@ export const ENDPOINTS: Endpoint[] = [
               "timeoutOpts": {
                 "$ref": "#/components/schemas/ScrapeTimeout"
               }
-            }
+            },
+            "additionalProperties": false,
+            "description": "Inline Markdown scraping for each result. Set `enabled: true` to activate."
           },
           "highlightsOptions": {
             "type": "object",
-            "additionalProperties": false,
-            "description": "Passages from each result page that are relevant to the query. Pages are read with the `markdownOptions` settings.",
             "properties": {
               "enabled": {
                 "type": "boolean",
@@ -3232,7 +3230,9 @@ export const ENDPOINTS: Endpoint[] = [
                 "default": 4000,
                 "description": "Maximum combined length of passages per result."
               }
-            }
+            },
+            "additionalProperties": false,
+            "description": "Passages from each result page that are relevant to the query. Pages are read with the `markdownOptions` settings."
           },
           "timeoutOpts": {
             "$ref": "#/components/schemas/PartialTimeout"
@@ -4988,10 +4988,6 @@ export const ENDPOINTS: Endpoint[] = [
       "required": true,
       "schema": {
         "type": "object",
-        "required": [
-          "domain",
-          "data_to_extract"
-        ],
         "properties": {
           "domain": {
             "type": "string",
@@ -4999,7 +4995,6 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "specific_pages": {
             "type": "object",
-            "description": "Optional object specifying which pages to analyze",
             "properties": {
               "home_page": {
                 "type": "boolean",
@@ -5037,19 +5032,13 @@ export const ENDPOINTS: Endpoint[] = [
                 "type": "boolean",
                 "description": "Whether to analyze the pricing page"
               }
-            }
+            },
+            "description": "Optional object specifying which pages to analyze"
           },
           "data_to_extract": {
             "type": "array",
-            "description": "Array of data points to extract from the website",
             "items": {
               "type": "object",
-              "required": [
-                "datapoint_name",
-                "datapoint_type",
-                "datapoint_description",
-                "datapoint_example"
-              ],
               "properties": {
                 "datapoint_name": {
                   "type": "string",
@@ -5084,7 +5073,6 @@ export const ENDPOINTS: Endpoint[] = [
                 },
                 "datapoint_object_schema": {
                   "type": "object",
-                  "description": "Schema definition for objects when datapoint_list_type is 'object'. Provide a map of field names to their scalar types.",
                   "additionalProperties": {
                     "type": "string",
                     "enum": [
@@ -5094,6 +5082,7 @@ export const ENDPOINTS: Endpoint[] = [
                       "boolean"
                     ]
                   },
+                  "description": "Schema definition for objects when datapoint_list_type is 'object'. Provide a map of field names to their scalar types.",
                   "minProperties": 1,
                   "example": {
                     "testimonial_text": "string",
@@ -5108,8 +5097,15 @@ export const ENDPOINTS: Endpoint[] = [
                   "type": "string",
                   "description": "Example of the expected value"
                 }
-              }
-            }
+              },
+              "required": [
+                "datapoint_name",
+                "datapoint_type",
+                "datapoint_description",
+                "datapoint_example"
+              ]
+            },
+            "description": "Array of data points to extract from the website"
           },
           "timeoutOpts": {
             "$ref": "#/components/schemas/PartialTimeout"
@@ -5117,7 +5113,11 @@ export const ENDPOINTS: Endpoint[] = [
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
-        }
+        },
+        "required": [
+          "domain",
+          "data_to_extract"
+        ]
       },
       "contentType": "application/json",
       "binary": false
@@ -5139,9 +5139,6 @@ export const ENDPOINTS: Endpoint[] = [
       "required": true,
       "schema": {
         "type": "object",
-        "required": [
-          "url"
-        ],
         "properties": {
           "url": {
             "type": "string",
@@ -5170,7 +5167,10 @@ export const ENDPOINTS: Endpoint[] = [
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
-        }
+        },
+        "required": [
+          "url"
+        ]
       },
       "contentType": "application/json",
       "binary": false
@@ -5193,11 +5193,7 @@ export const ENDPOINTS: Endpoint[] = [
       "schema": {
         "oneOf": [
           {
-            "title": "By Domain",
             "type": "object",
-            "required": [
-              "domain"
-            ],
             "properties": {
               "domain": {
                 "type": "string",
@@ -5222,14 +5218,14 @@ export const ENDPOINTS: Endpoint[] = [
               "tags": {
                 "$ref": "#/components/schemas/RequestTags"
               }
-            }
+            },
+            "required": [
+              "domain"
+            ],
+            "title": "By Domain"
           },
           {
-            "title": "By Direct URL",
             "type": "object",
-            "required": [
-              "directUrl"
-            ],
             "properties": {
               "directUrl": {
                 "type": "string",
@@ -5255,7 +5251,11 @@ export const ENDPOINTS: Endpoint[] = [
               "tags": {
                 "$ref": "#/components/schemas/RequestTags"
               }
-            }
+            },
+            "required": [
+              "directUrl"
+            ],
+            "title": "By Direct URL"
           }
         ]
       },
@@ -5279,9 +5279,6 @@ export const ENDPOINTS: Endpoint[] = [
       "required": true,
       "schema": {
         "type": "object",
-        "required": [
-          "domain"
-        ],
         "properties": {
           "domain": {
             "type": "string",
@@ -5293,7 +5290,10 @@ export const ENDPOINTS: Endpoint[] = [
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
-        }
+        },
+        "required": [
+          "domain"
+        ]
       },
       "contentType": "application/json",
       "binary": false
@@ -5315,9 +5315,6 @@ export const ENDPOINTS: Endpoint[] = [
       "required": true,
       "schema": {
         "type": "object",
-        "required": [
-          "email"
-        ],
         "properties": {
           "email": {
             "type": "string",
@@ -5330,7 +5327,10 @@ export const ENDPOINTS: Endpoint[] = [
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
-        }
+        },
+        "required": [
+          "email"
+        ]
       },
       "contentType": "application/json",
       "binary": false
@@ -5352,10 +5352,6 @@ export const ENDPOINTS: Endpoint[] = [
       "required": true,
       "schema": {
         "type": "object",
-        "required": [
-          "type",
-          "identifier"
-        ],
         "properties": {
           "type": {
             "type": "string",
@@ -5374,7 +5370,11 @@ export const ENDPOINTS: Endpoint[] = [
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
-        }
+        },
+        "required": [
+          "type",
+          "identifier"
+        ]
       },
       "contentType": "application/json",
       "binary": false
@@ -7375,9 +7375,6 @@ export const ENDPOINTS: Endpoint[] = [
       "required": true,
       "schema": {
         "type": "object",
-        "required": [
-          "domain"
-        ],
         "properties": {
           "domain": {
             "type": "string",
@@ -7389,7 +7386,10 @@ export const ENDPOINTS: Endpoint[] = [
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
-        }
+        },
+        "required": [
+          "domain"
+        ]
       },
       "contentType": "application/json",
       "binary": false
