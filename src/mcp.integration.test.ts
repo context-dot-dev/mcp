@@ -759,7 +759,7 @@ test("forwards all scrape formats, browser actions, CSS rules, and request contr
         },
       },
     },
-    productParams: { useAIFallback: false },
+    productParams: { dedupeImages: false },
     timeoutOpts: { milliseconds: 45000, behavior: "return-partial" },
     zdr: "enabled",
     tags: ["integration-test"],

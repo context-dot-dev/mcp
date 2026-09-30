@@ -1355,7 +1355,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Scrape raw bytes",
     "method": "GET",
     "path": "/web/scrape/bytes",
-    "description": "Scrape raw bytes — Downloads a resource and returns its bytes as base64. Without waitForMs, returns the original HTTP response without image conversion, text extraction, or character-encoding changes. HTTP compression is decoded before base64 encoding. Supply waitForMs to render HTML with JavaScript in the browser and return the resulting HTML as UTF-8 bytes after the wait. Non-HTML resources, including images and PDFs, keep their original bytes and do not incur a browser wait. Follows public redirects and retries failed downloads through ISP and residential proxies, with a direct fallback. When country is specified, only a residential proxy in that country is used. Supply headers such as Referer for images that require a referring page. Cached results are reused according to maxAgeMs (default: 3 days; maximum: 1 year). Set maxAgeMs=0 to fetch fresh and refresh the cache. Cache identity includes the exact URL, country, waitForMs, and normalized outbound headers. Credential-bearing headers and zero data retention bypass cache reads and writes. cache_metadata reports hit, miss, or zdr and the cached result age in milliseconds. Maximum decoded resource size: 20 MiB (20971520 bytes), before base64 encoding. Successful requests cost 1 credit; errors are not billed.",
+    "description": "Scrape raw bytes — Downloads a resource and returns its bytes as base64. Without waitForMs, returns the original HTTP response without image conversion, text extraction, or character-encoding changes. HTTP compression is decoded before base64 encoding. Supply waitForMs to render HTML with JavaScript in the browser and return the resulting HTML as UTF-8 bytes after the wait. Non-HTML resources, including images and PDFs, keep their original bytes and do not incur a browser wait. Follows public redirects and retries failed downloads through ISP and residential proxies, with a direct fallback. When country is specified, only a residential proxy in that country is used. Supply headers such as Referer for images that require a referring page. Cached results are reused according to maxAgeMs (default: 3 days; maximum: 1 year). Set maxAgeMs=0 to fetch fresh and refresh the cache. Cache identity includes the exact URL, country, waitForMs, and normalized outbound headers. Credential-bearing headers and zero data retention bypass cache reads and writes. cache_metadata reports hit, miss, or zdr and the cached result age in milliseconds. Maximum decoded resource size: 50 MiB (52428800 bytes), before base64 encoding. Successful requests cost 1 credit; errors are not billed.",
     "parameters": [
       {
         "name": "url",
@@ -7482,10 +7482,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "timeoutOpts": {
         "$ref": "#/components/schemas/ScrapeTimeout",
         "default": {
-          "milliseconds": 60000,
+          "milliseconds": 90000,
           "behavior": "fail"
         },
-        "description": "Deadline for the whole request. Defaults to 60000 ms with `fail`. Fixed waits must end before it."
+        "description": "Deadline for the whole request. Defaults to 90000 ms with `fail`. Fixed waits must end before it."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags",
@@ -10970,10 +10970,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "type": "object",
     "additionalProperties": false,
     "properties": {
-      "useAIFallback": {
+      "dedupeImages": {
         "type": "boolean",
         "default": false,
-        "description": "Use an AI model when the page has no structured product data."
+        "description": "Drop visually duplicate product images, keeping the largest copy."
       }
     }
   },
