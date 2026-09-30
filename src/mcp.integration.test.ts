@@ -36,7 +36,7 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
   if (method === "POST" && path === "/feedback") {
     return { status: 200, body: { feedback_id: "feedback_local_test" } };
   }
-  if (method === "GET" && path === "/logs") {
+  if (method === "GET" && path === "/org/logs") {
     return {
       status: 200,
       body: {
@@ -55,12 +55,12 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
       },
     };
   }
-  if (method === "GET" && path.startsWith("/logs/")) {
+  if (method === "GET" && path.startsWith("/org/logs/")) {
     return {
       status: 200,
       body: {
         data: {
-          request_id: path.slice("/logs/".length),
+          request_id: path.slice("/org/logs/".length),
           path: "/v1/web/scrape/markdown",
           status_code: 500,
           input: { query: { url: "https://example.test" }, body: {} },
@@ -935,11 +935,11 @@ test("lists and retrieves account logs through the MCP tools", async () => {
   await client.close();
 
   const listUrl = new URL(captured[0]!.url, upstreamBase);
-  assert.equal(listUrl.pathname, "/logs");
+  assert.equal(listUrl.pathname, "/org/logs");
   assert.equal(listUrl.searchParams.get("errors_only"), "true");
   assert.equal(listUrl.searchParams.get("path"), "/web/scrape/markdown");
   assert.equal(listUrl.searchParams.get("limit"), "10");
-  assert.equal(captured[1]!.url, `/logs/${logRequestId}`);
+  assert.equal(captured[1]!.url, `/org/logs/${logRequestId}`);
   assert.equal(
     (detail.data as Record<string, unknown>).request_id,
     logRequestId,
