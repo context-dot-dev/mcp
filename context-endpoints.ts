@@ -122,7 +122,7 @@ export const ENDPOINTS: Endpoint[] = [
     "name": "list-logs",
     "title": "List request logs",
     "method": "GET",
-    "path": "/logs",
+    "path": "/org/logs",
     "description": "List request logs — List your organization’s request logs with filters and pagination. Logs also include batch settlements and monitor runs.",
     "parameters": [
       {
@@ -272,7 +272,7 @@ export const ENDPOINTS: Endpoint[] = [
     "name": "get-log",
     "title": "Retrieve a request log",
     "method": "GET",
-    "path": "/logs/{request_id}",
+    "path": "/org/logs/{request_id}",
     "description": "Retrieve a request log — Retrieve a request’s metadata, retained input, and response.",
     "parameters": [
       {

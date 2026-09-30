@@ -49,8 +49,8 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "GET /webhooks/deliveries/{delivery_id}",
       "GET /webhooks/deliveries/{delivery_id}/attempts",
       "POST /webhooks/deliveries/{delivery_id}/retry",
-      "GET /logs",
-      "GET /logs/{request_id}",
+      "GET /org/logs",
+      "GET /org/logs/{request_id}",
       "POST /feedback",
     ],
   );
