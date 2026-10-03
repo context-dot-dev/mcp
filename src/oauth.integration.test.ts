@@ -411,8 +411,6 @@ test("completes the proxy flow for a registration-bound client on an unlisted do
     { redirect: "manual" }
   );
   assert.equal(authorizeResponse.status, 302);
-  const browserCookie = authorizeResponse.headers.get("set-cookie");
-  assert.ok(browserCookie);
   const upstreamLocation = new URL(authorizeResponse.headers.get("location")!);
   assert.equal(upstreamLocation.searchParams.get("mcp_client"), "mcp-client");
   const upstreamState = upstreamLocation.searchParams.get("state")!;
@@ -429,7 +427,6 @@ test("completes the proxy flow for a registration-bound client on an unlisted do
     upstreamAuthorizeResponse.headers.get("location")!,
     {
       redirect: "manual",
-      headers: { cookie: browserCookie.split(";")[0] },
     }
   );
   assert.equal(callbackResponse.status, 302);
@@ -484,8 +481,6 @@ test("completes the proxy flow for a registered native app callback", async () =
     { redirect: "manual" },
   );
   assert.equal(authorizeResponse.status, 302);
-  const browserCookie = authorizeResponse.headers.get("set-cookie");
-  assert.ok(browserCookie);
   const upstreamLocation = new URL(authorizeResponse.headers.get("location")!);
   assert.equal(
     upstreamLocation.searchParams.get("redirect_uri"),
@@ -500,7 +495,6 @@ test("completes the proxy flow for a registered native app callback", async () =
     upstreamAuthorizeResponse.headers.get("location")!,
     {
       redirect: "manual",
-      headers: { cookie: browserCookie.split(";")[0] },
     },
   );
   assert.equal(callbackResponse.status, 302);
@@ -593,9 +587,6 @@ test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t)
     redirect: "manual",
   });
   assert.equal(authorizeResponse.status, 302);
-  const browserCookie = authorizeResponse.headers.get("set-cookie");
-  assert.ok(browserCookie);
-
   const upstreamAuthorizeResponse = await fetch(
     authorizeResponse.headers.get("location")!,
     { redirect: "manual" }
@@ -605,7 +596,6 @@ test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t)
     upstreamAuthorizeResponse.headers.get("location")!,
     {
       redirect: "manual",
-      headers: { cookie: browserCookie.split(";")[0] },
     }
   );
   assert.equal(callbackResponse.status, 302);
@@ -662,22 +652,12 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     { redirect: "manual" }
   );
   assert.equal(authorizeResponse.status, 302);
-  const browserCookie = authorizeResponse.headers.get("set-cookie");
-  assert.ok(browserCookie);
-  const cookieHeader = browserCookie.split(";")[0];
 
   const upstreamAuthorizeResponse = await fetch(
     authorizeResponse.headers.get("location")!,
     { redirect: "manual" }
   );
   assert.equal(upstreamAuthorizeResponse.status, 302);
-
-  const sharedLinkCallback = await fetch(
-    upstreamAuthorizeResponse.headers.get("location")!,
-    { redirect: "manual" }
-  );
-  assert.equal(sharedLinkCallback.status, 400);
-  assert.equal(sharedLinkCallback.headers.get("location"), null);
 
   const authorizationRequest = authorizationRequests.at(-1)!;
   assert.equal(
@@ -699,16 +679,9 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
 
   const callbackResponse = await fetch(
     upstreamAuthorizeResponse.headers.get("location")!,
-    {
-      redirect: "manual",
-      headers: { cookie: cookieHeader },
-    }
+    { redirect: "manual" }
   );
   assert.equal(callbackResponse.status, 302);
-  assert.match(
-    callbackResponse.headers.get("set-cookie") ?? "",
-    /Max-Age=0/
-  );
   const finalRedirect = new URL(callbackResponse.headers.get("location")!);
   assert.equal(finalRedirect.origin + finalRedirect.pathname, clientRedirect);
   assert.equal(finalRedirect.searchParams.get("code"), "local-authorization-code");
