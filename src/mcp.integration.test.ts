@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:http";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { after, before, test } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -21,6 +24,102 @@ let mcpProcess: ChildProcess;
 
 function batchResponse(method: string, requestUrl: string, requestBody: Buffer) {
   const path = new URL(requestUrl, "http://context.test").pathname;
+  const args =
+    path === "/web/search" || path === "/web/scrape"
+      ? JSON.parse(requestBody.toString())
+      : {};
+  if (path === "/web/search" && args.query === "compact empty") {
+    return { status: 200, body: { results: [], request_id: "req_empty" } };
+  }
+  if (path === "/web/search" && args.query === "compact response") {
+    return {
+      status: 200,
+      body: {
+        query: args.query,
+        request_id: "req_search",
+        cache_metadata: { status: "hit", age_ms: 42 },
+        results: [
+          {
+            url: "https://example.test/one",
+            title: "One",
+            description: "Snippet",
+            relevance: "high",
+            markdown: { markdown: null, code: "NOT_REQUESTED" },
+            highlights: {
+              highlights: [
+                "x".repeat(1187) + "😀" + "Evidence ".repeat(600),
+                "Later passage",
+              ],
+              code: "SUCCESS",
+            },
+          },
+          {
+            url: "https://example.test/two",
+            title: "Two",
+            description: "Fallback snippet",
+            markdown: { markdown: null, code: "NOT_REQUESTED" },
+            highlights: {
+              highlights: null,
+              code: "TIMEOUT",
+              message: "Page timed out",
+            },
+          },
+          {
+            url: "https://example.test/three",
+            title: "Three",
+            description: "No matching passage",
+            highlights: { highlights: [], code: "SUCCESS" },
+          },
+        ],
+      },
+    };
+  }
+  if (path === "/web/scrape" && args.url === "https://example.test/compact") {
+    return {
+      status: 200,
+      body: {
+        url: args.url,
+        request_id: "req_scrape",
+        cache_metadata: { status: "miss", age_ms: 0 },
+        metadata: {
+          title: "Evidence page",
+          description: "Page description",
+          canonicalUrl: args.url,
+          headings: [{ level: 1, text: "Navigation" }],
+          openGraph: { title: "Evidence page" },
+          additionalMeta: { viewport: "width=device-width" },
+        },
+        html: { requested: false, success: null, data: null },
+        markdown: {
+          requested: true,
+          success: true,
+          data: "Page evidence 😀 ".repeat(600),
+        },
+        highlights: { requested: true, success: true, data: [] },
+        json: {
+          requested: true,
+          success: true,
+          data: {
+            requested: false,
+            debug: "keep",
+            nested: null,
+            text: "x".repeat(4500),
+          },
+        },
+        parsed: {
+          requested: true,
+          success: false,
+          data: null,
+          error: "Selector not found",
+        },
+        screenshot: {
+          requested: true,
+          success: true,
+          data: "data:image/png;base64,aGVsbG8=",
+        },
+      },
+    };
+  }
   if (method === "POST" && path === "/web/scrape") {
     const args = JSON.parse(requestBody.toString());
     if (args.url === "https://example.test/feedback-error") {
@@ -310,6 +409,176 @@ async function connectClient(): Promise<Client> {
   );
   return client;
 }
+
+test("compact web responses preserve evidence and errors through the MCP protocol", async () => {
+  const client = await connectClient();
+  try {
+    const { tools } = await client.listTools();
+    for (const name of ["web-search", "web-scrape"]) {
+      const tool = tools.find((entry) => entry.name === name)!;
+      assert.deepEqual(
+        (
+          tool.inputSchema.properties?.responseMode as
+            | { enum?: string[] }
+            | undefined
+        )?.enum,
+        ["full", "compact"],
+      );
+      assert.match(tool.description!, /compact/);
+    }
+    assert.equal(
+      tools.find((tool) => tool.name === "web-map")?.inputSchema.properties
+        ?.responseMode,
+      undefined,
+    );
+
+    const pairs = [];
+    for (const [name, args] of [
+      [
+        "web-search",
+        { query: "compact response", highlightsOptions: { enabled: true } },
+      ],
+      [
+        "web-scrape",
+        {
+          url: "https://example.test/compact",
+          formats: {
+            markdown: true,
+            highlights: true,
+            json: true,
+            parse: true,
+            screenshot: true,
+          },
+          highlightsParams: { query: "evidence" },
+          jsonParams: { schema: {} },
+          parseParams: { rules: { title: "h1" } },
+        },
+      ],
+    ] as const) {
+      const original = await client.callTool({ name, arguments: args });
+      const full = await client.callTool({
+        name,
+        arguments: { ...args, responseMode: "full" },
+      });
+      assert.deepEqual(full, original);
+      const compact = await client.callTool({
+        name,
+        arguments: { ...args, responseMode: "compact" },
+      });
+      assert.equal(compact.isError, undefined);
+      assert.equal(compact.structuredContent, undefined);
+      assert.equal(
+        JSON.parse(captured.at(-1)!.body.toString()).responseMode,
+        undefined,
+      );
+      const data = resultObject(compact);
+      assert.equal(
+        data.request_id,
+        name === "web-search" ? "req_search" : "req_scrape",
+      );
+      assert.equal(data.cache_metadata, undefined);
+      const marker = data._context_mcp as {
+        truncated: boolean;
+        message: string;
+      };
+      assert.equal(marker.truncated, true);
+      assert.match(marker.message, /responseMode/);
+      assert.ok(
+        JSON.stringify(compact).length < JSON.stringify(full).length * 0.65,
+      );
+      if (name === "web-search") {
+        const results = data.results as Array<Record<string, unknown>>;
+        assert.deepEqual(
+          results.map((entry) => entry.url),
+          [
+            "https://example.test/one",
+            "https://example.test/two",
+            "https://example.test/three",
+          ],
+        );
+        assert.equal(results[0].markdown, undefined);
+        assert.equal(results[0].description, undefined);
+        assert.ok((results[0].highlights as string[]).join("").length <= 1200);
+        const excerpt = (results[0].highlights as string[]).join("");
+        assert.equal(Buffer.from(excerpt).toString("utf8"), excerpt);
+        assert.equal(
+          (results[1].highlights as Record<string, unknown>).code,
+          "TIMEOUT",
+        );
+        assert.equal(results[1].description, "Fallback snippet");
+        assert.deepEqual(results[2].highlights, []);
+      } else {
+        assert.equal(data.html, undefined);
+        assert.equal(
+          (data.metadata as Record<string, unknown>).headings,
+          undefined,
+        );
+        assert.equal(
+          (data.metadata as Record<string, unknown>).title,
+          "Evidence page",
+        );
+        assert.ok((data.markdown as string).length <= 4000);
+        assert.deepEqual(data.highlights, []);
+        assert.deepEqual(data.json, {
+          requested: false,
+          debug: "keep",
+          nested: null,
+          text: "x".repeat(4500),
+        });
+        assert.deepEqual(data.parsed, {
+          success: false,
+          data: null,
+          error: "Selector not found",
+        });
+        assert.ok(Array.isArray(compact.content));
+        assert.deepEqual(
+          compact.content.find((block) => block.type === "image"),
+          { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+        );
+      }
+      pairs.push({ name, full, compact });
+    }
+
+    const empty = await client.callTool({
+      name: "web-search",
+      arguments: { query: "compact empty", responseMode: "compact" },
+    });
+    assert.deepEqual(resultObject(empty), {
+      results: [],
+      request_id: "req_empty",
+    });
+    const failure = await client.callTool({
+      name: "web-scrape",
+      arguments: {
+        url: "https://example.test/feedback-error",
+        formats: { markdown: true },
+        responseMode: "compact",
+      },
+    });
+    assert.equal(failure.isError, true);
+    assert.match(
+      JSON.stringify(failure),
+      /4f2c1a1e-1111-4222-8333-444455556666/,
+    );
+    const beforeInvalid = captured.length;
+    const invalid = await client.callTool({
+      name: "web-search",
+      arguments: { query: "compact response", responseMode: "tiny" },
+    });
+    assert.equal(invalid.isError, true);
+    assert.equal(captured.length, beforeInvalid);
+
+    const directory = join(tmpdir(), "context-mcp-compact-evidence");
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "responses.json"),
+      JSON.stringify(pairs, null, 2),
+    );
+    console.log(`Compact response evidence: ${directory}/responses.json`);
+  } finally {
+    await client.close();
+  }
+});
 
 test("serves the OpenAI domain verification token as plain text", async () => {
   const response = await fetch(
