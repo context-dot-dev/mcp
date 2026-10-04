@@ -468,6 +468,30 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
+    "get-usage": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads the authenticated Context account's credit balance, current-period usage, and next refill without modifying any records.",
+        "open_world_justification": "Reads only usage data from the authenticated user's private Context account and does not access or alter external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "get-usage-history": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads aggregated credit and request counts over time for the authenticated Context account without modifying any records.",
+        "open_world_justification": "Reads only usage data from the authenticated user's private Context account and does not access or alter external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
     "submit-feedback": {
       "annotations": {
         "readOnlyHint": false,

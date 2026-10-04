@@ -40,6 +40,8 @@ const API_REFERENCE_TOOL_ORDER = [
   "retry-webhook-delivery",
   "list-logs",
   "get-log",
+  "get-usage",
+  "get-usage-history",
   "submit-feedback",
 ] as const;
 
@@ -172,6 +174,26 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     title: "Get an API request log",
     description:
       "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "get-usage": {
+    title: "Get credit usage",
+    description:
+      "Get the authenticated Context account's credit balance, credits used in the current monthly period, the next refill time and amount, and Auto-Topup status. Use this before large jobs or after a 401 USAGE_EXCEEDED to see how many credits are left and when they refill. Use get-usage-history for usage over time. Costs no credits.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "get-usage-history": {
+    title: "Get credit usage history",
+    description:
+      "Get the authenticated Context account's credits and requests over time, bucketed by hour, day, or month (UTC, oldest first, empty buckets as zeros). Set group_by to path, key_id, or status_code to see which endpoints, API keys, or outcomes used credits. Defaults to the last 30 days by day. Use get-usage for the current balance and next refill. Costs no credits.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

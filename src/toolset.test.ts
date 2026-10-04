@@ -8,7 +8,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
   const selected = selectEndpoints([...ENDPOINTS].reverse());
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 39);
+  assert.equal(selected.length, 41);
   assert.equal(names.size, selected.length);
   assert.deepEqual(
     selected.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
@@ -51,6 +51,8 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "POST /webhooks/deliveries/{delivery_id}/retry",
       "GET /org/logs",
       "GET /org/logs/{request_id}",
+      "GET /org/usage",
+      "GET /org/usage/history",
       "POST /feedback",
     ],
   );
@@ -104,6 +106,14 @@ test("tool descriptions route agents between overlapping workflows", () => {
   assert.match(
     tools.get("list-logs")?.description ?? "",
     /errors_only.*request_id.*get-log/i,
+  );
+  assert.match(
+    tools.get("get-usage")?.description ?? "",
+    /refill.*get-usage-history/i,
+  );
+  assert.match(
+    tools.get("get-usage-history")?.description ?? "",
+    /group_by.*get-usage/i,
   );
   assert.match(
     tools.get("submit-feedback")?.description ?? "",
