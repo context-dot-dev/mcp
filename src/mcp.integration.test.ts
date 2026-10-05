@@ -494,7 +494,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 40);
+  assert.equal(tools.length, 41);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -557,6 +557,7 @@ test("lists the public Context API with safety annotations", async () => {
     "brand-retrieve-unified",
     "get-brand",
     "brand-search",
+    "company-search",
     "web-styleguide",
     "people-enrich",
     "get-news-search",
@@ -815,7 +816,7 @@ test("maps URLs through the documented endpoint with query controls", async () =
   assert.deepEqual(url.searchParams.getAll("tags"), ["map-test", "docs"]);
 });
 
-test("executes brand search and person enrichment", async () => {
+test("executes brand and company search and person enrichment", async () => {
   captured.length = 0;
   const client = await connectClient();
   const person = {
@@ -834,6 +835,14 @@ test("executes brand search and person enrichment", async () => {
       name: "brand-search",
       arguments: { query: "exam", queryBy: ["name", "domain"], autocomplete: true, typoTolerance: 1 },
     },
+    {
+      name: "company-search",
+      arguments: {
+        query: "solar companies in California that raised a Series B",
+        limit: 10,
+        tags: ["company-search-test"],
+      },
+    },
     { name: "people-enrich", arguments: person },
   ];
   for (const call of cases) {
@@ -841,7 +850,7 @@ test("executes brand search and person enrichment", async () => {
   }
   await client.close();
 
-  assert.equal(captured.length, 2);
+  assert.equal(captured.length, 3);
   assert.equal(captured[0]!.method, "GET");
   const searchUrl = new URL(captured[0]!.url, upstreamBase);
   assert.equal(searchUrl.pathname, "/brand/search");
@@ -850,8 +859,15 @@ test("executes brand search and person enrichment", async () => {
   assert.equal(searchUrl.searchParams.get("autocomplete"), "true");
   assert.equal(searchUrl.searchParams.get("typoTolerance"), "1");
   assert.equal(captured[1]!.method, "POST");
-  assert.equal(captured[1]!.url, "/people/enrich");
-  assert.deepEqual(JSON.parse(captured[1]!.body.toString()), person);
+  assert.equal(captured[1]!.url, "/company/search");
+  assert.deepEqual(JSON.parse(captured[1]!.body.toString()), {
+    query: "solar companies in California that raised a Series B",
+    limit: 10,
+    tags: ["company-search-test"],
+  });
+  assert.equal(captured[2]!.method, "POST");
+  assert.equal(captured[2]!.url, "/people/enrich");
+  assert.deepEqual(JSON.parse(captured[2]!.body.toString()), person);
 });
 
 test("executes monitor limits, secret rotation, and webhook delivery operations", async () => {

@@ -9,6 +9,7 @@ const API_REFERENCE_TOOL_ORDER = [
   "web-answers",
   "brand-retrieve-unified",
   "brand-search",
+  "company-search",
   "web-styleguide",
   "people-enrich",
   "get-news-search",
@@ -142,6 +143,16 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     title: "Search brands",
     description:
       "Search indexed brands by company name or domain and return up to 10 lightweight matches. Supports prefix autocomplete, field selection, and typo tolerance. Use brand-retrieve-unified for a full profile or get-brand for a visual domain card.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+  },
+  "company-search": {
+    title: "Search companies",
+    description:
+      "Find companies matching a natural-language description and exact constraints such as location, industry, headcount, founding year, technology, website traffic, or funding. Use this for company discovery and market research; use brand-search when matching a known company name or domain, or brand-retrieve-unified for one company's full profile. Searches with no matches cost no credits.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

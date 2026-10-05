@@ -8,7 +8,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
   const selected = selectEndpoints([...ENDPOINTS].reverse());
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 39);
+  assert.equal(selected.length, 40);
   assert.equal(names.size, selected.length);
   assert.deepEqual(
     selected.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
@@ -20,6 +20,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "POST /web/answers",
       "POST /brand/retrieve",
       "GET /brand/search",
+      "POST /company/search",
       "GET /web/styleguide",
       "POST /people/enrich",
       "POST /news/search",
@@ -102,6 +103,10 @@ test("tool descriptions route agents between overlapping workflows", () => {
     /exactly one.*web-search.*broader topics/i,
   );
   assert.match(
+    tools.get("company-search")?.description ?? "",
+    /natural-language.*brand-search.*brand-retrieve-unified/i,
+  );
+  assert.match(
     tools.get("list-logs")?.description ?? "",
     /errors_only.*request_id.*get-log/i,
   );
@@ -149,6 +154,7 @@ test("every public tool has annotations that match its most privileged behavior"
     "get-news-search",
     "brand-retrieve-unified",
     "brand-search",
+    "company-search",
     "web-styleguide",
     "people-enrich",
   ]);
