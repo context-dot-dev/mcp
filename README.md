@@ -53,6 +53,10 @@ Scrape browser instructions (`perform` actions) require the OAuth `api.write` sc
 
 Tool responses are capped at 40,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
 
+For focused research, pass `responseMode: "compact"` to `web-search` or `web-scrape`. Compact mode returns one JSON text block instead of duplicating it in `structuredContent`, omits unused formats, cache metadata and verbose page metadata, and unwraps successful format data. URLs, titles, request IDs and extraction failures remain available. Empty successful Highlights remain an empty array. Other tools and the REST API are unchanged; omitting the parameter or using `"full"` preserves the existing response.
+
+Compact HTML, Markdown and Highlights are limited to 1,200 characters per format per search result, or 4,000 per scrape format (shared across each Highlights array). Clipping adds an inline marker and `_context_mcp.truncated=true`. Prefer `highlightsOptions: { enabled: true, maxCharacters: 1200 }` for search, or `formats: { highlights: true }` with `highlightsParams: { query: "your question", maxCharacters: 4000 }` for scrape, so the API selects relevant excerpts within the budget. Compact mode itself does not change retrieval or credits. Use `responseMode: "full"` when you need longer text or page metadata. JSON, parsed fields, product data, bytes and images are not shortened by compact mode; the overall server limit still applies.
+
 ## Run locally
 
 ```bash

@@ -903,6 +903,11 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
         : bodySchema.optional();
     }
   }
+  if (endpoint.name === "web-search" || endpoint.name === "web-scrape") {
+    shape.responseMode = z.enum(["full", "compact"]).optional().describe(
+      "Prefer compact for research: one JSON text response, no unused formats or verbose page metadata; HTML/Markdown/Highlights capped at 1,200 characters per field per search result or 4,000 per scrape field. Clipping is marked. JSON, parsed data and images are retained. Full (default) keeps the existing response shape and server limit. Use Highlights for query-relevant excerpts instead of clipped page prefixes.",
+    );
+  }
   return z.object(shape);
 }
 

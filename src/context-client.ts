@@ -1,6 +1,7 @@
 import { error, image, object, text } from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
 import { contextApiError, contextRequestId } from "./feedback";
+import { compactWebResponse } from "./compact-response";
 
 type ToolArguments = Record<string, unknown>;
 const DEFAULT_MAX_RESPONSE_CHARS = 40_000;
@@ -52,6 +53,8 @@ function buildRequestBody(
     Object.entries(args).filter(
       ([name, value]) =>
         value !== undefined &&
+        !(name === "responseMode" &&
+          (endpoint.name === "web-search" || endpoint.name === "web-scrape")) &&
         name !== "fileBase64" &&
         !parameterNames.has(name)
     )
@@ -216,14 +219,20 @@ function truncateJsonValue(
   return String(value);
 }
 
-function boundedObject(value: Record<string, unknown>, originalChars: number) {
+function boundedObject(
+  value: Record<string, unknown>,
+  originalChars: number,
+  isCompact = false,
+) {
+  const render = (data: Record<string, unknown>) =>
+    isCompact ? text(JSON.stringify(data)) : object(data);
   const limit = maxResponseChars();
   if (limit === 0 || originalChars <= limit) {
-    return object(value);
+    return render(value);
   }
   const budget = { remaining: Math.max(1_000, limit - 500), truncated: false };
   const truncated = truncateJsonValue(value, budget) as Record<string, unknown>;
-  return object({
+  return render({
     ...truncated,
     _context_mcp: {
       truncated: true,
@@ -234,10 +243,14 @@ function boundedObject(value: Record<string, unknown>, originalChars: number) {
   });
 }
 
-function contextObject(endpoint: Endpoint, value: Record<string, unknown>) {
+function contextObject(
+  endpoint: Endpoint,
+  value: Record<string, unknown>,
+  isCompact = false,
+) {
   const screenshot = getScreenshot(value);
   if (endpoint.name !== "web-scrape" || !screenshot) {
-    return boundedObject(value, JSON.stringify(value).length);
+    return boundedObject(value, JSON.stringify(value).length, isCompact);
   }
 
   const withoutInlineScreenshot = {
@@ -251,6 +264,7 @@ function contextObject(endpoint: Endpoint, value: Record<string, unknown>) {
   const result = boundedObject(
     withoutInlineScreenshot,
     JSON.stringify(withoutInlineScreenshot).length,
+    isCompact,
   );
   const imageResult = image(screenshot.data, screenshot.mimeType);
   return {
@@ -375,7 +389,13 @@ export async function callContextApi({
     );
     const requestId = contextRequestId(parsed, response.headers);
     if (requestId) minimized.request_id = requestId;
-    return contextObject(endpoint, minimized);
+    const isCompact =
+      args.responseMode === "compact" &&
+      (endpoint.name === "web-search" || endpoint.name === "web-scrape");
+    const value = isCompact
+      ? compactWebResponse(endpoint.name, minimized)
+      : minimized;
+    return contextObject(endpoint, value, isCompact);
   }
   const resultText = parsed === undefined ? raw : JSON.stringify(parsed);
   const limit = maxResponseChars();

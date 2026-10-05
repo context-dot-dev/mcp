@@ -53,7 +53,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-scrape": {
     title: "Scrape a URL",
     description:
-      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing, deadlines, and zero data retention. Browser clicks can change the target site's state. Use web-search when the URL is unknown, web-map for URLs only, web-crawl for linked pages, or submit-batch for large asynchronous jobs.",
+      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing, deadlines, and zero data retention. Browser clicks can change the target site's state. Prefer responseMode=\"compact\" with formats.highlights and highlightsParams.query for focused research; use full for complete content or metadata. Use web-search when the URL is unknown, web-map for URLs only, web-crawl for linked pages, or submit-batch for large asynchronous jobs.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
@@ -93,7 +93,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-search": {
     title: "Search the live web",
     description:
-      "Search the live web and optionally return Markdown or query-relevant highlights for ranked results in the same call. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
+      "Search the live web and optionally return Markdown or query-relevant highlights for ranked results in the same call. Prefer responseMode=\"compact\" with highlightsOptions.enabled=true for focused research; use full for complete content or metadata. Use this to discover sources, answer current questions, or research a topic when the exact page URL is unknown. When a URL is already known, use web-scrape instead. Use web-answers when the user wants a sourced JSON answer rather than ranked links.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
