@@ -38,11 +38,6 @@ import {
 } from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
 import {
-  clearOAuthBrowserCookie,
-  createOAuthBrowserCookie,
-  hasValidOAuthBrowserCookie,
-} from "./src/oauth-browser-transaction";
-import {
   createNativeAuthorizationRedirect,
   createNativeCallbackRedirect,
 } from "./src/native-oauth-redirect";
@@ -424,13 +419,9 @@ function isAllowedOAuthRedirect(value: string): boolean {
 }
 
 if (oauthProvider) {
-  const oauthClientSecret = process.env.CONTEXT_OAUTH_CLIENT_SECRET!;
   const dcrClientSigningKey = deriveDcrClientSigningKey(
     getOAuthTokenEncryptionKey(),
   );
-  const secureOAuthCookies =
-    new URL(process.env.MCP_URL || "http://localhost:3000").protocol ===
-    "https:";
 
   server.app.use("/register", async (context, next) => {
     context.header("Access-Control-Allow-Origin", "*");
@@ -507,16 +498,6 @@ if (oauthProvider) {
       resolveOAuthClientKey(redirectUri),
     );
     context.res.headers.set("location", upstreamUrl.toString());
-    const upstreamState = upstreamUrl.searchParams.get("state");
-    if (!upstreamState) return;
-    context.header(
-      "Set-Cookie",
-      createOAuthBrowserCookie(
-        upstreamState,
-        oauthClientSecret,
-        secureOAuthCookies,
-      ),
-    );
   });
   const mcpBaseUrl = (process.env.MCP_URL || "http://localhost:3000").replace(
     /\/+$/,
@@ -588,28 +569,6 @@ if (oauthProvider) {
     await next();
   });
   server.app.use("/oauth/callback", async (context, next) => {
-    const state = context.req.query("state");
-    if (
-      !state ||
-      !hasValidOAuthBrowserCookie(
-        state,
-        oauthClientSecret,
-        context.req.header("cookie"),
-      )
-    ) {
-      return context.json(
-        {
-          error: "invalid_request",
-          error_description:
-            "OAuth callback did not originate from this browser",
-        },
-        400,
-      );
-    }
-    context.header(
-      "Set-Cookie",
-      clearOAuthBrowserCookie(state, secureOAuthCookies),
-    );
     await next();
     const location = context.res.headers.get("location");
     if (location) {
