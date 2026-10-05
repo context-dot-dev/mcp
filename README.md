@@ -2,7 +2,7 @@
 
 A remote MCP server that gives AI agents reliable context from the live web, company news, and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
 
-The server exposes 41 tools: 40 operations in [API-reference sidebar order](https://docs.context.dev/api-reference/web-scraping/scrape), with the `get-brand` visual wrapper immediately after brand retrieval. Prefetch is intentionally excluded. Webhook event payload pages describe incoming notifications and are not callable tools. Request schemas are generated from the Context OpenAPI specification.
+The server exposes 40 tools: 39 operations in [API-reference sidebar order](https://docs.context.dev/api-reference/web-scraping/scrape), with the `get-brand` visual wrapper immediately after brand retrieval. Prefetch is intentionally excluded. Webhook event payload pages describe incoming notifications and are not callable tools. Request schemas are generated from the Context OpenAPI specification.
 
 ## Connect
 
@@ -33,7 +33,6 @@ Prefer OAuth or headers because URLs can be saved in client configuration, logs,
 | Scrape and crawl | `web-scrape`, `web-map`, `web-crawl` |
 | Search and research | `web-search`, `web-answers` |
 | Brand and design | `brand-retrieve-unified`, `get-brand`, `brand-search`, `web-styleguide` |
-| Company discovery | `company-search` |
 | People | `people-enrich` |
 | Company news | `get-news-search` |
 | Parse | `parse-document` |

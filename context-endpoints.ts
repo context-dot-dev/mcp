@@ -7493,7 +7493,7 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "company-search",
+    "name": "post-company-search",
     "title": "Search companies",
     "method": "POST",
     "path": "/company/search",
@@ -7530,8 +7530,8 @@ export const ENDPOINTS: Endpoint[] = [
       "binary": false
     },
     "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
+      "readOnlyHint": false,
+      "destructiveHint": true,
       "openWorldHint": true
     }
   }
