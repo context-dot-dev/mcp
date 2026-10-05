@@ -294,6 +294,88 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "get-usage",
+    "title": "Retrieve credit usage",
+    "method": "GET",
+    "path": "/org/usage",
+    "description": "Retrieve credit usage — Retrieve your organization’s credit balance, current-period usage, and next refill.",
+    "parameters": [],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "get-usage-history",
+    "title": "Retrieve usage history",
+    "method": "GET",
+    "path": "/org/usage/history",
+    "description": "Retrieve usage history — Retrieve credits and requests over time, bucketed by hour, day, or month. History is kept for one year.",
+    "parameters": [
+      {
+        "name": "from",
+        "in": "query",
+        "required": false,
+        "description": "Start of the range, as an ISO 8601 timestamp. Defaults to 24 hours before `to` for `hour`, 30 days for `day`, and 366 days for `month`.",
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start of the range, as an ISO 8601 timestamp. Defaults to 24 hours before `to` for `hour`, 30 days for `day`, and 366 days for `month`.",
+          "example": "2026-09-01T00:00:00Z"
+        }
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false,
+        "description": "End of the range, as an ISO 8601 timestamp. Defaults to now.",
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End of the range, as an ISO 8601 timestamp. Defaults to now.",
+          "example": "2026-10-01T00:00:00Z"
+        }
+      },
+      {
+        "name": "interval",
+        "in": "query",
+        "required": false,
+        "description": "Bucket size. `hour` covers up to 7 days; `day` and `month` cover up to 366 days. Buckets start on UTC boundaries.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "hour",
+            "day",
+            "month"
+          ],
+          "default": "day",
+          "description": "Bucket size. `hour` covers up to 7 days; `day` and `month` cover up to 366 days. Buckets start on UTC boundaries."
+        }
+      },
+      {
+        "name": "group_by",
+        "in": "query",
+        "required": false,
+        "description": "Split each bucket by endpoint path, API key, or HTTP status code.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "path",
+            "key_id",
+            "status_code"
+          ],
+          "description": "Split each bucket by endpoint path, API key, or HTTP status code."
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "list-webhook-deliveries",
     "title": "List webhook deliveries",
     "method": "POST",

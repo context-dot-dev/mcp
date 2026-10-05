@@ -40,6 +40,7 @@ Prefer OAuth or headers because URLs can be saved in client configuration, logs,
 | Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `get-monitor-limits`, `list-monitor-credit-usage`, `run-monitor-now`, run and change history, `rotate-monitor-webhook-secret` |
 | Webhook deliveries | `list-webhook-deliveries`, `get-webhook-delivery`, `list-webhook-delivery-attempts`, `retry-webhook-delivery` |
 | API debugging | `list-logs`, `get-log` |
+| Credit usage | `get-usage`, `get-usage-history` |
 | Feedback | `submit-feedback` |
 
 `get-brand` includes a visual brand card. Tool descriptions explain when each tool should be used, which adjacent tool to choose instead, whether work is synchronous or asynchronous, and what the result contains. API-backed tools retain the public OpenAPI request validation with MCP safety annotations audited for account state, open-web access, and destructive operations.

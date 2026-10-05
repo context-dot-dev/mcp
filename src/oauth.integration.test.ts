@@ -717,7 +717,7 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     })
   );
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 40);
+  assert.equal(tools.length, 42);
   const { resources } = await client.listResources();
   assert.equal(resources.length, 1);
   const resource = await client.readResource({
@@ -816,7 +816,7 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     })
   );
   const { tools } = await bearerClient.listTools();
-  assert.equal(tools.length, 40);
+  assert.equal(tools.length, 42);
   await bearerClient.callTool({
     name: "web-scrape",
     arguments: { url: "https://example.test", formats: { markdown: true } },

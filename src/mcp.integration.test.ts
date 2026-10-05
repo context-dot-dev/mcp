@@ -55,6 +55,45 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
       },
     };
   }
+  if (method === "GET" && path === "/org/usage") {
+    return {
+      status: 200,
+      body: {
+        credits_remaining: 41250,
+        period: { start: "2026-09-14T07:01:00.000Z", credits_used: 8750 },
+        next_refill: { at: "2026-10-14T07:01:00.000Z", credits: 50000 },
+        auto_topup: {
+          enabled: false,
+          credits_used_this_period: 0,
+          monthly_budget_credits: null,
+        },
+        request_id: "ad13e8f0-1111-4222-8333-444455556666",
+      },
+    };
+  }
+  if (method === "GET" && path === "/org/usage/history") {
+    return {
+      status: 200,
+      body: {
+        data: [
+          {
+            start: "2026-10-03T00:00:00.000Z",
+            credits_used: 50,
+            request_count: 12,
+            groups: [
+              { value: "/v1/web/scrape", credits_used: 50, request_count: 12 },
+            ],
+          },
+        ],
+        total_credits_used: 50,
+        total_request_count: 12,
+        interval: "day",
+        from: "2026-10-03T00:00:00.000Z",
+        to: "2026-10-04T00:00:00.000Z",
+        request_id: "bd13e8f0-1111-4222-8333-444455556666",
+      },
+    };
+  }
   if (method === "GET" && path.startsWith("/org/logs/")) {
     return {
       status: 200,
@@ -494,7 +533,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 40);
+  assert.equal(tools.length, 42);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -588,6 +627,8 @@ test("lists the public Context API with safety annotations", async () => {
     "retry-webhook-delivery",
     "list-logs",
     "get-log",
+    "get-usage",
+    "get-usage-history",
     "submit-feedback",
   ]);
   for (const privateName of [
@@ -1413,4 +1454,28 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
   ]);
   assert.equal("creditsRemaining" in brandCard.brand, false);
   assert.equal("key_metadata" in resultObject(rawBrandResult), false);
+});
+
+test("reads credit usage and history through the MCP tools", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+
+  const usage = resultObject(
+    await client.callTool({ name: "get-usage", arguments: {} }),
+  );
+  const history = resultObject(
+    await client.callTool({
+      name: "get-usage-history",
+      arguments: { interval: "day", group_by: "path" },
+    }),
+  );
+  await client.close();
+
+  assert.equal(captured[0]!.url, "/org/usage");
+  const historyUrl = new URL(captured[1]!.url, upstreamBase);
+  assert.equal(historyUrl.pathname, "/org/usage/history");
+  assert.equal(historyUrl.searchParams.get("interval"), "day");
+  assert.equal(historyUrl.searchParams.get("group_by"), "path");
+  assert.equal(usage.credits_remaining, 41250);
+  assert.equal(history.total_credits_used, 50);
 });
