@@ -650,6 +650,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "force": {
             "type": "boolean",
+            "default": false,
             "description": "Resend even if the delivery already succeeded. Defaults to false."
           },
           "tags": {
@@ -1367,12 +1368,12 @@ export const ENDPOINTS: Endpoint[] = [
             "start": {
               "type": "integer",
               "minimum": 1,
-              "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+              "description": "First 1-based PDF page to parse."
             },
             "end": {
               "type": "integer",
               "minimum": 1,
-              "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+              "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
             }
           },
           "additionalProperties": false,
@@ -1569,7 +1570,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "pdf",
         "in": "query",
         "required": false,
-        "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range.",
+        "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range.",
         "schema": {
           "type": "object",
           "properties": {
@@ -1581,12 +1582,12 @@ export const ENDPOINTS: Endpoint[] = [
             "start": {
               "type": "integer",
               "minimum": 1,
-              "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+              "description": "First 1-based PDF page to parse."
             },
             "end": {
               "type": "integer",
               "minimum": 1,
-              "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+              "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
             },
             "ocr": {
               "type": "boolean",
@@ -1598,7 +1599,7 @@ export const ENDPOINTS: Endpoint[] = [
             "shouldParse": true,
             "ocr": false
           },
-          "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+          "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
         }
       },
       {
@@ -1920,7 +1921,7 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "pdf",
         "in": "query",
         "required": false,
-        "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range.",
+        "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range.",
         "schema": {
           "type": "object",
           "properties": {
@@ -1932,12 +1933,12 @@ export const ENDPOINTS: Endpoint[] = [
             "start": {
               "type": "integer",
               "minimum": 1,
-              "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+              "description": "First 1-based PDF page to parse."
             },
             "end": {
               "type": "integer",
               "minimum": 1,
-              "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+              "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
             },
             "ocr": {
               "type": "boolean",
@@ -1949,7 +1950,7 @@ export const ENDPOINTS: Endpoint[] = [
             "shouldParse": true,
             "ocr": false
           },
-          "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+          "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
         }
       },
       {
@@ -2586,6 +2587,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "url": {
             "type": "string",
+            "minLength": 1,
             "format": "uri",
             "description": "Start URL, including `http://` or `https://`."
           },
@@ -2603,6 +2605,7 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "urlRegex": {
             "type": "string",
+            "maxLength": 256,
             "description": "Regex pattern. Only URLs matching this pattern will be followed and scraped. An automatic prefix scope in the form ^<starting URL> follows a redirect of the starting page.",
             "example": "^https?://[^/]+/blog/"
           },
@@ -2639,20 +2642,20 @@ export const ENDPOINTS: Endpoint[] = [
                 "default": true,
                 "description": "When true, PDF pages are fetched and parsed. When false, PDF pages are skipped entirely (not included in results and not counted as failures)."
               },
-              "ocr": {
-                "type": "boolean",
-                "default": false,
-                "description": "Read scanned PDF pages with OCR; preserve pages that already contain text."
-              },
               "start": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+                "description": "First 1-based PDF page to parse."
               },
               "end": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
+              },
+              "ocr": {
+                "type": "boolean",
+                "default": false,
+                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
               }
             },
             "default": {
@@ -2668,32 +2671,46 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "When true, the contents of iframes are rendered to Markdown for each crawled page."
           },
           "includeSelectors": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 2048
             },
             "maxItems": 50,
             "description": "Keep matching HTML subtrees before converting each page to Markdown."
           },
           "excludeSelectors": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 2048
             },
             "maxItems": 50,
             "description": "Remove matching elements after inclusions. Exclusions take precedence."
           },
           "maxAgeMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 2592000000,
             "default": 86400000,
             "description": "Maximum cache age in milliseconds. Defaults to 1 day; `0` fetches fresh."
           },
           "waitForMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 30000,
             "default": 3500,
@@ -2707,15 +2724,15 @@ export const ENDPOINTS: Endpoint[] = [
           "stopAfterMs": {
             "type": "integer",
             "minimum": 10000,
-            "maximum": 110000,
             "default": 80000,
+            "maximum": 110000,
             "description": "Soft crawl deadline in milliseconds. Returns pages collected before the next deadline check."
-          },
-          "country": {
-            "$ref": "#/components/schemas/BrowserCountryCode"
           },
           "timeoutOpts": {
             "$ref": "#/components/schemas/PartialTimeout"
+          },
+          "country": {
+            "$ref": "#/components/schemas/BrowserCountryCode"
           },
           "zdr": {
             "type": "string",
@@ -2757,6 +2774,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "url": {
             "type": "string",
+            "minLength": 1,
             "format": "uri",
             "description": "The starting website URL to crawl and extract from. Must include http:// or https://."
           },
@@ -2841,14 +2859,14 @@ export const ENDPOINTS: Endpoint[] = [
               "end": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "Last 1-based PDF page to parse. Must be greater than or equal to start when both are provided."
+                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
               }
             },
             "default": {
               "shouldParse": true
             },
             "additionalProperties": false,
-            "description": "PDF parsing options, including whether to parse PDFs and the inclusive page range."
+            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
           },
           "includeFrames": {
             "type": "boolean",
@@ -2856,14 +2874,20 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "When true, iframe contents are included in Markdown before extraction."
           },
           "maxAgeMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 2592000000,
             "default": 604800000,
             "description": "Return cached scrape results if a prior scrape for the same parameters is younger than this many milliseconds. Defaults to 7 days (604800000 ms)."
           },
           "waitForMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 30000,
             "description": "Optional browser wait time in milliseconds after initial page load for each crawled page."
@@ -2874,7 +2898,10 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "Wait briefly for CSS animations and transitions to settle before reading each page."
           },
           "actions": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/WebScrapeAction"
             },
@@ -2884,8 +2911,8 @@ export const ENDPOINTS: Endpoint[] = [
           "stopAfterMs": {
             "type": "integer",
             "minimum": 10000,
-            "maximum": 110000,
             "default": 80000,
+            "maximum": 110000,
             "description": "Soft time budget for the crawl in milliseconds. Min: 10000 (10s). Max: 110000 (110s). Defaults to 80000 (80s), or 110000 (110s) when browser actions are provided."
           },
           "timeoutOpts": {
@@ -2947,7 +2974,8 @@ export const ENDPOINTS: Endpoint[] = [
           "includeDomains": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 3
             },
             "maxItems": 100,
             "description": "Allowlist — only return results from these domains. Up to 100 domains. Example: [\"arxiv.org\", \"github.com\"]."
@@ -2955,7 +2983,8 @@ export const ENDPOINTS: Endpoint[] = [
           "excludeDomains": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 3
             },
             "maxItems": 100,
             "description": "Blocklist — drop results from these domains. Up to 100 domains. Example: [\"pinterest.com\", \"reddit.com\"]."
@@ -3220,7 +3249,10 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "Currently has no effect."
           },
           "markdownOptions": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "enabled": {
                 "type": "boolean",
@@ -3258,7 +3290,7 @@ export const ENDPOINTS: Endpoint[] = [
                   "start": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "First PDF page to parse (1-based, inclusive). Defaults to page 1."
+                    "description": "First 1-based PDF page to parse."
                   },
                   "end": {
                     "type": "integer",
@@ -3270,7 +3302,7 @@ export const ENDPOINTS: Endpoint[] = [
                   "shouldParse": true
                 },
                 "additionalProperties": false,
-                "description": "PDF handling. Use start/end to bound text extraction and OCR to a page range."
+                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
               },
               "includeFrames": {
                 "type": "boolean",
@@ -3278,14 +3310,19 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Render iframe contents into the Markdown."
               },
               "maxAgeMs": {
-                "type": "integer",
+                "type": [
+                  "integer",
+                  "null"
+                ],
                 "minimum": 0,
                 "maximum": 31536000000,
-                "default": 15552000000,
                 "description": "Maximum cache age in milliseconds for result page content. Defaults to 180 days (15552000000 ms) when Markdown is requested, or 365 days (31536000000 ms) when only highlights are requested. Explicit values override either default. Maximum: 365 days. Set to 0 to force a fresh scrape."
               },
               "waitForMs": {
-                "type": "integer",
+                "type": [
+                  "integer",
+                  "null"
+                ],
                 "minimum": 0,
                 "maximum": 30000,
                 "description": "Extra wait after page load before rendering, in ms (0–30000). Useful for JS-heavy pages."
@@ -3298,7 +3335,10 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "Inline Markdown scraping for each result. Set `enabled: true` to activate."
           },
           "highlightsOptions": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "enabled": {
                 "type": "boolean",
@@ -5073,7 +5113,11 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "domain": {
             "type": "string",
+            "minLength": 3,
             "description": "The domain name to analyze"
+          },
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
           },
           "specific_pages": {
             "type": "object",
@@ -5124,6 +5168,7 @@ export const ENDPOINTS: Endpoint[] = [
               "properties": {
                 "datapoint_name": {
                   "type": "string",
+                  "minLength": 1,
                   "description": "Name of the data point to extract"
                 },
                 "datapoint_type": {
@@ -5173,10 +5218,12 @@ export const ENDPOINTS: Endpoint[] = [
                 },
                 "datapoint_description": {
                   "type": "string",
+                  "minLength": 1,
                   "description": "Description of what to extract"
                 },
                 "datapoint_example": {
                   "type": "string",
+                  "minLength": 1,
                   "description": "Example of the expected value"
                 }
               },
@@ -5187,10 +5234,8 @@ export const ENDPOINTS: Endpoint[] = [
                 "datapoint_example"
               ]
             },
+            "minItems": 1,
             "description": "Array of data points to extract from the website"
-          },
-          "timeoutOpts": {
-            "$ref": "#/components/schemas/PartialTimeout"
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -5228,7 +5273,10 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "The product page URL to extract product data from."
           },
           "maxAgeMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 2592000000,
             "default": 604800000,
@@ -5279,6 +5327,7 @@ export const ENDPOINTS: Endpoint[] = [
             "properties": {
               "domain": {
                 "type": "string",
+                "minLength": 3,
                 "description": "The domain name to analyze."
               },
               "maxProducts": {
@@ -5288,7 +5337,10 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Maximum number of products to extract."
               },
               "maxAgeMs": {
-                "type": "integer",
+                "type": [
+                  "integer",
+                  "null"
+                ],
                 "minimum": 0,
                 "maximum": 2592000000,
                 "default": 604800000,
@@ -5321,7 +5373,10 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Maximum number of products to extract."
               },
               "maxAgeMs": {
-                "type": "integer",
+                "type": [
+                  "integer",
+                  "null"
+                ],
                 "minimum": 0,
                 "maximum": 2592000000,
                 "default": 604800000,
@@ -5364,6 +5419,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "domain": {
             "type": "string",
+            "minLength": 3,
             "description": "Domain name to prefetch brand data for"
           },
           "timeoutOpts": {
@@ -5400,6 +5456,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "email": {
             "type": "string",
+            "minLength": 1,
             "format": "email",
             "description": "Email address to prefetch brand data for. The domain will be extracted from the email. Free email providers (gmail.com, yahoo.com, etc.) and disposable email addresses are not allowed."
           },
@@ -5755,15 +5812,14 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Filter runs by lifecycle status.",
         "schema": {
-          "type": "string",
-          "enum": [
-            "queued",
-            "running",
-            "completed",
-            "failed",
-            "skipped"
-          ],
-          "description": "Filter runs by lifecycle status."
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/MonitorsRunStatus"
+            },
+            {
+              "description": "Filter runs by lifecycle status."
+            }
+          ]
         }
       },
       {
@@ -5926,15 +5982,14 @@ export const ENDPOINTS: Endpoint[] = [
         "required": false,
         "description": "Filter runs by lifecycle status.",
         "schema": {
-          "type": "string",
-          "enum": [
-            "queued",
-            "running",
-            "completed",
-            "failed",
-            "skipped"
-          ],
-          "description": "Filter runs by lifecycle status."
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/MonitorsRunStatus"
+            },
+            {
+              "description": "Filter runs by lifecycle status."
+            }
+          ]
         }
       },
       {
@@ -6219,6 +6274,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -6371,106 +6427,6 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "sync-webdb-collection",
-    "title": "Trigger a sync now",
-    "method": "POST",
-    "path": "/webdbs/collections/{collection_id}/sync",
-    "description": "Trigger a sync now — Queues a sync now. Returns the current run when a sync is already active.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "reprocess-webdb-collection",
-    "title": "Reprocess rows from stored snapshots",
-    "method": "POST",
-    "path": "/webdbs/collections/{collection_id}/reprocess",
-    "description": "Reprocess rows from stored snapshots — Extracts rows again from saved pages without fetching them again. Use `where` to select rows.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      }
-    ],
-    "requestBody": {
-      "required": false,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsReprocessRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "purge-webdb-collection",
-    "title": "Purge rows by URL pattern",
-    "method": "POST",
-    "path": "/webdbs/collections/{collection_id}/purge",
-    "description": "Purge rows by URL pattern — Permanently deletes matching rows, change history, and saved pages.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      }
-    ],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsPurgeRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
     "name": "query-webdb-collection",
     "title": "Query rows",
     "method": "POST",
@@ -6530,6 +6486,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -6560,6 +6517,39 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "create-webdb-collection-run",
+    "title": "Start a run",
+    "method": "POST",
+    "path": "/webdbs/collections/{collection_id}/runs",
+    "description": "Start a run — Queues a sync, a reprocess of saved pages, or a purge of rows by URL. Returns the current run when one is already active.",
+    "parameters": [
+      {
+        "name": "collection_id",
+        "in": "path",
+        "required": true,
+        "description": "Collection ID.",
+        "schema": {
+          "type": "string",
+          "example": "col_123",
+          "description": "Collection ID."
+        }
+      }
+    ],
+    "requestBody": {
+      "required": false,
+      "schema": {
+        "$ref": "#/components/schemas/WebdbsCreateRunRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "list-webdb-collection-rejections",
     "title": "List rejections for a collection",
     "method": "GET",
@@ -6586,6 +6576,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -6653,6 +6644,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -6799,6 +6791,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -6927,6 +6920,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -7105,6 +7099,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Maximum items to return. Defaults to 25."
         }
       },
@@ -7249,6 +7244,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Batches per page. Defaults to 25."
         }
       },
@@ -7310,10 +7306,20 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "tags",
         "in": "query",
         "required": false,
-        "description": "Comma-separated list of tags to filter by (matches batches having any of them).",
+        "description": "Tags to filter by (matches batches having any of them). Pass repeated `tags` params or one comma-separated list, e.g. `tags=docs,competitor`.",
         "schema": {
-          "type": "string",
-          "description": "Comma-separated list of tags to filter by (matches batches having any of them).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Tags to filter by (matches batches having any of them). Pass repeated `tags` params or one comma-separated list, e.g. `tags=docs,competitor`.",
           "example": "docs,competitor"
         }
       }
@@ -7401,6 +7407,7 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
+          "default": 25,
           "description": "Records per page. Defaults to 25. A page can close early so its payload stays under ~8 MB; rely on next_cursor rather than counting records."
         }
       },
@@ -7411,6 +7418,7 @@ export const ENDPOINTS: Endpoint[] = [
         "description": "next_cursor from the previous page.",
         "schema": {
           "type": "string",
+          "pattern": "^\\d+:\\d+$",
           "description": "next_cursor from the previous page."
         }
       }
@@ -7460,6 +7468,7 @@ export const ENDPOINTS: Endpoint[] = [
         "properties": {
           "domain": {
             "type": "string",
+            "minLength": 3,
             "description": "The domain name of the company to retrieve funding history for."
           },
           "timeoutOpts": {
@@ -7471,7 +7480,51 @@ export const ENDPOINTS: Endpoint[] = [
         },
         "required": [
           "domain"
-        ]
+        ],
+        "additionalProperties": false
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "post-company-search",
+    "title": "Search companies",
+    "method": "POST",
+    "path": "/company/search",
+    "description": "Search companies — Find companies matching a natural-language description, such as \"companies building solar tech in California that raised a Series B\". Constraints in the query, such as location, offices, industry, headcount, founding year, tech stack, website traffic and funding, are applied as exact filters; the response echoes how the query was interpreted. Searches with no matches are not charged.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Natural-language description of the companies to find, e.g. \"companies building solar tech in California that raised a Series B\"."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25,
+            "description": "Maximum number of companies to return."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
       },
       "contentType": "application/json",
       "binary": false
@@ -9187,6 +9240,17 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "additionalProperties": false,
     "description": "Send only the fields to change. `target` replaces the whole target."
   },
+  "MonitorsRunStatus": {
+    "type": "string",
+    "enum": [
+      "queued",
+      "running",
+      "completed",
+      "failed",
+      "skipped"
+    ],
+    "description": "Lifecycle status of a run. `skipped` runs never executed — see `skip_reason` (insufficient credits, monitor paused, or superseded by a concurrent run)."
+  },
   "WebdbsCreateCollectionRequest": {
     "type": "object",
     "properties": {
@@ -9390,51 +9454,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "title": "Update WebDB collection request",
     "description": "Fields to update on a WebDB collection."
   },
-  "WebdbsReprocessRequest": {
-    "type": "object",
-    "properties": {
-      "where": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Rows to reprocess. Omit to reprocess every row."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "additionalProperties": false,
-    "title": "WebDB reprocess request",
-    "description": "Selects rows to extract again from saved pages."
-  },
-  "WebdbsPurgeRequest": {
-    "type": "object",
-    "properties": {
-      "url_match": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "minItems": 1,
-        "maxItems": 50,
-        "example": [
-          "https://shop.com/products/:product_id",
-          "https://foo.com/item?id=*",
-          "https://foo.com/bar/*",
-          "**/events/**"
-        ],
-        "description": "URL patterns for rows to permanently delete. Supports exact URLs, `*`, `**`, and `:name` path values."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "required": [
-      "url_match"
-    ],
-    "additionalProperties": false,
-    "title": "WebDB purge request",
-    "description": "Selects rows to permanently delete by URL."
-  },
   "WebdbsQueryRequest": {
     "type": "object",
     "properties": {
@@ -9497,6 +9516,47 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "additionalProperties": false,
     "title": "WebDB query request",
     "description": "Filters, sorts, and selects fields from collection rows."
+  },
+  "WebdbsCreateRunRequest": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "sync",
+          "reprocess",
+          "purge"
+        ],
+        "default": "sync",
+        "description": "`sync` fetches pages and updates rows, `reprocess` extracts rows again from saved pages, and `purge` permanently deletes rows by URL. Defaults to `sync`."
+      },
+      "where": {
+        "type": "object",
+        "additionalProperties": {},
+        "description": "Rows to reprocess. Only valid when `type` is `reprocess`. Omit to reprocess every row."
+      },
+      "url_match": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "maxItems": 50,
+        "example": [
+          "https://shop.com/products/:product_id",
+          "https://foo.com/item?id=*",
+          "https://foo.com/bar/*",
+          "**/events/**"
+        ],
+        "description": "URL patterns for rows to permanently delete. Required when `type` is `purge`. Supports exact URLs, `*`, `**`, and `:name` path values."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags"
+      }
+    },
+    "additionalProperties": false,
+    "title": "WebDB create run request",
+    "description": "Chooses the kind of run to start. `where` applies only to `reprocess`, and `url_match` is required for `purge`."
   },
   "WebdbsCreateWebhookRequest": {
     "type": "object",
@@ -9814,12 +9874,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "start": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+                                "description": "First 1-based PDF page to parse."
                               },
                               "end": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
                               },
                               "ocr": {
                                 "type": "boolean",
@@ -9831,7 +9891,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": true,
                               "ocr": false
                             },
-                            "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
                           },
                           "includeSelectors": {
                             "type": [
@@ -9972,12 +10032,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "start": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+                                "description": "First 1-based PDF page to parse."
                               },
                               "end": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
                               },
                               "ocr": {
                                 "type": "boolean",
@@ -9989,7 +10049,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": true,
                               "ocr": false
                             },
-                            "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
                           },
                           "includeSelectors": {
                             "type": [
@@ -10257,12 +10317,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "start": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+                                "description": "First 1-based PDF page to parse."
                               },
                               "end": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
                               },
                               "ocr": {
                                 "type": "boolean",
@@ -10274,7 +10334,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": true,
                               "ocr": false
                             },
-                            "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
                           },
                           "includeSelectors": {
                             "type": [
@@ -10498,12 +10558,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "start": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "First 1-based PDF page to parse. When omitted, parsing starts at the first page."
+                                "description": "First 1-based PDF page to parse."
                               },
                               "end": {
                                 "type": "integer",
                                 "minimum": 1,
-                                "description": "Last 1-based PDF page to parse. When omitted, parsing ends at the last page. Must be greater than or equal to start when both are provided."
+                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
                               },
                               "ocr": {
                                 "type": "boolean",
@@ -10515,7 +10575,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "shouldParse": true,
                               "ocr": false
                             },
-                            "description": "PDF parsing controls. Use start/end to limit text extraction and embedded-image detection/OCR to an inclusive 1-based page range."
+                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
                           },
                           "includeSelectors": {
                             "type": [
@@ -10614,6 +10674,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "webhookUrl": {
         "type": "string",
+        "format": "uri",
         "description": "Legacy URL notified when the batch finishes. Preserves one best-effort attempt. Cannot be combined with webhook."
       },
       "webhook": {
@@ -10652,6 +10713,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "required": [
       "input"
     ],
+    "additionalProperties": false,
     "title": "Submit batch request",
     "description": "Create an asynchronous scraping job."
   },
@@ -11410,8 +11472,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "description": "Company name to retrieve brand data for (e.g., 'Apple Inc')."
       },
       "country_gl": {
-        "type": "string",
-        "description": "Optional country code hint (GL parameter) to specify the country when looking up by company name."
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CountryGL"
+          },
+          {
+            "description": "Optional country code hint (GL parameter) to specify the country when looking up by company name."
+          }
+        ]
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11519,8 +11587,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "description": "Stock ticker symbol to retrieve brand data for (e.g., 'AAPL')."
       },
       "ticker_exchange": {
-        "type": "string",
-        "description": "Optional stock exchange for the ticker. Defaults to NASDAQ if not specified."
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StockExchange"
+          },
+          {
+            "description": "Optional stock exchange for the ticker. Defaults to NASDAQ if not specified."
+          }
+        ]
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11601,8 +11675,14 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "$ref": "#/components/schemas/PartialTimeout"
       },
       "country_gl": {
-        "type": "string",
-        "description": "Optional country code hint (GL parameter) to specify the country when identifying a transaction."
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CountryGL"
+          },
+          {
+            "description": "Optional country code hint (GL parameter) to specify the country when identifying a transaction."
+          }
+        ]
       },
       "city": {
         "type": "string",
@@ -11765,9 +11845,55 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
   },
   "WebdbsSchema": {
     "type": "object",
-    "additionalProperties": true,
-    "title": "WebDB row schema",
+    "properties": {
+      "$schema": {
+        "type": "string",
+        "maxLength": 500,
+        "description": "Optional JSON Schema dialect identifier.",
+        "example": "https://json-schema.org/draft/2020-12/schema"
+      },
+      "title": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "object"
+        ]
+      },
+      "properties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/WebdbsFieldDefinition"
+        }
+      },
+      "required": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 200
+      },
+      "additionalProperties": {
+        "type": "boolean",
+        "enum": [
+          false
+        ],
+        "description": "WebDB row schemas are closed; omitted is treated as false."
+      }
+    },
+    "required": [
+      "type",
+      "properties"
+    ],
+    "additionalProperties": false,
     "description": "JSON Schema for the fields extracted into each row. Zod users can pass the output of z.toJSONSchema().",
+    "title": "WebDB row schema",
     "example": {
       "type": "object",
       "properties": {
@@ -12534,6 +12660,160 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "url"
     ],
     "additionalProperties": false
+  },
+  "WebdbsFieldDefinition": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "object",
+              "array"
+            ]
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "number",
+                  "integer",
+                  "boolean",
+                  "object",
+                  "array"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "null"
+                ]
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "null"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "number",
+                  "integer",
+                  "boolean",
+                  "object",
+                  "array"
+                ]
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        ],
+        "description": "A single JSON Schema type, optionally paired with null for nullable values."
+      },
+      "title": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 2000,
+        "description": "Natural-language instruction describing what to extract into this field."
+      },
+      "format": {
+        "type": "string",
+        "maxLength": 100,
+        "description": "JSON Schema string format. date, date-time, and uri receive WebDB-specific canonicalization and query behavior."
+      },
+      "enum": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minItems": 1,
+        "description": "Allowed values."
+      },
+      "minimum": {
+        "type": "number"
+      },
+      "maximum": {
+        "type": "number"
+      },
+      "maxLength": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "pattern": {
+        "type": "string",
+        "description": "Regular expression the value must match."
+      },
+      "items": {
+        "$ref": "#/components/schemas/WebdbsFieldDefinition"
+      },
+      "properties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/WebdbsFieldDefinition"
+        },
+        "description": "Nested field definitions for object fields."
+      },
+      "required": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 200,
+        "description": "Names of object properties that must be present when the object is extracted."
+      },
+      "additionalProperties": {
+        "type": "boolean",
+        "enum": [
+          false
+        ],
+        "description": "WebDB object schemas are closed; omitted is treated as false."
+      },
+      "examples": {
+        "type": "array",
+        "items": {},
+        "maxItems": 10,
+        "description": "Example values to steer extraction."
+      }
+    },
+    "required": [
+      "type"
+    ],
+    "additionalProperties": false,
+    "description": "A JSON Schema property supported by WebDBs. Definitions may nest via items/properties at most 5 levels deep. References, combinators, tuple arrays, and dynamic properties are not supported because every top-level property must map to one stable index type."
   },
   "WebdbsUrlTarget": {
     "type": "object",
