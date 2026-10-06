@@ -1704,6 +1704,15 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
     ),
     "brand cards must retain the affected request ID for quality feedback",
   );
+  const brandCardText = (
+    brandCardResult.content as Array<{ type: string; text?: string }>
+  )
+    .map((block) => block.text ?? "")
+    .join("\n");
+  assert.ok(
+    brandCardText.includes(JSON.stringify({ brand: brandCard.brand }, null, 2)),
+    "clients that only read text must still receive the full brand",
+  );
   assert.equal(brandCard.brand.domain, "example.test");
   assert.equal(
     brandCard.brand.logo,

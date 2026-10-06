@@ -827,9 +827,15 @@ function registerBrandTool(): void {
           ? `. Colors: ${brand.colors.map((c) => c.hex).join(", ")}`
           : "");
       const requestId = contextRequestId(payload, res.headers);
+      // Clients that ignore structuredContent and don't render the widget
+      // (e.g. Cursor, Codex) only see this text, so it must carry the brand.
+      const brandJson = JSON.stringify({ brand }, null, 2);
       return widget({
         props: { brand },
-        output: text(summary + (requestId ? `\nrequest_id: ${requestId}` : "")),
+        output: text(
+          `${summary}\n\n${brandJson}` +
+            (requestId ? `\nrequest_id: ${requestId}` : ""),
+        ),
       });
     },
   );
