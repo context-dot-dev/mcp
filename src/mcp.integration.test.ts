@@ -1219,6 +1219,29 @@ test("rejects invalid new tool inputs before contacting the API", async () => {
   assert.equal(captured.length, 0);
 });
 
+test("publishes spec string patterns unescaped and still enforces them", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const { tools } = await client.listTools();
+  const property = (tool: string, name: string) =>
+    (tools.find((entry) => entry.name === tool)?.inputSchema.properties?.[
+      name
+    ] ?? {}) as Record<string, unknown>;
+
+  assert.equal(property("web-scrape", "url").pattern, "^https?://");
+  assert.equal(property("list-logs", "path").pattern, "^\\/");
+
+  for (const call of [
+    { name: "web-scrape", arguments: { url: "ftp://example.test", formats: { html: true } } },
+    { name: "list-logs", arguments: { path: "web/scrape" } },
+  ]) {
+    const result = await client.callTool(call);
+    assert.equal(result.isError, true, call.name);
+  }
+  await client.close();
+  assert.equal(captured.length, 0);
+});
+
 test("lists and retrieves account logs through the MCP tools", async () => {
   captured.length = 0;
   const client = await connectClient();
