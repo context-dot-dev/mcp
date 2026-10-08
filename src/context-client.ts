@@ -1,4 +1,6 @@
-import { error, image, object, text } from "mcp-use/server";
+import {
+  error, image, object, text, type TypedCallToolResult,
+} from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
 import { contextApiError, contextRequestId } from "./feedback";
 import { compactWebResponse } from "./compact-response";
@@ -295,7 +297,7 @@ export async function callContextApi({
   args: ToolArguments;
   credential: ContextCredential;
   clientUserAgent?: string;
-}) {
+}): Promise<TypedCallToolResult> {
   const requiredScope = isReadOnlyRequest(endpoint, args)
     ? "api.read"
     : "api.write";
@@ -395,6 +397,40 @@ export async function callContextApi({
     const value = isCompact
       ? compactWebResponse(endpoint.name, minimized)
       : minimized;
+    const responseLimit = maxResponseChars();
+    const responseChars = JSON.stringify(value).length;
+    const isOversizedPage =
+      responseLimit > 0 && responseChars > responseLimit &&
+      "next_cursor" in value;
+    // Other list cursors can encode page numbers, so changing their limit can skip records.
+    if (isOversizedPage && endpoint.name !== "get-batch-results") {
+      return contextApiError(
+        endpoint.name,
+        "This page exceeds MCP client limits. Restart pagination with a smaller limit, or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
+      );
+    }
+    const recordCount = Array.isArray(value.data) ? value.data.length : 0;
+    const shouldReduceBatchPage =
+      endpoint.name === "get-batch-results" &&
+      isOversizedPage && recordCount > 1;
+    if (shouldReduceBatchPage) {
+      const requestedLimit = Number(args.limit ?? recordCount);
+      if (requestedLimit <= 1) {
+        return contextApiError(
+          endpoint.name,
+          "The batch API ignored the requested page size, so this response cannot be paginated safely. Retry the request.",
+        );
+      }
+      const estimatedLimit = Math.floor(recordCount * responseLimit / responseChars);
+      const nextLimit = Math.max(1, Math.min(requestedLimit - 1, estimatedLimit));
+      return callContextApi({
+        apiBase,
+        endpoint,
+        args: { ...args, limit: nextLimit },
+        credential,
+        clientUserAgent,
+      });
+    }
     return contextObject(endpoint, value, isCompact);
   }
   const resultText = parsed === undefined ? raw : JSON.stringify(parsed);
