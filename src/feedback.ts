@@ -25,7 +25,7 @@ export function contextRequestId(
 const ACCOUNT_LIMIT_NEXT_STEPS = new Map([
   [
     "USAGE_EXCEEDED",
-    "Stop making credit-consuming calls and tell the user to add credits at https://www.context.dev/dashboard/subscription.",
+    "Context has insufficient credits for this request. Retrying won't help until credits are added or refilled. Stop credit-consuming Context calls; continue with another provider if your instructions allow it. Use `get-usage` once (free) to report the current balance and next refill when available. Add credits: [Manage billing](https://www.context.dev/dashboard/subscription).",
   ],
   [
     "RATE_LIMITED",
