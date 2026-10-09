@@ -1319,8 +1319,10 @@ test("delivers actionable feedback guidance at initialization and discovery", as
     assert.match(instructions, /otherwise use a relevant public page or docs url/);
     assert.match(instructions, /never include API keys, tokens, cookies, private page contents/);
     assert.match(instructions, /do not report that failure through submit-feedback/);
-    assert.match(instructions, /Never report account limits working as intended \(401 USAGE_EXCEEDED, 429 RATE_LIMITED, 403 PAID_PLAN_REQUIRED\)/);
-    assert.match(instructions, /on 403 PAID_PLAN_REQUIRED, retry without actions/);
+    assert.match(
+      instructions,
+      /Expected validation\/authentication\/credit-limit errors are not bugs/,
+    );
     const { tools } = await client.listTools();
     const feedback = tools.find((tool) => tool.name === "submit-feedback");
     assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
