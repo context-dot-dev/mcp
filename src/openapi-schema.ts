@@ -32,7 +32,11 @@ function addStringConstraints(
   }
   if (schema.pattern) {
     try {
-      constrained = constrained.regex(new RegExp(schema.pattern));
+      // Zod publishes RegExp.source, which escapes "/"; clients that compile
+      // the published pattern must see the spec's original string.
+      constrained = constrained
+        .regex(new RegExp(schema.pattern))
+        .meta({ pattern: schema.pattern });
     } catch {
       return constrained;
     }
