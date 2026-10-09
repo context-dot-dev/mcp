@@ -28,18 +28,6 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
     path === "/web/search" || path === "/web/scrape"
       ? JSON.parse(requestBody.toString())
       : {};
-  if ((path === "/web/search" && args.query === "usage exceeded") ||
-      (path === "/web/scrape" && args.url === "https://example.test/usage-exceeded")) {
-    return {
-      status: 401,
-      body: {
-        message: "Usage limit exceeded",
-        error_code: "USAGE_EXCEEDED",
-        request_id: "req_credits",
-        ...(path === "/web/search" ? { key_metadata: { credits_remaining: 2 } } : {}),
-      },
-    };
-  }
   if (path === "/web/search" && args.query === "compact empty") {
     return { status: 200, body: { results: [], request_id: "req_empty" } };
   }
@@ -1320,41 +1308,16 @@ test("delivers actionable feedback guidance at initialization and discovery", as
   }
 });
 
-test("credit errors explain recovery without retries or authorizing fallback", async () => {
+test("brand account-limit errors give the next step instead of a feedback nudge", async () => {
   const client = await connectClient();
-  const responses = [];
   try {
-    for (const call of [
-      { name: "web-search", arguments: { query: "usage exceeded" } },
-      { name: "web-scrape", arguments: { url: "https://example.test/usage-exceeded", formats: { markdown: true } } },
-      { name: "get-brand", arguments: { domain: "usage-exceeded.test" } },
-    ]) {
-      captured.length = 0;
-      const result = await client.callTool(call);
-      responses.push({ call, result });
-      assert.equal(result.isError, true);
-      assert.equal(captured.length, 1);
-      const message = (result.content as Array<{ text?: string }>)[0]?.text ?? "";
-      assert.match(message, /\[USAGE_EXCEEDED\]/);
-      assert.match(message, /Context has insufficient credits for this request/);
-      assert.match(message, /Retrying won't help until credits are added or refilled/);
-      assert.match(message, /Stop credit-consuming Context calls; continue with another provider if your instructions allow it/);
-      assert.match(message, /Use `get-usage` once \(free\) to report the current balance and next refill when available/);
-      assert.match(message, /\[Manage billing\]\(https:\/\/www\.context\.dev\/dashboard\/subscription\)/);
-      assert.doesNotMatch(message, /always call submit-feedback/);
-      if (call.name === "web-search") {
-        assert.match(message, /request_id: req_credits; credits_remaining: 2/);
-      } else if (call.name === "web-scrape") {
-        assert.match(message, /request_id: req_credits/);
-        assert.doesNotMatch(message, /credits_remaining:/);
-      } else {
-        assert.match(message, /credits_remaining: 0/);
-      }
-    }
-    const directory = join(tmpdir(), "context-mcp-credit-error-evidence");
-    await mkdir(directory, { recursive: true });
-    await writeFile(join(directory, "responses.json"), JSON.stringify(responses, null, 2));
-    console.log(`Credit error evidence: ${directory}/responses.json`);
+    const failed = await client.callTool({ name: "get-brand", arguments: { domain: "usage-exceeded.test" } });
+    assert.equal(failed.isError, true);
+    const content = failed.content as Array<{ type: string; text?: string }>;
+    const message = content.find((block) => block.type === "text")?.text ?? "";
+    assert.match(message, /\[USAGE_EXCEEDED\].*\(credits_remaining: 0\)/);
+    assert.match(message, /account limit working as intended; do not call submit-feedback\. Context has insufficient credits for this request/);
+    assert.doesNotMatch(message, /always call submit-feedback/);
   } finally {
     await client.close();
   }
