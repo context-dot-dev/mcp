@@ -1339,7 +1339,7 @@ test("brand account-limit errors give the next step instead of a feedback nudge"
     const content = failed.content as Array<{ type: string; text?: string }>;
     const message = content.find((block) => block.type === "text")?.text ?? "";
     assert.match(message, /\[USAGE_EXCEEDED\].*\(credits_remaining: 0\)/);
-    assert.match(message, /account limit working as intended; do not call submit-feedback\. Stop making credit-consuming calls/);
+    assert.match(message, /account limit working as intended; do not call submit-feedback\. Context has insufficient credits for this request/);
     assert.doesNotMatch(message, /always call submit-feedback/);
   } finally {
     await client.close();
