@@ -8,6 +8,11 @@ function isPlainObject(value: unknown): value is Arguments {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// Models send null for values they do not have; treat it like a missing key.
+function isMissing(value: unknown): value is null | undefined {
+  return value === undefined || value === null;
+}
+
 function parseIfJson(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();
@@ -21,7 +26,7 @@ function parseIfJson(value: unknown): unknown {
 
 // Removes the first present alias from `args` and returns its value.
 function take(args: Arguments, aliases: string[]): unknown {
-  const alias = aliases.find((name) => args[name] !== undefined);
+  const alias = aliases.find((name) => !isMissing(args[name]));
   if (!alias) return undefined;
   const value = args[alias];
   delete args[alias];
@@ -29,8 +34,8 @@ function take(args: Arguments, aliases: string[]): unknown {
 }
 
 function renameMissing(args: Arguments, target: string, aliases: string[]): Arguments {
-  if (args[target] !== undefined) return args;
-  const alias = aliases.find((name) => args[name] !== undefined);
+  if (!isMissing(args[target])) return args;
+  const alias = aliases.find((name) => !isMissing(args[name]));
   if (!alias) return args;
   const { [alias]: value, ...rest } = args;
   return { ...rest, [target]: value };
@@ -90,7 +95,7 @@ function formatName(value: unknown): string | undefined {
 // request every format whose options were sent, and default to Markdown.
 // The page URL arrives under other names, or as a one-item `urls` list.
 function withPageUrl(input: Arguments): Arguments {
-  if (input.url !== undefined) return input;
+  if (!isMissing(input.url)) return input;
   const args = { ...input };
   const urls = args.urls;
   if (Array.isArray(urls) && urls.length === 1 && typeof urls[0] === "string") {
@@ -257,16 +262,13 @@ function exampleFromJsonSchema(schema: unknown): unknown {
 }
 
 function isJsonSchemaObject(value: unknown): value is Arguments {
-  return (
-    isPlainObject(value) &&
-    value.type === "object" &&
-    isPlainObject(value.properties)
-  );
+  if (!isPlainObject(value) || !isPlainObject(value.properties)) return false;
+  return Array.isArray(value.type) ? value.type.includes("object") : value.type === "object";
 }
 
 function repairAnswers(input: Arguments): Arguments {
   let args = renameMissing(input, "task", ["query", "question", "prompt", "q"]);
-  if (args.json_format === undefined) {
+  if (isMissing(args.json_format)) {
     const alias = [
       "schema",
       "json_schema",
@@ -292,7 +294,7 @@ function repairAnswers(input: Arguments): Arguments {
 // web-map takes a domain; models usually pass the site URL instead.
 function repairMap(input: Arguments): Arguments {
   const args = renameMissing(input, "maxLinks", ["limit", "maxResults", "max_links"]);
-  if (args.domain !== undefined) return args;
+  if (!isMissing(args.domain)) return args;
   const url = take(args, ["url", "site", "website"]);
   if (typeof url !== "string") return url === undefined ? args : { ...args, domain: url };
   try {
@@ -310,7 +312,7 @@ function repairSearch(input: Arguments): Arguments {
     const text = Object.values(args.query).filter((value) => typeof value === "string");
     if (text.length === 1) args.query = text[0];
   }
-  if (args.query === undefined) {
+  if (isMissing(args.query)) {
     const query = take(args, ["q", "search_term", "searchTerm", "search", "text", "keywords"]);
     const queries = take(args, ["queries", "search_queries", "searchQueries"]);
     if (typeof query === "string") args.query = query;
@@ -351,7 +353,11 @@ function newsEntity(value: unknown): unknown {
 
 // Only unambiguous dates become a filter: epoch milliseconds or ISO 8601.
 function toEpochMs(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
+  // Numbers count only in the epoch-millisecond range (2001 onward), so a year
+  // or a timestamp in seconds is not mistaken for a date near 1970.
+  if (typeof value === "number") {
+    return Number.isInteger(value) && value >= 1e12 && value < 1e14 ? value : undefined;
+  }
   if (
     typeof value !== "string" ||
     !/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(value.trim())
@@ -369,7 +375,7 @@ function toEpochMs(value: unknown): number | undefined {
 function repairNewsSearch(input: Arguments): Arguments {
   const args = { ...input };
   let searchBy: Arguments = isPlainObject(args.searchBy) ? { ...args.searchBy } : {};
-  if (searchBy.entity === undefined) {
+  if (isMissing(searchBy.entity)) {
     const entityType = take(searchBy, ["entityType", "entity_type"]);
     const entityCode = take(searchBy, ["entityCode", "entity_code", "value"]);
     const company =
@@ -443,13 +449,13 @@ function repairBrandRetrieve(input: Arguments): Arguments {
   if (typeof body.type === "string" && !body.type.startsWith("by_")) {
     body.type = body.type === "url" ? "by_direct_url" : `by_${body.type}`;
   }
-  if (body.type === undefined) {
+  if (isMissing(body.type)) {
     const identifiers = take(body, ["identifiers"]);
     const first = Array.isArray(identifiers) ? identifiers[0] : undefined;
     const identifier =
       take(body, ["identifier", "query", "company", "url", "website"]) ??
       (isPlainObject(first) ? first.value : first);
-    if (typeof identifier === "string" && body.domain === undefined && body.name === undefined) {
+    if (typeof identifier === "string" && isMissing(body.domain) && isMissing(body.name)) {
       const trimmed = identifier.trim();
       if (/^https?:\/\//i.test(trimmed)) {
         try {
@@ -530,12 +536,12 @@ export function reroutedToolName(
   args: unknown,
 ): string | undefined {
   if (!isPlainObject(args)) return undefined;
-  if (toolName === "list-monitor-changes" && args.monitor_id === undefined) {
+  if (toolName === "list-monitor-changes" && isMissing(args.monitor_id)) {
     return "list-changes";
   }
   if (
     toolName === "web-search" &&
-    args.query === undefined &&
+    isMissing(args.query) &&
     typeof args.url === "string" &&
     /^https?:\/\//i.test(args.url.trim())
   ) {
@@ -543,7 +549,7 @@ export function reroutedToolName(
   }
   if (
     toolName === "web-scrape" &&
-    args.url === undefined &&
+    isMissing(args.url) &&
     typeof args.query === "string" &&
     args.query.trim() !== ""
   ) {

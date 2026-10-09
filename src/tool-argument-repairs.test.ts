@@ -330,6 +330,41 @@ test("web-scrape requests formats the API requires even for valid arguments", ()
   assert.equal(completeValidArguments("web-search", search), search);
 });
 
+test("null placeholders do not block recovery or routing", () => {
+  assert.equal(
+    repairToolSpecificArguments("web-scrape", { url: null, urls: ["https://a.test"] }).url,
+    "https://a.test",
+  );
+  assert.equal(
+    repairToolSpecificArguments("web-search", { query: null, search_term: "x" }).query,
+    "x",
+  );
+  assert.equal(reroutedToolName("list-monitor-changes", { monitor_id: null }), "list-changes");
+  assert.equal(reroutedToolName("web-search", { query: null, url: "https://a.test" }), "web-scrape");
+  assert.equal(reroutedToolName("web-scrape", { url: null, query: "pricing" }), "web-search");
+});
+
+test("news date aliases accept only ISO dates and epoch milliseconds", () => {
+  const news = (args: Record<string, unknown>) =>
+    repairToolSpecificArguments("get-news-search", {
+      searchBy: { type: "entity", entity: { type: "name", name: "Acme" } },
+      ...args,
+    });
+  assert.equal(news({ from: 2026 }).filterBy, undefined);
+  assert.equal(news({ from: 1791072000 }).filterBy, undefined);
+  assert.deepEqual(news({ from: 1791072000000 }).filterBy, { date: { from: 1791072000000 } });
+});
+
+test("web-answers converts a nullable object schema", () => {
+  assert.deepEqual(
+    repairToolSpecificArguments("web-answers", {
+      task: "x",
+      schema: { type: ["object", "null"], properties: { price: { type: "number" } } },
+    }).json_format,
+    { price: 0 },
+  );
+});
+
 test("other tools are unchanged", () => {
   const args = { url: "https://a.test" };
   assert.equal(repairToolSpecificArguments("web-styleguide", args), args);
