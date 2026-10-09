@@ -599,13 +599,13 @@ test("compact web responses preserve evidence and errors through the MCP protoco
       JSON.stringify(failure),
       /4f2c1a1e-1111-4222-8333-444455556666/,
     );
-    const beforeInvalid = captured.length;
-    const invalid = await client.callTool({
+    // An unknown responseMode falls back to the default full response.
+    const unknownMode = await client.callTool({
       name: "web-search",
       arguments: { query: "compact response", responseMode: "tiny" },
     });
-    assert.equal(invalid.isError, true);
-    assert.equal(captured.length, beforeInvalid);
+    assert.notEqual(unknownMode.isError, true);
+    assert.ok(unknownMode.structuredContent);
 
     const directory = join(tmpdir(), "context-mcp-compact-evidence");
     await mkdir(directory, { recursive: true });
@@ -754,6 +754,123 @@ test("does not allocate sessions for stream-capable clients", async () => {
   }
 });
 
+test("serves MCP at the bare server URL and declines idle event streams", async () => {
+  const initialize = await fetch(`${mcpBase}/`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "root-url-test", version: "1.0.0" },
+      },
+    }),
+  });
+  assert.equal(initialize.status, 200);
+  assert.equal((await initialize.json()).result.serverInfo.name, "context");
+
+  for (const path of ["/mcp", "/sse"]) {
+    const stream = await fetch(`${mcpBase}${path}`, {
+      headers: { Accept: "text/event-stream" },
+    });
+    assert.equal(stream.status, 405, path);
+    assert.equal(stream.headers.get("allow"), "POST, DELETE");
+  }
+});
+
+test("guides unrepairable calls and routes account-wide change listings", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const topicNews = await client.callTool({
+    name: "get-news-search",
+    arguments: { query: "DeFi OR Solana" },
+  });
+  const changes = await client.callTool({
+    name: "list-monitor-changes",
+    arguments: { tag: "launch", since: "2026-10-09T16:00:00Z" },
+  });
+  await client.close();
+
+  assert.equal(topicNews.isError, true);
+  const text = JSON.stringify(topicNews.content);
+  assert.match(text, /Input validation error/);
+  assert.match(text, /use web-search with `freshness` instead/);
+  assert.notEqual(changes.isError, true);
+  assert.equal(captured.length, 1);
+  const url = new URL(captured[0]!.url, "http://upstream");
+  assert.equal(url.pathname, "/monitors/changes");
+  assert.equal(url.searchParams.get("tag"), "launch");
+});
+
+test("sends calls that already validate unchanged and survives hostile bodies", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const valid = await client.callTool({
+    name: "brand-retrieve-unified",
+    arguments: { body: { type: "by_domain", domain: "stripe.com" }, name: "Stripe", Tags: 5 },
+  });
+  await client.close();
+  assert.notEqual(valid.isError, true);
+  assert.deepEqual(JSON.parse(captured.at(-1)!.body.toString()), {
+    type: "by_domain",
+    domain: "stripe.com",
+  });
+
+  const nested = `{"jsonrpc":"2.0","id":1,"method":"tools/list","junk":${"[".repeat(100000)}${"]".repeat(100000)}}`;
+  const response = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: nested,
+  });
+  assert.notEqual(response.status, 500);
+});
+
+test("adds the hint once on the SSE path", async () => {
+  const response = await fetch(`${mcpBase}/sse`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "web-map", arguments: {} },
+    }),
+  });
+  const text = await response.text();
+  assert.equal(text.split("web-map needs `domain`").length - 1, 1);
+});
+
+test("keeps tools removed from the list callable for cached clients", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const { tools } = await client.listTools();
+  assert.equal(tools.some((tool) => tool.name === "web-scrape-markdown"), false);
+  assert.equal(tools.some((tool) => "$schema" in tool.inputSchema), false);
+  const result = await client.callTool({
+    name: "web-scrape-markdown",
+    arguments: { url: "https://example.test/legacy" },
+  });
+  await client.close();
+  assert.notEqual(result.isError, true);
+  assert.equal(captured.length, 1);
+  assert.equal(
+    new URL(captured[0]!.url, "http://upstream").pathname,
+    "/web/scrape/markdown",
+  );
+});
+
 test("accepts a legacy query API key without OAuth", async () => {
   captured.length = 0;
   const client = new Client({
@@ -778,6 +895,19 @@ test("accepts a legacy query API key without OAuth", async () => {
     captured.at(-1)?.authorization,
     "Bearer ctxt_query_without_oauth",
   );
+
+  const rootClient = new Client({ name: "root-query-key-test", version: "1.0.0" });
+  await rootClient.connect(
+    new StreamableHTTPClientTransport(
+      new URL(`${mcpBase}/?api_key=ctxt_root_query_key`),
+    ),
+  );
+  await rootClient.callTool({
+    name: "web-scrape",
+    arguments: { url: "https://example.test", formats: { markdown: true } },
+  });
+  await rootClient.close();
+  assert.equal(captured.at(-1)?.authorization, "Bearer ctxt_root_query_key");
 });
 
 test("tags API requests with the connected MCP client", async () => {
@@ -1089,6 +1219,44 @@ test("forwards all scrape formats, browser actions, CSS rules, and request contr
   assert.deepEqual(resultObject(result), { ok: true });
 });
 
+test("repairs object and array arguments sent as JSON strings", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "web-scrape",
+    arguments: {
+      url: "https://example.test",
+      formats: '{"markdown":true}',
+      sharedParams: '{"includeSelectors":["main"]}',
+      tags: '["opencode"]',
+    },
+  });
+  const formatName = await client.callTool({
+    name: "web-scrape",
+    arguments: { url: "https://example.test/format-name", formats: ["markdown"] },
+  });
+  const rejected = await client.callTool({
+    name: "web-scrape",
+    arguments: { formats: { markdown: true } },
+  });
+  await client.close();
+
+  assert.deepEqual(resultObject(result), { ok: true });
+  assert.deepEqual(resultObject(formatName), { ok: true });
+  assert.equal(rejected.isError, true);
+  assert.equal(captured.length, 2);
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    url: "https://example.test",
+    formats: { markdown: true },
+    sharedParams: { includeSelectors: ["main"] },
+    tags: ["opencode"],
+  });
+  assert.deepEqual(JSON.parse(captured[1]!.body.toString()), {
+    url: "https://example.test/format-name",
+    formats: { markdown: true },
+  });
+});
+
 test("maps URLs through the documented endpoint with query controls", async () => {
   captured.length = 0;
   const client = await connectClient();
@@ -1207,16 +1375,42 @@ test("rejects invalid new tool inputs before contacting the API", async () => {
   captured.length = 0;
   const client = await connectClient();
   for (const call of [
-    { name: "web-map", arguments: { domain: "example.test", maxLinks: 100001 } },
+    { name: "web-map", arguments: { maxLinks: 100 } },
     { name: "list-webhook-deliveries", arguments: { body: { type: "batch", monitor_id: "mon_demo" } } },
     { name: "retry-webhook-delivery", arguments: { delivery_id: "invalid" } },
-    { name: "web-scrape", arguments: { url: "https://example.test", formats: { markdown: true }, sharedParams: { actions: [{ type: "wait", milliseconds: -1 }] } } },
+    { name: "web-scrape", arguments: { url: "https://example.test", formats: { markdown: true }, sharedParams: { actions: [{ type: "wait", milliseconds: "soon" }] } } },
   ]) {
     const result = await client.callTool(call);
     assert.equal(result.isError, true, call.name);
   }
   await client.close();
   assert.equal(captured.length, 0);
+});
+
+test("clamps out-of-range integer arguments to the published bounds", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "web-map",
+    arguments: { domain: "example.test", maxLinks: 100001 },
+  });
+  await client.close();
+  assert.notEqual(result.isError, true);
+  assert.equal(captured.length, 1);
+  const { tools } = await (async () => {
+    const lister = await connectClient();
+    try {
+      return await lister.listTools();
+    } finally {
+      await lister.close();
+    }
+  })();
+  const maxLinks = tools.find((tool) => tool.name === "web-map")?.inputSchema
+    .properties?.maxLinks as { maximum?: number } | undefined;
+  assert.equal(
+    new URL(captured[0]!.url, "http://upstream").searchParams.get("maxLinks"),
+    String(maxLinks?.maximum),
+  );
 });
 
 test("publishes spec string patterns unescaped and still enforces them", async () => {
@@ -1228,8 +1422,8 @@ test("publishes spec string patterns unescaped and still enforces them", async (
       name
     ] ?? {}) as Record<string, unknown>;
 
-  assert.equal(property("web-scrape", "url").pattern, "^https?://");
-  assert.equal(property("list-logs", "path").pattern, "^\\/");
+  assert.equal(property("web-scrape", "url").pattern, "^https?://[\\s\\S]*$");
+  assert.equal(property("list-logs", "path").pattern, "^\\/[\\s\\S]*$");
 
   for (const call of [
     { name: "web-scrape", arguments: { url: "ftp://example.test", formats: { html: true } } },

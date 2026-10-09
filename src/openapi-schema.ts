@@ -19,6 +19,48 @@ function resolveSchema(
   return components[schema.$ref.slice(prefix.length)] ?? {};
 }
 
+// llama.cpp-based backends only compile patterns that start with ^ and end
+// with $. Pad unanchored ends with [\s\S]* so the match set is unchanged;
+// patterns with alternation are left as they are, since padding them would
+// need a group to keep the same meaning.
+export function anchorPattern(pattern: string): string {
+  if (pattern.includes("|")) return pattern;
+  const startsAnchored = pattern.startsWith("^");
+  const endsAnchored = pattern.endsWith("$") && !pattern.endsWith("\\$");
+  if (startsAnchored && endsAnchored) return pattern;
+  const body = pattern.slice(
+    startsAnchored ? 1 : 0,
+    endsAnchored ? -1 : undefined,
+  );
+  return `^${startsAnchored ? "" : "[\\s\\S]*"}${body}${endsAnchored ? "" : "[\\s\\S]*"}$`;
+}
+
+// Lists like the 239 country codes multiply tool definitions and exceed some
+// providers' schema limits. Publish them as strings, accept any casing, and
+// name the allowed values only when a value is rejected.
+const LARGE_ENUM_SIZE = 30;
+
+function enumKey(value: string): string {
+  return value.trim().toLowerCase().replace(/[-_\s]/g, "");
+}
+
+function largeStringEnum(values: string[]): z.ZodTypeAny {
+  const keys = values.map(enumKey);
+  // Values whose keys collide (none today) only match exactly.
+  const canonical = new Map(
+    values
+      .filter((_, index) => keys.indexOf(keys[index]!) === keys.lastIndexOf(keys[index]!))
+      .map((value) => [enumKey(value), value]),
+  );
+  const allowed = new Set(values);
+  return z
+    .string()
+    .overwrite((value) => (allowed.has(value) ? value : canonical.get(enumKey(value)) ?? value))
+    .refine((value) => allowed.has(value), {
+      message: `Expected one of: ${values.join(", ")}`,
+    });
+}
+
 function addStringConstraints(
   value: z.ZodString,
   schema: JsonSchema
@@ -34,9 +76,10 @@ function addStringConstraints(
     try {
       // Zod publishes RegExp.source, which escapes "/"; clients that compile
       // the published pattern must see the spec's original string.
+      const pattern = anchorPattern(schema.pattern);
       constrained = constrained
-        .regex(new RegExp(schema.pattern))
-        .meta({ pattern: schema.pattern });
+        .regex(new RegExp(pattern))
+        .meta({ pattern });
     } catch {
       return constrained;
     }
@@ -151,7 +194,9 @@ export function schemaToZod(
   if (input.enum?.length) {
     let schema: z.ZodTypeAny;
     if (input.enum.every((value) => typeof value === "string")) {
-      schema = z.enum(input.enum as [string, ...string[]]);
+      schema = input.enum.length > LARGE_ENUM_SIZE
+        ? largeStringEnum(input.enum as string[])
+        : z.enum(input.enum as [string, ...string[]]);
     } else {
       const literals = input.enum.map((value) =>
         z.literal(value as z.util.Literal)
@@ -178,7 +223,15 @@ export function schemaToZod(
   }
   if (input.allOf?.length) {
     const { allOf, ...base } = input;
-    const [first, ...rest] = [base, ...allOf]
+    // A type-only part such as `{ type: ["string", "null"] }` next to a
+    // `$ref` adds nothing to the intersection, but publishing it as `allOf`
+    // breaks clients that only support a JSON Schema subset.
+    const isTypeOnly = (part: JsonSchema) =>
+      Object.keys(part).every((key) => key === "type" || key === "description");
+    const parts = allOf.some((part) => !isTypeOnly(part))
+      ? allOf.filter((part) => !isTypeOnly(part))
+      : allOf;
+    const [first, ...rest] = [base, ...parts]
       .map((part) => schemaToZod(part, components, resolving))
       .filter((part) => !(part instanceof z.ZodUnknown));
     const schema = rest.reduce<z.ZodTypeAny>(
@@ -194,6 +247,10 @@ export function schemaToZod(
       ? [input.type]
       : [];
   const nonNullTypes = types.filter((type) => type !== "null");
+  if (types.length > 0 && nonNullTypes.length === 0) {
+    const schema = z.null();
+    return input.description ? schema.describe(input.description) : schema;
+  }
   let result: z.ZodTypeAny;
 
   if (nonNullTypes.length > 1) {

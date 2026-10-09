@@ -36,3 +36,9 @@ test("validates both sibling fields and structural allOf branches", () => {
   assert.equal(schema.safeParse({ count: 2 }).success, false);
   assert.equal(schema.safeParse({ name: "Example", count: 0 }).success, false);
 });
+
+test("a null-only type accepts only null", () => {
+  const schema = schemaToZod({ anyOf: [{ type: "object", properties: {} }, { type: "null" }] }, {});
+  assert.equal(schema.safeParse(null).success, true);
+  assert.equal(schema.safeParse("anything").success, false);
+});
