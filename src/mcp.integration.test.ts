@@ -1298,12 +1298,12 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(newsProperties.filterBy?.type, "object");
   assert.equal(newsProperties.sortBy?.type, "string");
   assert.deepEqual(newsProperties.sortBy?.enum, ["newest", "relevance"]);
-  assert.deepEqual(newsSearch?.inputSchema.oneOf, [
-    { required: ["companyName"] },
-    { required: ["domain"] },
-    { required: ["ticker"] },
-    { required: ["isin"] },
-  ]);
+  const toolsWithRootCombinators = tools
+    .filter((tool) =>
+      ["oneOf", "anyOf", "allOf"].some((keyword) => keyword in tool.inputSchema),
+    )
+    .map((tool) => tool.name);
+  assert.deepEqual(toolsWithRootCombinators, []);
   assert.equal(newsProperties.limit?.type, "integer");
   assert.equal(newsProperties.cursor?.type, undefined);
   assert.equal(newsProperties.cursor?.anyOf instanceof Array, true);
