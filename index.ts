@@ -457,13 +457,20 @@ const repairToolCallArguments = async (
 
 const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 
+type ListedTool = { name: string; inputSchema?: Record<string, unknown> };
+
+// The SDK converts every tool's zod schema to JSON Schema on each tools/list,
+// which dominates the request; registered tools never change after startup.
+let sdkToolList: Promise<ListedTool[]> | undefined;
+
 // Gemini's function-calling schema subset rejects `$schema`, and the root
 // dialect is already the MCP default.
 server.use("mcp:tools/list", async (_context, next) => {
-  const tools = (await next()) as Array<{
-    name: string;
-    inputSchema?: Record<string, unknown>;
-  }>;
+  sdkToolList ??= (next() as Promise<ListedTool[]>).catch((cause) => {
+    sdkToolList = undefined;
+    throw cause;
+  });
+  const tools = await sdkToolList;
   return tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
     .map(({ inputSchema, ...tool }) => {
