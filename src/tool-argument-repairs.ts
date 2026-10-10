@@ -219,27 +219,50 @@ function repairScrapeFormats(input: Arguments): Arguments {
       args.parseParams = { ...args.parseParams, rules: Object.fromEntries(entries) };
     }
   }
-  // A rule with nested field rules but no selector means "fields of the page";
-  // `html` is the container that scopes the nested rules to the whole page.
-  if (isPlainObject(args.parseParams) && isPlainObject(args.parseParams.rules)) {
-    args.parseParams = {
-      ...args.parseParams,
-      rules: Object.fromEntries(
-        Object.entries(args.parseParams.rules).map(([field, rule]) => [
-          field,
-          isPlainObject(rule) && rule.selector === undefined && isPlainObject(rule.output)
-            ? { ...rule, selector: "html" }
-            : rule,
-        ]),
-      ),
-    };
-  }
   if (Object.keys(shared).length > 0 || isPlainObject(input.sharedParams)) {
     args.sharedParams = shared;
   } else {
     delete args.sharedParams;
   }
-  return args;
+  return repairScrapeParseParams(args);
+}
+
+function repairParseRuleAttributes(rule: unknown): unknown {
+  if (!isPlainObject(rule) || !isPlainObject(rule.output)) return rule;
+  const selector = typeof rule.selector === "string" ? rule.selector : undefined;
+  let hasChanges = false;
+  const output = Object.fromEntries(
+    Object.entries(rule.output).map(([field, nestedRule]) => {
+      const repairedRule =
+        selector && typeof nestedRule === "string" && nestedRule.startsWith("@")
+          ? { selector, output: nestedRule }
+          : repairParseRuleAttributes(nestedRule);
+      if (repairedRule !== nestedRule) hasChanges = true;
+      return [field, repairedRule];
+    }),
+  );
+  return hasChanges ? { ...rule, output } : rule;
+}
+
+function scopeSelectorlessParseRule(rule: unknown): unknown {
+  return isPlainObject(rule) && rule.selector === undefined && isPlainObject(rule.output)
+    ? { ...rule, selector: "html" }
+    : rule;
+}
+
+function repairScrapeParseParams(args: Arguments): Arguments {
+  if (!isPlainObject(args.parseParams) || !isPlainObject(args.parseParams.rules)) return args;
+  let hasChanges = false;
+  const rules = Object.fromEntries(
+    Object.entries(args.parseParams.rules).map(([field, rule]) => {
+      const repairedRule = scopeSelectorlessParseRule(repairParseRuleAttributes(rule));
+      if (repairedRule !== rule) hasChanges = true;
+      return [field, repairedRule];
+    }),
+  );
+  return hasChanges
+    ? { ...args, parseParams: { ...args.parseParams, rules } }
+    : args;
 }
 
 // web-answers takes an example object, not a JSON Schema. Models often send the
@@ -266,6 +289,49 @@ function isJsonSchemaObject(value: unknown): value is Arguments {
   return Array.isArray(value.type) ? value.type.includes("object") : value.type === "object";
 }
 
+function isJsonSchemaPropertyMap(value: unknown): value is Arguments {
+  if (!isPlainObject(value) || Object.keys(value).length === 0) return false;
+  const properties = Object.values(value);
+  const schemaTypes = new Set([
+    "array",
+    "boolean",
+    "integer",
+    "null",
+    "number",
+    "object",
+    "string",
+  ]);
+  const hasSchemaDetail = properties.some(
+    (property) =>
+      isPlainObject(property) &&
+      (property.description !== undefined ||
+        property.items !== undefined ||
+        isPlainObject(property.properties) ||
+        property.enum !== undefined ||
+        property.format !== undefined ||
+        property.oneOf !== undefined ||
+        property.anyOf !== undefined ||
+        property.allOf !== undefined),
+  );
+  return (
+    hasSchemaDetail &&
+    properties.every((property) => {
+      if (!isPlainObject(property)) return false;
+      const types = Array.isArray(property.type)
+        ? property.type
+        : [property.type];
+      const hasSchemaType = types.some(
+        (type) => typeof type === "string" && schemaTypes.has(type),
+      );
+      return (
+        hasSchemaType ||
+        isPlainObject(property.properties) ||
+        property.items !== undefined
+      );
+    })
+  );
+}
+
 function repairAnswers(input: Arguments): Arguments {
   let args = renameMissing(input, "task", ["query", "question", "prompt", "q"]);
   if (isMissing(args.json_format)) {
@@ -287,6 +353,14 @@ function repairAnswers(input: Arguments): Arguments {
   }
   if (isJsonSchemaObject(args.json_format)) {
     args = { ...args, json_format: exampleFromJsonSchema(args.json_format) };
+  } else if (isJsonSchemaPropertyMap(args.json_format)) {
+    args = {
+      ...args,
+      json_format: exampleFromJsonSchema({
+        type: "object",
+        properties: args.json_format,
+      }),
+    };
   }
   return args;
 }
@@ -351,6 +425,35 @@ function newsEntity(value: unknown): unknown {
   return parsed;
 }
 
+function flatNewsIdentity(value: unknown): Arguments {
+  const entity = newsEntity(value);
+  if (!isPlainObject(entity)) return {};
+  const type = entity.type ?? entity.entityType ?? entity.entity_type;
+  const valueForType = typeof type === "string"
+    ? entity[type] ?? entity.entityCode ?? entity.entity_code ?? entity.value
+    : undefined;
+  const companyName = entity.name ?? entity.companyName ?? entity.company_name ?? entity.company;
+  if (type === "name" && typeof (valueForType ?? companyName) === "string") {
+    return { companyName: valueForType ?? companyName };
+  }
+  if (type === "domain" && typeof valueForType === "string") {
+    return { domain: valueForType };
+  }
+  if (type === "ticker" && typeof valueForType === "string") {
+    return {
+      ticker: valueForType,
+      ...(typeof entity.exchange === "string" ? { exchange: entity.exchange } : {}),
+    };
+  }
+  if (type === "isin" && typeof valueForType === "string") {
+    return { isin: valueForType };
+  }
+  if (typeof companyName === "string") {
+    return { companyName };
+  }
+  return {};
+}
+
 // Only unambiguous dates become a filter: epoch milliseconds or ISO 8601.
 function toEpochMs(value: unknown): number | undefined {
   // Numbers count only in the epoch-millisecond range (2001 onward), so a year
@@ -368,39 +471,28 @@ function toEpochMs(value: unknown): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-// get-news-search needs one company identity under searchBy.entity. Models
-// send flat company fields or a bare string where the entity object belongs.
-// A free-text query is left alone: it is usually a topic, not a company, and
-// the validation hint points the model to web-search.
+// get-news-search publishes flat company identifiers to MCP clients, while the
+// API still accepts searchBy.entity. Normalize old and near-miss MCP calls to
+// the flat shape; the request boundary translates it back for the API.
 function repairNewsSearch(input: Arguments): Arguments {
   const args = { ...input };
-  let searchBy: Arguments = isPlainObject(args.searchBy) ? { ...args.searchBy } : {};
-  if (isMissing(searchBy.entity)) {
-    const entityType = take(searchBy, ["entityType", "entity_type"]);
-    const entityCode = take(searchBy, ["entityCode", "entity_code", "value"]);
-    const company =
-      take(searchBy, ["company", "company_name", "companyName"]) ??
-      take(args, ["company", "company_name", "companyName"]);
-    const domain = take(args, ["company_domain", "companyDomain", "domain"]);
-    const ticker = take(args, ["ticker"]);
-    const isin = take(args, ["isin"]);
-    if (typeof entityType === "string" && typeof entityCode === "string") {
-      searchBy.entity = { type: entityType, [entityType]: entityCode };
-    } else if (typeof domain === "string") {
-      searchBy.entity = { type: "domain", domain };
-    } else if (typeof ticker === "string") {
-      searchBy.entity = { type: "ticker", ticker };
-    } else if (typeof isin === "string") {
-      searchBy.entity = { type: "isin", isin };
-    } else if (typeof company === "string") {
-      searchBy.entity = newsEntity(company);
-    }
-  } else {
-    searchBy.entity = newsEntity(searchBy.entity);
+  const searchBy = isPlainObject(args.searchBy) ? args.searchBy : undefined;
+  const legacyIdentity = flatNewsIdentity(searchBy?.entity ?? searchBy);
+  delete args.searchBy;
+
+  const company = take(args, ["company", "company_name"]);
+  const domain = take(args, ["company_domain", "companyDomain"]);
+  if (isMissing(args.companyName) && typeof company === "string") {
+    args.companyName = company;
   }
-  if (searchBy.entity !== undefined) {
-    searchBy = { ...searchBy, type: "entity" };
-    args.searchBy = searchBy;
+  if (isMissing(args.domain) && typeof domain === "string") {
+    args.domain = domain;
+  }
+  if (["companyName", "domain", "ticker", "isin"].every((name) => isMissing(args[name]))) {
+    Object.assign(args, legacyIdentity);
+  }
+  if (isPlainObject(args.sortBy) && typeof args.sortBy.type === "string") {
+    args.sortBy = args.sortBy.type;
   }
   const count = take(args, ["num_results", "numResults", "maxResults", "max_results"]);
   if (count !== undefined) args.limit ??= count;
@@ -510,7 +602,7 @@ function withoutUnknownResponseMode(
 const TOOL_REPAIRS: Readonly<Record<string, (args: Arguments) => Arguments>> = {
   "web-scrape": withoutUnknownResponseMode(repairScrapeFormats),
   "web-search": withoutUnknownResponseMode(repairSearch),
-  "web-crawl": withPageUrl,
+  "web-crawl": withoutUnknownResponseMode(withPageUrl),
   "web-answers": repairAnswers,
   "web-map": repairMap,
   "get-news-search": repairNewsSearch,
@@ -555,6 +647,16 @@ export function reroutedToolName(
   ) {
     return "web-search";
   }
+  if (
+    toolName === "get-news-search" &&
+    typeof args.query === "string" &&
+    args.query.trim() !== "" &&
+    ["companyName", "domain", "ticker", "isin", "searchBy"].every(
+      (name) => isMissing(args[name]),
+    )
+  ) {
+    return "web-search";
+  }
   return undefined;
 }
 
@@ -569,7 +671,7 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
     'web-answers needs `task`, the research question. Describe the answer shape with `json_format`, an example object such as {"price":0,"currency":""}.',
   "web-map": "web-map needs `domain`, the site's host name, such as docs.example.com.",
   "get-news-search":
-    'get-news-search returns news about one company. Send {"searchBy":{"type":"entity","entity":{"type":"name","name":"Acme"}}}, or identify it by domain, ticker, or isin instead of name. For topics, keywords, or several companies, use web-search with `freshness` instead.',
+    'get-news-search returns news about one company. Send exactly one top-level identifier, for example {"companyName":"Acme"}, {"domain":"acme.com"}, {"ticker":"ACME"}, or {"isin":"US0000000000"}. Set sortBy to "newest" or "relevance". For topics, keywords, or several companies, use web-search with `freshness` instead.',
   "brand-retrieve-unified":
     'Send one lookup in `body`, for example {"body":{"type":"by_domain","domain":"stripe.com"}}. Other lookups: by_name with name, by_email with email, by_ticker with ticker, by_direct_url with direct_url, by_transaction with transaction_info.',
   "submit-batch":
@@ -580,15 +682,18 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
 // (`highlightsParams` without `formats.highlights`) or that requests no format.
 // Complete those even when the arguments already pass validation.
 export function completeValidArguments(toolName: string, args: unknown): unknown {
-  if (toolName !== "web-scrape" || !isPlainObject(args) || !isPlainObject(args.formats)) {
+  if (!isPlainObject(args)) return args;
+  if (toolName === "web-answers") return repairAnswers(args);
+  if (toolName !== "web-scrape" || !isPlainObject(args.formats)) {
     return args;
   }
-  const formats: Arguments = { ...args.formats };
+  const completed = repairScrapeParseParams(args);
+  const formats: Arguments = { ...(completed.formats as Arguments) };
   for (const [format, paramsKey] of Object.entries(SCRAPE_FORMAT_PARAMS)) {
-    if (args[paramsKey] !== undefined && formats[format] === undefined) formats[format] = true;
+    if (completed[paramsKey] !== undefined && formats[format] === undefined) formats[format] = true;
   }
   if (!SCRAPE_FORMATS.some((format) => formats[format] === true)) formats.markdown = true;
-  const original = args.formats;
+  const original = completed.formats as Arguments;
   const changed = Object.keys(formats).some((key) => formats[key] !== original[key]);
-  return changed ? { ...args, formats } : args;
+  return changed ? { ...completed, formats } : completed;
 }

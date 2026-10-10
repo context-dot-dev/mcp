@@ -196,7 +196,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": false,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Stops a queued or running batch in the authenticated account from processing additional pages.",
@@ -208,7 +209,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": false,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Permanently deletes a completed, cancelled, or failed batch and all its stored page results from the authenticated account.",
@@ -268,7 +270,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": false,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Permanently deletes a monitor and cancels all future scheduled runs from the authenticated account.",
