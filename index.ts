@@ -53,6 +53,7 @@ import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
 import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
+const NEWS_SEARCH_IDENTIFIERS = ["companyName", "domain", "ticker", "isin"] as const;
 const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   action: "Browser action.",
   confidence_threshold: "Minimum confidence, 0 to 1.",
@@ -467,7 +468,15 @@ server.use("mcp:tools/list", async (_context, next) => {
     .map(({ inputSchema, ...tool }) => {
       if (!inputSchema) return tool;
       const { $schema: _dialect, ...schema } = inputSchema;
-      return { ...tool, inputSchema: schema };
+      return {
+        ...tool,
+        inputSchema: tool.name === "get-news-search"
+          ? {
+              ...schema,
+              oneOf: NEWS_SEARCH_IDENTIFIERS.map((name) => ({ required: [name] })),
+            }
+          : schema,
+      };
     });
 });
 
@@ -1096,7 +1105,56 @@ function registerBrandTool(): void {
   );
 }
 
-function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
+function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
+  const components: Record<string, JsonSchema> = MCP_COMPONENT_SCHEMAS;
+  const body = resolveObjectSchema(
+    withMcpSchemaDescriptions(endpoint.requestBody!.schema),
+    components,
+  )!;
+  const properties = body.properties!;
+  const name = components.NewsSearchEntityByName!.properties!.name!;
+  const domain = components.NewsSearchEntityByDomain!.properties!.domain!;
+  const ticker = components.NewsSearchEntityByTicker!.properties!.ticker!;
+  const exchange = components.NewsSearchEntityByTicker!.properties!.exchange!;
+  const isin = components.NewsSearchEntityByIsin!.properties!.isin!;
+
+  return z.object({
+    companyName: schemaToZod(name, components).optional().describe(
+      "Company name. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    domain: schemaToZod(domain, components).optional().describe(
+      "Company website domain. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    ticker: schemaToZod(ticker, components).optional().describe(
+      "Public-company ticker. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    exchange: schemaToZod(exchange, components).optional().describe(
+      "Optional stock exchange when ticker is used, such as NASDAQ or NYSE.",
+    ),
+    isin: schemaToZod(isin, components).optional().describe(
+      "International Securities Identification Number. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    filterBy: schemaToZod(properties.filterBy!, components).optional(),
+    sortBy: z.enum(["newest", "relevance"]).optional().describe(
+      "Result ordering. Defaults to newest.",
+    ),
+    limit: schemaToZod(properties.limit!, components).optional(),
+    cursor: schemaToZod(properties.cursor!, components).optional(),
+    tags: schemaToZod(properties.tags!, components).optional(),
+  }).refine(
+    ({ companyName, domain, ticker, isin }) =>
+      [companyName, domain, ticker, isin].filter((value) => value !== undefined).length === 1,
+    { message: "Provide exactly one of companyName, domain, ticker, or isin." },
+  ).refine(
+    ({ exchange, ticker }) => exchange === undefined || ticker !== undefined,
+    { message: "exchange can only be used with ticker." },
+  );
+}
+
+function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
+  if (endpoint.name === "get-news-search") {
+    return createNewsSearchSchema(endpoint);
+  }
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const parameter of endpoint.parameters) {
     if (parameter.in === "cookie") {
@@ -1188,12 +1246,20 @@ function registerEndpointTool(ep: Endpoint): void {
       annotations: ep.annotations,
     },
     async (args, context: EnhancedToolContext) => {
+      let endpointArgs = args;
+      if (ep.name === "get-news-search") {
+        const parsed = schema.safeParse(args);
+        if (!parsed.success) {
+          return error(`Input validation error: ${z.prettifyError(parsed.error)}`);
+        }
+        endpointArgs = parsed.data;
+      }
       const credential = resolveContextCredential(context);
       if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
       return callContextApi({
         apiBase: API_BASE,
         endpoint: ep,
-        args: args as Record<string, unknown>,
+        args: endpointArgs as Record<string, unknown>,
         credential,
         clientUserAgent: context.req?.header("user-agent"),
       });

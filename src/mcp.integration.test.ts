@@ -878,7 +878,7 @@ test("serves MCP at the bare server URL and declines idle event streams", async 
   }
 });
 
-test("guides unrepairable calls and routes account-wide change listings", async () => {
+test("routes topic news and account-wide change listings", async () => {
   captured.length = 0;
   const client = await connectClient();
   const topicNews = await client.callTool({
@@ -891,13 +891,12 @@ test("guides unrepairable calls and routes account-wide change listings", async 
   });
   await client.close();
 
-  assert.equal(topicNews.isError, true);
-  const text = JSON.stringify(topicNews.content);
-  assert.match(text, /Input validation error/);
-  assert.match(text, /use web-search with `freshness` instead/);
+  assert.notEqual(topicNews.isError, true);
   assert.notEqual(changes.isError, true);
-  assert.equal(captured.length, 1);
-  const url = new URL(captured[0]!.url, "http://upstream");
+  assert.equal(captured.length, 2);
+  assert.equal(captured[0]!.url, "/web/search");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), { query: "DeFi OR Solana" });
+  const url = new URL(captured[1]!.url, "http://upstream");
   assert.equal(url.pathname, "/monitors/changes");
   assert.equal(url.searchParams.get("tag"), "launch");
 
@@ -1200,10 +1199,20 @@ test("lists the public Context API with safety annotations", async () => {
     string,
     Record<string, unknown>
   >;
-  assert.deepEqual(newsSearch?.inputSchema.required, ["searchBy"]);
-  assert.equal(newsProperties.searchBy?.type, "object");
+  assert.equal(newsProperties.searchBy, undefined);
+  assert.equal(newsProperties.companyName?.type, "string");
+  assert.equal(newsProperties.domain?.type, "string");
+  assert.equal(newsProperties.ticker?.type, "string");
+  assert.equal(newsProperties.isin?.type, "string");
   assert.equal(newsProperties.filterBy?.type, "object");
-  assert.equal(newsProperties.sortBy?.type, "object");
+  assert.equal(newsProperties.sortBy?.type, "string");
+  assert.deepEqual(newsProperties.sortBy?.enum, ["newest", "relevance"]);
+  assert.deepEqual(newsSearch?.inputSchema.oneOf, [
+    { required: ["companyName"] },
+    { required: ["domain"] },
+    { required: ["ticker"] },
+    { required: ["isin"] },
+  ]);
   assert.equal(newsProperties.limit?.type, "integer");
   assert.equal(newsProperties.cursor?.type, undefined);
   assert.equal(newsProperties.cursor?.anyOf instanceof Array, true);
@@ -1728,20 +1737,14 @@ test("API and brand errors guide a report using the affected request ID", async 
   }
 });
 
-test("searches company news with an entity, article types, and a date range", async () => {
+test("translates the flat company-news contract to the public API request", async () => {
   captured.length = 0;
   const client = await connectClient();
   const result = await client.callTool({
     name: "get-news-search",
     arguments: {
-      searchBy: {
-        type: "entity",
-        entity: {
-          type: "ticker",
-          ticker: "AAPL",
-          exchange: "NASDAQ",
-        },
-      },
+      ticker: "AAPL",
+      exchange: "NASDAQ",
       filterBy: {
         articleType: ["editorial", "press_release"],
         date: {
@@ -1749,7 +1752,7 @@ test("searches company news with an entity, article types, and a date range", as
           to: 1_725_235_200_000,
         },
       },
-      sortBy: { type: "newest" },
+      sortBy: "newest",
       limit: 10,
       tags: ["mcp", "news"],
     },
@@ -1791,6 +1794,68 @@ test("searches company news with an entity, article types, and a date range", as
     ],
     has_more: false,
     next_cursor: null,
+  });
+});
+
+test("accepts every company identifier and legacy news-search calls", async () => {
+  captured.length = 0;
+  const scenarios = [
+    {
+      arguments: { companyName: "Apple" },
+      entity: { type: "name", name: "Apple" },
+    },
+    {
+      arguments: { domain: "apple.com", sortBy: "relevance" },
+      entity: { type: "domain", domain: "apple.com" },
+      sortBy: { type: "relevance" },
+    },
+    {
+      arguments: { isin: "US0378331005" },
+      entity: { type: "isin", isin: "US0378331005" },
+    },
+    {
+      arguments: {
+        searchBy: {
+          type: "entity",
+          entity: { type: "ticker", ticker: "AAPL", exchange: "NASDAQ" },
+        },
+        sortBy: { type: "newest" },
+      },
+      entity: { type: "ticker", ticker: "AAPL", exchange: "NASDAQ" },
+      sortBy: { type: "newest" },
+    },
+    {
+      arguments: { searchBy: { type: "domain", domain: "example.com" }, sortBy: "newest" },
+      entity: { type: "domain", domain: "example.com" },
+      sortBy: { type: "newest" },
+    },
+  ];
+  const client = await connectClient();
+  for (const scenario of scenarios) {
+    const result = await client.callTool({
+      name: "get-news-search",
+      arguments: scenario.arguments,
+    });
+    assert.notEqual(result.isError, true);
+  }
+  const missingIdentity = await client.callTool({
+    name: "get-news-search",
+    arguments: {},
+  });
+  const ambiguousIdentity = await client.callTool({
+    name: "get-news-search",
+    arguments: { companyName: "Apple", domain: "apple.com" },
+  });
+  await client.close();
+
+  assert.equal(missingIdentity.isError, true);
+  assert.equal(ambiguousIdentity.isError, true);
+  assert.equal(captured.length, scenarios.length);
+  scenarios.forEach((scenario, index) => {
+    assert.deepEqual(JSON.parse(captured[index]!.body.toString()), {
+      searchBy: { type: "entity", entity: scenario.entity },
+      ...(scenario.sortBy ? { sortBy: scenario.sortBy } : {}),
+    });
   });
 });
 
