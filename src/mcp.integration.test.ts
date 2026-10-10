@@ -504,7 +504,7 @@ test("compact web responses preserve evidence and errors through the MCP protoco
           .description,
         /compact/,
       );
-      if (name !== "web-crawl") assert.match(tool.description!, /compact/);
+      assert.match(tool.description!, /compact/);
     }
     assert.equal(
       tools.find((tool) => tool.name === "web-map")?.inputSchema.properties
