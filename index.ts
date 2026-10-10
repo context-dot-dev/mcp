@@ -67,7 +67,6 @@ const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
 // would pay a new TCP and TLS handshake.
 const UPSTREAM_KEEP_ALIVE_MS = 60_000;
 setGlobalDispatcher(new Agent({ keepAliveTimeout: UPSTREAM_KEEP_ALIVE_MS }));
-const NEWS_SEARCH_IDENTIFIERS = ["companyName", "domain", "ticker", "isin"] as const;
 const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   action: "Browser action.",
   confidence_threshold: "Minimum confidence, 0 to 1.",
@@ -523,16 +522,7 @@ server.use("mcp:tools/list", async (_context, next) => {
         const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
         if (!inputSchema) return publishedTool;
         const { $schema: _dialect, ...schema } = inputSchema;
-        const compactSchema = compactPublishedSchema(schema);
-        return {
-          ...publishedTool,
-          inputSchema: tool.name === "get-news-search"
-            ? {
-                ...compactSchema,
-                oneOf: NEWS_SEARCH_IDENTIFIERS.map((name) => ({ required: [name] })),
-              }
-            : compactSchema,
-        };
+        return { ...publishedTool, inputSchema: compactPublishedSchema(schema) };
       },
     );
   if (!shouldServeCoreProfile(getRequestContext()?.req)) {
