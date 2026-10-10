@@ -2074,7 +2074,7 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
     .map((block) => block.text ?? "")
     .join("\n");
   assert.ok(
-    brandCardText.includes(JSON.stringify({ brand: brandCard.brand }, null, 2)),
+    brandCardText.includes(JSON.stringify({ brand: brandCard.brand })),
     "clients that only read text must still receive the full brand",
   );
   assert.equal(brandCard.brand.domain, "example.test");

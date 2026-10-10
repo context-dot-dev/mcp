@@ -378,6 +378,32 @@ test("preserves request IDs while removing private response metadata", async () 
   }
 });
 
+test("compacts the text mirror without changing structured responses", async () => {
+  const originalFetch = globalThis.fetch;
+  const expected = {
+    ok: true,
+    nested: { values: [1, 2, 3] },
+    request_id: "req_compact_text",
+  };
+  globalThis.fetch = async () => Response.json(expected);
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    assert.deepEqual(result, {
+      content: [{ type: "text", text: JSON.stringify(expected) }],
+      structuredContent: expected,
+      _meta: { mimeType: "application/json" },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("includes request IDs in upstream API errors", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
