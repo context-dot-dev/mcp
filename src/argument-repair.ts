@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type { JsonSchema } from "../context-endpoints";
 import { repairToolSpecificArguments } from "./tool-argument-repairs";
 
@@ -193,18 +194,15 @@ function renameNearMissKeys(
   declaredNames: Set<string>,
 ): Record<string, unknown> {
   if (declaredNames.size === 0) return value;
-  const byNormalizedName = new Map(
-    [...declaredNames].map((name) => [normalizedName(name), name]),
-  );
+  const findSameNames = (name: string, names: Iterable<string>) =>
+    [...names].filter((other) => normalizedName(other) === normalizedName(name));
   const renamed: Record<string, unknown> = {};
   for (const [name, entry] of Object.entries(value)) {
-    const declared = declaredNames.has(name)
-      ? name
-      : byNormalizedName.get(normalizedName(name));
-    const target =
-      declared && !Object.hasOwn(value, declared) && !Object.hasOwn(renamed, declared)
-        ? declared
-        : name;
+    const declaredMatches = declaredNames.has(name) ? [name] : findSameNames(name, declaredNames);
+    const declared = declaredMatches.length === 1 ? declaredMatches[0] : undefined;
+    const isOnlySentSpelling =
+      declared !== undefined && findSameNames(declared, Object.keys(value)).length === 1;
+    const target = isOnlySentSpelling ? declared : name;
     renamed[target] = entry;
   }
   // Older tool versions took a flat timeoutMS; the current shape nests it.
@@ -411,4 +409,18 @@ export function repairToolArguments(
     hoistMisplacedParameters(parsed, schema),
   );
   return repairToolArgument(relocated, schema);
+}
+
+// Validation strips undeclared keys, so `max_pages` or an `{ arguments }`
+// wrapper on an all-optional tool would validate and silently lose its value.
+export function restoreUndeclaredKeys(value: unknown, schema: JsonSchema): unknown {
+  if (!isPlainObject(value)) return value;
+  const declaredNames = new Set(Object.keys(schema.properties ?? {}));
+  const hasUndeclaredKey = Object.keys(value).some((key) => !declaredNames.has(key));
+  if (!hasUndeclaredKey) return value;
+  const unwrapped = unwrapArguments(value, schema);
+  const restored = isPlainObject(unwrapped)
+    ? renameNearMissKeys(unwrapped, declaredNames)
+    : unwrapped;
+  return isDeepStrictEqual(restored, value) ? value : restored;
 }

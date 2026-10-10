@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { JsonSchema } from "../context-endpoints";
-import { repairToolArgument, repairToolArguments } from "./argument-repair";
+import {
+  repairToolArgument,
+  repairToolArguments,
+  restoreUndeclaredKeys,
+} from "./argument-repair";
 
 const scrapeSchema: JsonSchema = {
   type: "object",
@@ -297,6 +301,48 @@ test("keeps unknown top-level properties for validation to strip", () => {
   assert.deepEqual(repairToolArgument({ extra: '{"a":1}' }, scrapeSchema), {
     extra: '{"a":1}',
   });
+});
+
+const optionalSchema: JsonSchema = {
+  type: "object",
+  properties: {
+    status_code: { type: "integer" },
+    maxPages: { type: "integer" },
+    mode: { type: "string" },
+  },
+};
+
+test("restores undeclared keys that name a declared property", () => {
+  assert.deepEqual(
+    restoreUndeclaredKeys({ max_pages: 1, Mode: "web", extra: "x" }, optionalSchema),
+    { maxPages: 1, mode: "web", extra: "x" },
+  );
+  assert.deepEqual(
+    restoreUndeclaredKeys({ arguments: { statusCode: 500, maxPages: 2 } }, optionalSchema),
+    { status_code: 500, maxPages: 2 },
+  );
+});
+
+test("leaves declared, unmatched, and ambiguous keys as sent", () => {
+  const declaredOnly = { maxPages: 1 };
+  const unmatched = { extra: "x" };
+  assert.equal(restoreUndeclaredKeys(declaredOnly, optionalSchema), declaredOnly);
+  assert.equal(restoreUndeclaredKeys(unmatched, optionalSchema), unmatched);
+  assert.deepEqual(
+    restoreUndeclaredKeys({ maxPages: 1, max_pages: 2 }, optionalSchema),
+    { maxPages: 1, max_pages: 2 },
+  );
+  assert.deepEqual(
+    restoreUndeclaredKeys({ MaxPages: 1, max_pages: 2 }, optionalSchema),
+    { MaxPages: 1, max_pages: 2 },
+  );
+  assert.deepEqual(
+    restoreUndeclaredKeys(
+      { Mode: "web" },
+      { type: "object", properties: { mode: { type: "string" }, MODE: { type: "string" } } },
+    ),
+    { Mode: "web" },
+  );
 });
 
 const closedSchema: JsonSchema = {
