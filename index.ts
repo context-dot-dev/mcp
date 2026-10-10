@@ -528,8 +528,27 @@ for (const path of ["/mcp/*", "/sse/*"]) {
   server.app.use(path, repairToolCallArguments);
 }
 
-// The issuer is the server root, so discovery documents under /mcp do not
-// exist. Answer 404 instead of the bearer challenge that would otherwise apply.
+// Clients that take the MCP URL as the issuer (Codex among them) try these
+// paths before the root document, one round trip per 404. The issuer is the
+// server root, so answer each with the root document they end up using.
+const ROOT_METADATA_BY_ISSUER_PATH_ALIAS: Readonly<Record<string, string>> = {
+  "/.well-known/oauth-authorization-server/mcp":
+    "/.well-known/oauth-authorization-server",
+  "/.well-known/openid-configuration/mcp": "/.well-known/openid-configuration",
+  "/mcp/.well-known/oauth-authorization-server":
+    "/.well-known/oauth-authorization-server",
+  "/mcp/.well-known/openid-configuration": "/.well-known/openid-configuration",
+};
+for (const [alias, rootPath] of Object.entries(ROOT_METADATA_BY_ISSUER_PATH_ALIAS)) {
+  server.app.get(alias, (context) => {
+    const target = new URL(context.req.url);
+    target.pathname = rootPath;
+    return server.app.fetch(new Request(target, context.req.raw), context.env);
+  });
+}
+
+// Other discovery documents under /mcp do not exist. Answer 404 instead of
+// the bearer challenge that would otherwise apply.
 server.app.get("/mcp/.well-known/*", (context) => context.notFound());
 
 // Users often configure the bare server URL; serve MCP there too.
