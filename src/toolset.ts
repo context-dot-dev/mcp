@@ -256,6 +256,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -446,6 +447,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -456,6 +458,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
