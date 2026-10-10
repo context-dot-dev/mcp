@@ -23,8 +23,9 @@ export async function acquireApiKeySlot(
   queues.set(keyId, queue);
   const limit = concurrencyLimits.get(keyId) ?? Infinity;
   const isSlotFree = queue.running < limit && queue.waiting.length === 0;
-  const hasReceivedSlot = isSlotFree ? false : await waitForSlot(queue, deadline);
-  if (!hasReceivedSlot) queue.running += 1;
+  if (isSlotFree) queue.running += 1;
+  const hasReceivedSlot = isSlotFree || await waitForSlot(queue, deadline);
+  if (!hasReceivedSlot) return () => {};
   let isReleased = false;
   return () => {
     if (isReleased) return;
@@ -37,8 +38,8 @@ export function rememberConcurrencyLimit(keyId: string, headers: Headers) {
   const limit = Number(headers.get("X-RateLimit-Limit"));
   const isConcurrencyLimit =
     headers.get("X-RateLimit-Mode") === "concurrency" && Number.isInteger(limit) && limit > 0;
-  concurrencyLimits.delete(keyId);
   if (!isConcurrencyLimit) return;
+  concurrencyLimits.delete(keyId);
   concurrencyLimits.set(keyId, limit);
   if (concurrencyLimits.size <= MAX_REMEMBERED_KEYS) return;
   const oldestKeyId = concurrencyLimits.keys().next().value;
@@ -53,8 +54,8 @@ function releaseSlot(keyId: string, queue: KeyQueue) {
   if (queue.running === 0) queues.delete(keyId);
 }
 
-// Past the deadline the call goes out anyway; the API's 429 retry path then
-// decides, so a stuck slot can never hold a call forever.
+// Past the deadline the call goes out without occupying a local slot, so a
+// stuck request cannot hold queued calls forever.
 function waitForSlot(queue: KeyQueue, deadline: number): Promise<boolean> {
   return new Promise((resolve) => {
     const receiveSlot = () => {

@@ -108,6 +108,18 @@ test("per-minute rate limits do not serialize calls", async (t) => {
   assert.equal(api.maxRunning, 4);
 });
 
+test("responses without a concurrency mode do not forget a learned limit", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  installFakeApi(1);
+  await callInParallel("mixed-limit-key", 1);
+  installFakeApi(60, "per-minute");
+  await callInParallel("mixed-limit-key", 1);
+  const api = installFakeApi(1);
+  await callInParallel("mixed-limit-key", 4);
+  assert.equal(api.rejected, 0);
+});
+
 test("a queued call goes out once its wait deadline passes", async () => {
   rememberConcurrencyLimit(
     "deadline-key",
@@ -120,6 +132,26 @@ test("a queued call goes out once its wait deadline passes", async () => {
   releaseFirst();
   releaseSecond();
   const releaseThird = await acquireApiKeySlot("deadline-key", Date.now() + 1_000);
+  releaseThird();
+});
+
+test("a timed-out call does not transfer a nonexistent slot to another waiter", async () => {
+  rememberConcurrencyLimit(
+    "timed-out-slot-key",
+    new Headers({ "X-RateLimit-Mode": "concurrency", "X-RateLimit-Limit": "1" }),
+  );
+  const releaseFirst = await acquireApiKeySlot("timed-out-slot-key", Date.now() + 1_000);
+  const releaseTimedOut = await acquireApiKeySlot("timed-out-slot-key", Date.now() + 20);
+  let hasThirdSlot = false;
+  const thirdSlot = acquireApiKeySlot("timed-out-slot-key", Date.now() + 1_000).then((release) => {
+    hasThirdSlot = true;
+    return release;
+  });
+  releaseTimedOut();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(hasThirdSlot, false);
+  releaseFirst();
+  const releaseThird = await thirdSlot;
   releaseThird();
 });
 
