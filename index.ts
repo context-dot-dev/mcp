@@ -5,6 +5,7 @@ import {
   widget,
   type EnhancedToolContext,
 } from "mcp-use/server";
+import { compress } from "hono/compress";
 import { z } from "zod";
 import { brandSchema, type Brand } from "./resources/context-brand/types";
 import {
@@ -521,6 +522,7 @@ const describeBearerChallenge = async (
 
 // "/mcp/*" and "/sse/*" also match "/mcp" and "/sse".
 for (const path of ["/mcp/*", "/sse/*"]) {
+  server.app.use(path, compress());
   server.app.use(path, validateMcpOrigin);
   server.app.use(path, rejectIdleEventStream);
   server.app.use(path, describeBearerChallenge);
