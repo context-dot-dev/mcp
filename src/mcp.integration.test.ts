@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { after, before, test } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { CORE_TOOL_NAMES } from "./toolset";
 
 type CapturedRequest = {
   method: string;
@@ -441,10 +442,12 @@ after(async () => {
   );
 });
 
-async function connectClient(path = "/mcp"): Promise<Client> {
+async function connectClient(path = "/mcp", userAgent?: string): Promise<Client> {
   const client = new Client({ name: "context-test", version: "1.0.0" });
   await client.connect(
-    new StreamableHTTPClientTransport(new URL(`${mcpBase}${path}`))
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}${path}`), {
+      requestInit: userAgent ? { headers: { "User-Agent": userAgent } } : undefined,
+    })
   );
   return client;
 }
@@ -1204,6 +1207,21 @@ test("offers a smaller core profile without disabling cached tool calls", async 
   });
   assert.equal(cachedCall.isError, undefined);
   await client.close();
+});
+
+test("serves the core profile to agent CLIs without tool search unless they ask for the full catalog", async () => {
+  const listToolCount = async (path: string, userAgent: string) => {
+    const client = await connectClient(path, userAgent);
+    const { tools } = await client.listTools();
+    await client.close();
+    return tools.length;
+  };
+  const coreToolCount = CORE_TOOL_NAMES.size;
+
+  assert.equal(await listToolCount("/mcp", "opencode/1.18.35"), coreToolCount);
+  assert.equal(await listToolCount("/mcp", "kilo/7.8.8"), coreToolCount);
+  assert.ok((await listToolCount("/mcp?profile=full", "opencode/1.18.35")) > coreToolCount);
+  assert.ok((await listToolCount("/mcp", "node")) > coreToolCount);
 });
 
 test("forwards all scrape formats, browser actions, CSS rules, and request controls", async () => {
