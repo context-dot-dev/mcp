@@ -1162,6 +1162,30 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
 });
 
+test("repairs bare answer property maps before forwarding valid calls", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  try {
+    const result = await client.callTool({
+      name: "web-answers",
+      arguments: {
+        task: "Answer with sources",
+        json_format: {
+          answer: { type: "string", description: "Sourced answer" },
+          sources: { type: "array", items: { type: "string" } },
+        },
+      },
+    });
+    assert.notEqual(result.isError, true);
+    assert.deepEqual(JSON.parse(captured.at(-1)!.body.toString()).json_format, {
+      answer: "",
+      sources: [""],
+    });
+  } finally {
+    await client.close();
+  }
+});
+
 test("forwards all scrape formats, browser actions, CSS rules, and request controls", async () => {
   captured.length = 0;
   const client = await connectClient();

@@ -600,7 +600,9 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
 // (`highlightsParams` without `formats.highlights`) or that requests no format.
 // Complete those even when the arguments already pass validation.
 export function completeValidArguments(toolName: string, args: unknown): unknown {
-  if (toolName !== "web-scrape" || !isPlainObject(args) || !isPlainObject(args.formats)) {
+  if (!isPlainObject(args)) return args;
+  if (toolName === "web-answers") return repairAnswers(args);
+  if (toolName !== "web-scrape" || !isPlainObject(args.formats)) {
     return args;
   }
   const formats: Arguments = { ...args.formats };
