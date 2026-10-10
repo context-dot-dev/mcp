@@ -135,32 +135,42 @@ test("web-search accepts common query and count names", () => {
   );
 });
 
-test("get-news-search builds the company entity", () => {
+test("get-news-search flattens legacy and near-miss company identities", () => {
   const news = (args: Record<string, unknown>) =>
     repairToolSpecificArguments("get-news-search", args);
   assert.deepEqual(news({ company: "Tiledmedia", startDate: "2026-10-04", num_results: 5 }), {
-    searchBy: { type: "entity", entity: { type: "name", name: "Tiledmedia" } },
+    companyName: "Tiledmedia",
     limit: 5,
     filterBy: { date: { from: Date.parse("2026-10-04") } },
   });
   // Free text is usually a topic, not a company; leave it for the hint.
   assert.equal(news({ query: "after-hours stock movers earnings" }).searchBy, undefined);
-  assert.deepEqual(news({ searchBy: { query: "stocks Wall Street midday" } }).searchBy, {
-    query: "stocks Wall Street midday",
+  assert.deepEqual(news({ searchBy: { query: "stocks Wall Street midday" } }), {});
+  assert.deepEqual(news({ searchBy: { entity: "puls4.com", type: "entity" } }), {
+    domain: "puls4.com",
   });
-  assert.deepEqual(news({ searchBy: { entity: "puls4.com", type: "entity" } }).searchBy, {
-    entity: { type: "domain", domain: "puls4.com" },
-    type: "entity",
+  assert.deepEqual(news({ searchBy: { entity: ["ticker", "AAPL"] } }), {
+    ticker: "AAPL",
   });
-  assert.deepEqual(news({ searchBy: { entity: ["ticker", "AAPL"] } }).searchBy, {
-    entity: { type: "ticker", ticker: "AAPL" },
-    type: "entity",
+  assert.deepEqual(news({ searchBy: { type: "domain", domain: "example.com" } }), {
+    domain: "example.com",
+  });
+  assert.deepEqual(news({ searchBy: { entityType: "isin", entityCode: "US0378331005" } }), {
+    isin: "US0378331005",
+  });
+  assert.deepEqual(news({
+    searchBy: {
+      type: "entity",
+      entity: { type: "ticker", ticker: "AAPL", exchange: "NASDAQ" },
+    },
+    sortBy: { type: "newest" },
+  }), {
+    ticker: "AAPL",
+    exchange: "NASDAQ",
+    sortBy: "newest",
   });
   assert.equal(news({ query: "NBA OR NHL" }).searchBy, undefined);
-  assert.deepEqual(news({ company_domain: "acme.test" }).searchBy, {
-    entity: { type: "domain", domain: "acme.test" },
-    type: "entity",
-  });
+  assert.deepEqual(news({ company_domain: "acme.test" }), { domain: "acme.test" });
 });
 
 test("brand-retrieve-unified wraps a flat identifier in a typed body", () => {
@@ -218,6 +228,39 @@ test("web-scrape scopes selector-less nested parse rules to the page", () => {
   );
 });
 
+test("web-scrape gives nested attribute outputs their parent selector", () => {
+  const input = {
+    url: "https://a.test",
+    formats: { parse: true },
+    parseParams: {
+      rules: {
+        links: {
+          selector: "a",
+          type: "list",
+          output: { href: "@href", label: ".label" },
+        },
+      },
+    },
+  };
+  const expected = {
+    ...input,
+    parseParams: {
+      rules: {
+        links: {
+          selector: "a",
+          type: "list",
+          output: {
+            href: { selector: "a", output: "@href" },
+            label: ".label",
+          },
+        },
+      },
+    },
+  };
+  assert.deepEqual(repairToolSpecificArguments("web-scrape", input), expected);
+  assert.deepEqual(completeValidArguments("web-scrape", input), expected);
+});
+
 test("calls carrying only another tool's input go to that tool", () => {
   assert.equal(reroutedToolName("list-monitor-changes", { since: "2026-10-09" }), "list-changes");
   assert.equal(reroutedToolName("list-monitor-changes", { monitor_id: "mon_1" }), undefined);
@@ -230,6 +273,7 @@ test("calls carrying only another tool's input go to that tool", () => {
   assert.equal(reroutedToolName("web-search", { query: "x", url: "https://a.test" }), undefined);
   assert.equal(reroutedToolName("web-scrape", { query: "pricing", numResults: 20 }), "web-search");
   assert.equal(reroutedToolName("web-scrape", { query: "", numResults: 20 }), undefined);
+  assert.equal(reroutedToolName("get-news-search", { query: "AI funding news" }), "web-search");
 });
 
 test("web-search takes the one query from a list or wrapper", () => {
@@ -281,6 +325,16 @@ test("web-scrape and web-crawl find the page URL under other names", () => {
   });
 });
 
+test("web-crawl ignores unknown response modes", () => {
+  assert.deepEqual(
+    repairToolSpecificArguments("web-crawl", {
+      url: "https://a.test",
+      responseMode: "content",
+    }),
+    { url: "https://a.test" },
+  );
+});
+
 test("repairs leave unrelated extra keys for validation to strip", () => {
   assert.deepEqual(
     repairToolSpecificArguments("brand-retrieve-unified", {
@@ -300,7 +354,7 @@ test("repairs leave unrelated extra keys for validation to strip", () => {
       from: "5",
     }),
     {
-      searchBy: { type: "entity", entity: { type: "name", name: "Acme" } },
+      companyName: "Acme",
       since: "last week",
       from: "5",
     },
@@ -363,6 +417,28 @@ test("web-answers converts a nullable object schema", () => {
     }).json_format,
     { price: 0 },
   );
+});
+
+test("web-answers converts a bare JSON Schema property map", () => {
+  assert.deepEqual(
+    repairToolSpecificArguments("web-answers", {
+      task: "x",
+      json_format: {
+        answer: { type: "string", description: "The sourced answer" },
+        sources: { type: "array", items: { type: "string" } },
+        confidence: { type: ["number", "null"] },
+      },
+    }).json_format,
+    { answer: "", sources: [""], confidence: 0 },
+  );
+  const example = {
+    task: "x",
+    json_format: {
+      entity: { type: "company", properties: 3 },
+      source: { type: "primary", description: "Annual report" },
+    },
+  };
+  assert.deepEqual(repairToolSpecificArguments("web-answers", example), example);
 });
 
 test("other tools are unchanged", () => {

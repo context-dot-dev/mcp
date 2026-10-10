@@ -45,6 +45,19 @@ const API_REFERENCE_TOOL_ORDER = [
   "submit-feedback",
 ] as const;
 
+export const CORE_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "web-scrape",
+  "web-map",
+  "web-crawl",
+  "web-search",
+  "web-answers",
+  "get-brand",
+  "get-news-search",
+  "parse-document",
+  "get-usage",
+  "submit-feedback",
+]);
+
 type ToolOverride = Partial<
   Pick<Endpoint, "title" | "description" | "annotations">
 >;
@@ -83,7 +96,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-crawl": {
     title: "Crawl a website",
     description:
-      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Use this for focused multi-page research when results are needed immediately. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
+      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Prefer responseMode=\"compact\" for focused research; use full for complete page content or metadata. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -113,7 +126,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-news-search": {
     title: "Search company news",
     description:
-      "Search live and historical news for one company, identified by exactly one name, domain, ticker with an optional exchange, or ISIN. Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Paginate results with stable story IDs and verified entity relevance. Use web-search for broader topics or news that is not tied to one company.",
+      "Search live and historical news for one company. Provide exactly one top-level identifier: companyName, domain, ticker with an optional exchange, or isin. Set sortBy to newest or relevance. Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Use web-search for broader topics or news that is not tied to one company.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -256,6 +269,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -446,6 +460,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -456,6 +471,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },

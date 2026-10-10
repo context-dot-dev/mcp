@@ -1,10 +1,14 @@
 import {
   error,
+  getRequestContext,
   MCPServer,
   text,
   widget,
   type EnhancedToolContext,
 } from "mcp-use/server";
+import type { HonoRequest } from "hono";
+import { Agent, setGlobalDispatcher } from "undici";
+import { compress } from "hono/compress";
 import { z } from "zod";
 import { brandSchema, type Brand } from "./resources/context-brand/types";
 import {
@@ -39,7 +43,8 @@ import {
   registerDcrClient,
 } from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
-import { repairToolArguments } from "./src/argument-repair";
+import { compactPublishedSchema } from "./src/published-schema";
+import { repairToolArguments, restoreUndeclaredKeys } from "./src/argument-repair";
 import {
   completeValidArguments,
   reroutedToolName,
@@ -50,9 +55,18 @@ import {
   createNativeCallbackRedirect,
 } from "./src/native-oauth-redirect";
 import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
-import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./src/toolset";
+import {
+  CORE_TOOL_NAMES,
+  LEGACY_TOOL_ANNOTATIONS,
+  selectEndpoints,
+} from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
+// The API sends no Keep-Alive timeout, so fetch would close idle sockets after
+// 4 s. Agents usually think longer than that between tool calls, so most calls
+// would pay a new TCP and TLS handshake.
+const UPSTREAM_KEEP_ALIVE_MS = 60_000;
+setGlobalDispatcher(new Agent({ keepAliveTimeout: UPSTREAM_KEEP_ALIVE_MS }));
 const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   action: "Browser action.",
   confidence_threshold: "Minimum confidence, 0 to 1.",
@@ -199,13 +213,11 @@ const server = new MCPServer({
   description:
     "Turn the live web, company news, and files into reliable, agent-ready context. Connect with OAuth or a Context API key through the Authorization header, X-API-Key header, or api_key URL parameter.",
   instructions:
-    "Use Context when a task needs current web data, company news, clean content from a URL, structured facts from a site, document parsing, brand intelligence, large-scale collection, or recurring change detection.\n\n" +
-    "Choose the smallest suitable tool: `get-news-search` finds verified news about one company; `web-search` discovers sources or researches broader topics; `web-answers` researches the live web into a requested JSON shape; `web-scrape` returns HTML, Markdown, screenshots, images, original bytes, CSS-selected fields, highlights, JSON, or product data from one known page; `web-map` maps a site's URLs with available page metadata; `web-crawl` reads several linked pages synchronously; and `submit-batch` handles large asynchronous jobs. Use `parse-document` for file bytes. Scrape browser actions can interact with the target site, so choose actions that match the user's request.\n\n" +
-    "Use `get-brand` for a visual domain profile, `brand-retrieve-unified` for raw brand data or non-domain identifiers, `brand-search` for lightweight brand matches, and `people-enrich` for person identity clues. Use `web-styleguide` for a website's design system. Monitors are for recurring checks, not one-time scraping. Use `get-monitor-limits` to check capacity. Batch submissions return an ID: check `get-batch`, then read `get-batch-results` after completion.\n\n" +
-    "Use `list-webhook-deliveries`, `get-webhook-delivery`, and `list-webhook-delivery-attempts` to inspect batch or monitor notifications. `retry-webhook-delivery` sends a delivery to its receiver again; `rotate-monitor-webhook-secret` replaces a monitor's signing secret and requires updating the receiver.\n\n" +
-    "Use `list-logs` to investigate API failures in the authenticated account, then `get-log` with the request ID from a data entry for the redacted retained input and response.\n\n" +
+    "Use Context for live web or news, URLs, files, brands, people, batches, and monitoring. Route: `get-news-search` for one company's news; `web-search` for broad research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `submit-batch` for large jobs; `parse-document` for file bytes. Prefer compact search and scrape results. Browser actions affect sites; use only requested actions.\n\n" +
+    "Use `get-brand` for visual domain data, `brand-retrieve-unified` for raw or non-domain data, `brand-search` for matches, `people-enrich` for people, and `web-styleguide` for design systems. Monitors are recurring only; check `get-monitor-limits`. For batches call `get-batch`, then `get-batch-results`. Webhook list/get tools inspect; retry resends and secret rotation replaces the receiver secret.\n\n" +
+    "Only when needed for account failures, use `list-logs`, then `get-log` with its request ID.\n\n" +
     FEEDBACK_INSTRUCTIONS + "\n\n" +
-    "Authenticate with Context OAuth or a Context API key. Send API keys as `Authorization: Bearer <key>`, `X-API-Key: <key>`, or, when a client cannot set headers, the `api_key` URL parameter. Prefer OAuth or headers because URLs may be recorded in configuration, logs, or history. Some operations consume Context credits, so avoid unnecessary duplicate calls and use idempotency keys for retried batch submissions.",
+    "Auth: OAuth or an API key via `Authorization: Bearer <key>`, `X-API-Key: <key>`, or URL `api_key`. Prefer OAuth or headers; URLs may be logged. Avoid duplicate calls. On `USAGE_EXCEEDED`, do not retry; call `get-usage` once, tell the user the balance and refill, and continue independent work. Use idempotency keys for batch retries.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
   websiteUrl: "https://context.dev",
@@ -332,7 +344,8 @@ type RepairedToolCall = {
 };
 
 // Calls that already validate are sent as they are, apart from completions
-// the API would otherwise reject; only calls that would fail are repaired.
+// the API would otherwise reject and undeclared keys validation would drop;
+// only calls that would fail are repaired.
 function repairToolCall(message: unknown): RepairedToolCall {
   const unchanged = { message, changed: false };
   if (!message || typeof message !== "object" || Array.isArray(message)) {
@@ -347,8 +360,12 @@ function repairToolCall(message: unknown): RepairedToolCall {
   }
   const input = toolInputs.get(params.name);
   if (!input) return unchanged;
-  if (input.validator.safeParse(params.arguments).success) {
-    const completed = completeValidArguments(params.name, params.arguments);
+  const isValid = input.validator.safeParse(params.arguments).success;
+  const restored = restoreUndeclaredKeys(params.arguments, input.schema);
+  const isRestoredValid =
+    restored === params.arguments || input.validator.safeParse(restored).success;
+  if (isValid && isRestoredValid) {
+    const completed = completeValidArguments(params.name, restored);
     return completed === params.arguments
       ? unchanged
       : {
@@ -457,28 +474,83 @@ const repairToolCallArguments = async (
 
 const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 
-type ListedTool = { name: string; inputSchema?: Record<string, unknown> };
+type ListedTool = {
+  name: string;
+  inputSchema?: Record<string, unknown>;
+  execution?: { taskSupport?: string };
+};
 
 // The SDK converts every tool's zod schema to JSON Schema on each tools/list,
 // which dominates the request; registered tools never change after startup.
-let sdkToolList: Promise<ListedTool[]> | undefined;
+let publishedToolLists:
+  | Promise<{ fullTools: ListedTool[]; coreTools: ListedTool[] }>
+  | undefined;
+
+server.use("mcp:tools/list", async (_context, next) => {
+  publishedToolLists ??= (next() as Promise<ListedTool[]>)
+    .then(buildPublishedToolLists)
+    .catch((cause) => {
+      publishedToolLists = undefined;
+      throw cause;
+    });
+  const { fullTools, coreTools } = await publishedToolLists;
+  return shouldServeCoreProfile(getRequestContext()?.req) ? coreTools : fullTools;
+});
+
+// These CLIs put every listed tool into every model step and have no tool
+// search. The server is stateless, so tools/list cannot see the initialize
+// clientInfo; the User-Agent is the only per-request client signal.
+const CORE_PROFILE_USER_AGENT = /^(opencode|kilo)\//i;
+
+function shouldServeCoreProfile(request: HonoRequest | undefined): boolean {
+  const requestedProfile = request?.query("profile");
+  if (requestedProfile) return requestedProfile === "core";
+  return CORE_PROFILE_USER_AGENT.test(request?.header("user-agent") ?? "");
+}
+
+function compactInputSchema(value: unknown, path: string[] = []): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry, index) =>
+      compactInputSchema(entry, [...path, String(index)]),
+    );
+  }
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([name, entry]) => {
+      const isTopLevelParameterDescription =
+        name === "description" && path.length === 2 && path[0] === "properties";
+      if (name === "description" && !isTopLevelParameterDescription) return [];
+      return [[name, compactInputSchema(entry, [...path, name])]];
+    }),
+  );
+}
 
 // Gemini's function-calling schema subset rejects `$schema`, and the root
-// dialect is already the MCP default.
-server.use("mcp:tools/list", async (_context, next) => {
-  sdkToolList ??= (next() as Promise<ListedTool[]>).catch((cause) => {
-    sdkToolList = undefined;
-    throw cause;
-  });
-  const tools = await sdkToolList;
-  return tools
+// dialect is already the MCP default. `execution.taskSupport: "forbidden"` is
+// the spec default, so publishing it only costs tokens.
+function buildPublishedToolLists(tools: ListedTool[]) {
+  const fullTools = tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
-    .map(({ inputSchema, ...tool }) => {
-      if (!inputSchema) return tool;
+    .map<ListedTool>(({ inputSchema, execution, ...tool }) => {
+      const isDefaultExecution =
+        !execution ||
+        (Object.keys(execution).length === 1 &&
+          execution.taskSupport === "forbidden");
+      const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
+      if (!inputSchema) return publishedTool;
       const { $schema: _dialect, ...schema } = inputSchema;
-      return { ...tool, inputSchema: schema };
+      return { ...publishedTool, inputSchema: compactPublishedSchema(schema) };
     });
-});
+  const coreTools = fullTools
+    .filter((tool) => CORE_TOOL_NAMES.has(tool.name))
+    .map(({ inputSchema, ...tool }) => ({
+      ...tool,
+      ...(inputSchema
+        ? { inputSchema: compactInputSchema(inputSchema) as Record<string, unknown> }
+        : {}),
+    }));
+  return { fullTools, coreTools };
+}
 
 // The server is stateless and never sends unsolicited messages, so a GET event
 // stream would sit idle until a proxy cut it (and some clients mark a server
@@ -528,6 +600,7 @@ const describeBearerChallenge = async (
 
 // "/mcp/*" and "/sse/*" also match "/mcp" and "/sse".
 for (const path of ["/mcp/*", "/sse/*"]) {
+  server.app.use(path, compress());
   server.app.use(path, validateMcpOrigin);
   server.app.use(path, rejectIdleEventStream);
   server.app.use(path, describeBearerChallenge);
@@ -535,8 +608,27 @@ for (const path of ["/mcp/*", "/sse/*"]) {
   server.app.use(path, repairToolCallArguments);
 }
 
-// The issuer is the server root, so discovery documents under /mcp do not
-// exist. Answer 404 instead of the bearer challenge that would otherwise apply.
+// Clients that take the MCP URL as the issuer (Codex among them) try these
+// paths before the root document, one round trip per 404. The issuer is the
+// server root, so answer each with the root document they end up using.
+const ROOT_METADATA_BY_ISSUER_PATH_ALIAS: Readonly<Record<string, string>> = {
+  "/.well-known/oauth-authorization-server/mcp":
+    "/.well-known/oauth-authorization-server",
+  "/.well-known/openid-configuration/mcp": "/.well-known/openid-configuration",
+  "/mcp/.well-known/oauth-authorization-server":
+    "/.well-known/oauth-authorization-server",
+  "/mcp/.well-known/openid-configuration": "/.well-known/openid-configuration",
+};
+for (const [alias, rootPath] of Object.entries(ROOT_METADATA_BY_ISSUER_PATH_ALIAS)) {
+  server.app.get(alias, (context) => {
+    const target = new URL(context.req.url);
+    target.pathname = rootPath;
+    return server.app.fetch(new Request(target, context.req.raw), context.env);
+  });
+}
+
+// Other discovery documents under /mcp do not exist. Answer 404 instead of
+// the bearer challenge that would otherwise apply.
 server.app.get("/mcp/.well-known/*", (context) => context.notFound());
 
 // Users often configure the bare server URL; serve MCP there too.
@@ -772,6 +864,10 @@ if (oauthProvider) {
   // Requests without a signed client_id pass through as before; the upstream
   // PKCE check remains the binding for the authorization code itself.
   server.app.use("/token", async (context, next) => {
+    if (context.req.method === "POST") {
+      context.header("Cache-Control", "no-store");
+      context.header("Pragma", "no-cache");
+    }
     if (context.req.method !== "POST") {
       await next();
       return;
@@ -957,7 +1053,7 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "list-webhook-deliveries.body":
     "Webhook delivery filters. Choose batch or monitor as the source type, then optionally filter by source ID, status, creation time, and pagination cursor.",
   "web-answers.json_format":
-    "Example object whose keys and value types define the answer shape. Unknown values may be null.",
+    'Example output object, not JSON Schema. Use placeholder values to declare types, for example {"answer":"","sources":[""]}. Unknown values may be null.',
 };
 
 function mcpParameterDescription(
@@ -1074,7 +1170,7 @@ function registerBrandTool(): void {
       const requestId = contextRequestId(payload, res.headers);
       // Clients that ignore structuredContent and don't render the widget
       // (e.g. Cursor, Codex) only see this text, so it must carry the brand.
-      const brandJson = JSON.stringify({ brand }, null, 2);
+      const brandJson = JSON.stringify({ brand });
       return widget({
         props: { brand },
         output: text(
@@ -1086,7 +1182,56 @@ function registerBrandTool(): void {
   );
 }
 
-function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
+function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
+  const components: Record<string, JsonSchema> = MCP_COMPONENT_SCHEMAS;
+  const body = resolveObjectSchema(
+    withMcpSchemaDescriptions(endpoint.requestBody!.schema),
+    components,
+  )!;
+  const properties = body.properties!;
+  const name = components.NewsSearchEntityByName!.properties!.name!;
+  const domain = components.NewsSearchEntityByDomain!.properties!.domain!;
+  const ticker = components.NewsSearchEntityByTicker!.properties!.ticker!;
+  const exchange = components.NewsSearchEntityByTicker!.properties!.exchange!;
+  const isin = components.NewsSearchEntityByIsin!.properties!.isin!;
+
+  return z.object({
+    companyName: schemaToZod(name, components).optional().describe(
+      "Company name. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    domain: schemaToZod(domain, components).optional().describe(
+      "Company website domain. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    ticker: schemaToZod(ticker, components).optional().describe(
+      "Public-company ticker. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    exchange: schemaToZod(exchange, components).optional().describe(
+      "Optional stock exchange when ticker is used, such as NASDAQ or NYSE.",
+    ),
+    isin: schemaToZod(isin, components).optional().describe(
+      "International Securities Identification Number. Provide exactly one of companyName, domain, ticker, or isin.",
+    ),
+    filterBy: schemaToZod(properties.filterBy!, components).optional(),
+    sortBy: z.enum(["newest", "relevance"]).optional().describe(
+      "Result ordering. Defaults to newest.",
+    ),
+    limit: schemaToZod(properties.limit!, components).optional(),
+    cursor: schemaToZod(properties.cursor!, components).optional(),
+    tags: schemaToZod(properties.tags!, components).optional(),
+  }).refine(
+    ({ companyName, domain, ticker, isin }) =>
+      [companyName, domain, ticker, isin].filter((value) => value !== undefined).length === 1,
+    { message: "Provide exactly one of companyName, domain, ticker, or isin." },
+  ).refine(
+    ({ exchange, ticker }) => exchange === undefined || ticker !== undefined,
+    { message: "exchange can only be used with ticker." },
+  );
+}
+
+function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
+  if (endpoint.name === "get-news-search") {
+    return createNewsSearchSchema(endpoint);
+  }
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const parameter of endpoint.parameters) {
     if (parameter.in === "cookie") {
@@ -1154,9 +1299,13 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
         : bodySchema.optional();
     }
   }
-  if (endpoint.name === "web-search" || endpoint.name === "web-scrape") {
+  if (
+    endpoint.name === "web-search" ||
+    endpoint.name === "web-scrape" ||
+    endpoint.name === "web-crawl"
+  ) {
     shape.responseMode = z.enum(["full", "compact"]).optional().describe(
-      "Prefer compact for research: one JSON text response, no unused formats or verbose page metadata; HTML/Markdown/Highlights capped at 1,200 characters per field per search result or 4,000 per scrape field. Clipping is marked. JSON, parsed data and images are retained. Full (default) keeps the existing response shape and server limit. Use Highlights for query-relevant excerpts instead of clipped page prefixes.",
+      "Prefer compact for research: one JSON text response, no unused formats or verbose page metadata; HTML/Markdown/Highlights capped at 1,200 characters per field per search result or 4,000 per scrape or crawl field. Clipping is marked. JSON, parsed data and images are retained. Full (default) keeps the existing response shape and server limit. Use Highlights for query-relevant excerpts instead of clipped page prefixes.",
     );
   }
   return z.object(shape);
@@ -1174,12 +1323,20 @@ function registerEndpointTool(ep: Endpoint): void {
       annotations: ep.annotations,
     },
     async (args, context: EnhancedToolContext) => {
+      let endpointArgs = args;
+      if (ep.name === "get-news-search") {
+        const parsed = schema.safeParse(args);
+        if (!parsed.success) {
+          return error(`Input validation error: ${z.prettifyError(parsed.error)}`);
+        }
+        endpointArgs = parsed.data;
+      }
       const credential = resolveContextCredential(context);
       if (!credential) return error(MISSING_CREDENTIAL_MESSAGE);
       return callContextApi({
         apiBase: API_BASE,
         endpoint: ep,
-        args: args as Record<string, unknown>,
+        args: endpointArgs as Record<string, unknown>,
         credential,
         clientUserAgent: context.req?.header("user-agent"),
       });

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type { JsonSchema } from "../context-endpoints";
 import { repairToolSpecificArguments } from "./tool-argument-repairs";
 
@@ -100,13 +101,10 @@ function repairString(value: string, candidates: JsonSchema[]): unknown {
   const acceptsObject = candidates.some((c) => hasType(c, "object"));
   const acceptsArray = candidates.some((c) => hasType(c, "array"));
   if ((acceptsObject && trimmed.startsWith("{")) || (acceptsArray && trimmed.startsWith("["))) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (isPlainObject(parsed) && acceptsObject) return parsed;
-      if (Array.isArray(parsed) && acceptsArray) return parsed;
-    } catch {
-      // Leave malformed JSON for validation to report.
-    }
+    const closedJson = closeTruncatedJson(trimmed);
+    const parsed = parseJson(trimmed) ?? (closedJson && parseJson(closedJson));
+    if (isPlainObject(parsed) && acceptsObject) return parsed;
+    if (Array.isArray(parsed) && acceptsArray) return parsed;
     return value;
   }
   if (
@@ -121,6 +119,52 @@ function repairString(value: string, candidates: JsonSchema[]): unknown {
     if (lowered === "false") return false;
   }
   return value;
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+// Models out of output budget cut a nested JSON string off mid-value, for
+// example '{"query": "brand colors'. Closing what was opened keeps exactly
+// what was sent; a cut inside a key, number, or literal still fails to parse.
+function closeTruncatedJson(text: string): string | undefined {
+  const closers: string[] = [];
+  let isInString = false;
+  let isEscaped = false;
+  for (const char of text) {
+    if (isInString) {
+      if (isEscaped) isEscaped = false;
+      else if (char === "\\") isEscaped = true;
+      else if (char === '"') isInString = false;
+    } else if (char === '"') {
+      isInString = true;
+    } else if (char === "{" || char === "[") {
+      closers.push(char === "{" ? "}" : "]");
+    } else if ((char === "}" || char === "]") && closers.pop() !== char) {
+      return undefined;
+    }
+  }
+  const isTruncated = isInString || closers.length > 0;
+  const endsAfterCompleteValue = isInString || /["\]}]$/.test(text);
+  if (!isTruncated || isEscaped || !endsAfterCompleteValue) return undefined;
+  const closingQuote = isInString ? '"' : "";
+  return text + closingQuote + closers.reverse().join("");
+}
+
+// Models trained on XML tool calls send a list as `{ "item": [...] }`.
+function unwrapListWrapper(value: unknown, candidates: JsonSchema[]): unknown {
+  if (!isPlainObject(value) || acceptsAnything(candidates)) return value;
+  const acceptsOnlyArray =
+    candidates.some((c) => hasType(c, "array")) &&
+    !candidates.some((c) => hasType(c, "object") || c.properties !== undefined);
+  const entries = Object.values(value);
+  const isSingleList = entries.length === 1 && Array.isArray(entries[0]);
+  return acceptsOnlyArray && isSingleList ? entries[0] : value;
 }
 
 // In a union of objects such as `{ format: "html", options }` versus
@@ -150,18 +194,15 @@ function renameNearMissKeys(
   declaredNames: Set<string>,
 ): Record<string, unknown> {
   if (declaredNames.size === 0) return value;
-  const byNormalizedName = new Map(
-    [...declaredNames].map((name) => [normalizedName(name), name]),
-  );
+  const findSameNames = (name: string, names: Iterable<string>) =>
+    [...names].filter((other) => normalizedName(other) === normalizedName(name));
   const renamed: Record<string, unknown> = {};
   for (const [name, entry] of Object.entries(value)) {
-    const declared = declaredNames.has(name)
-      ? name
-      : byNormalizedName.get(normalizedName(name));
-    const target =
-      declared && !Object.hasOwn(value, declared) && !Object.hasOwn(renamed, declared)
-        ? declared
-        : name;
+    const declaredMatches = declaredNames.has(name) ? [name] : findSameNames(name, declaredNames);
+    const declared = declaredMatches.length === 1 ? declaredMatches[0] : undefined;
+    const isOnlySentSpelling =
+      declared !== undefined && findSameNames(declared, Object.keys(value)).length === 1;
+    const target = isOnlySentSpelling ? declared : name;
     renamed[target] = entry;
   }
   // Older tool versions took a flat timeoutMS; the current shape nests it.
@@ -204,8 +245,9 @@ export function repairToolArgument(
   dropUnknownKeys = true,
 ): unknown {
   const candidates = alternatives(schema);
-  const repaired =
+  const parsed =
     typeof value === "string" ? repairString(value, candidates) : value;
+  const repaired = unwrapListWrapper(parsed, candidates);
 
   if (Array.isArray(repaired)) {
     const itemSchema = mergedSchema(
@@ -367,4 +409,18 @@ export function repairToolArguments(
     hoistMisplacedParameters(parsed, schema),
   );
   return repairToolArgument(relocated, schema);
+}
+
+// Validation strips undeclared keys, so `max_pages` or an `{ arguments }`
+// wrapper on an all-optional tool would validate and silently lose its value.
+export function restoreUndeclaredKeys(value: unknown, schema: JsonSchema): unknown {
+  if (!isPlainObject(value)) return value;
+  const declaredNames = new Set(Object.keys(schema.properties ?? {}));
+  const hasUndeclaredKey = Object.keys(value).some((key) => !declaredNames.has(key));
+  if (!hasUndeclaredKey) return value;
+  const unwrapped = unwrapArguments(value, schema);
+  const restored = isPlainObject(unwrapped)
+    ? renameNearMissKeys(unwrapped, declaredNames)
+    : unwrapped;
+  return isDeepStrictEqual(restored, value) ? value : restored;
 }
