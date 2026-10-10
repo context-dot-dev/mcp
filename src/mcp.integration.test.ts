@@ -25,7 +25,9 @@ let mcpProcess: ChildProcess;
 function batchResponse(method: string, requestUrl: string, requestBody: Buffer) {
   const path = new URL(requestUrl, "http://context.test").pathname;
   const args =
-    path === "/web/search" || path === "/web/scrape"
+    path === "/web/search" ||
+    path === "/web/scrape" ||
+    path === "/web/crawl"
       ? JSON.parse(requestBody.toString())
       : {};
   if (path === "/web/search" && args.query === "compact empty") {
@@ -117,6 +119,43 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
           success: true,
           data: "data:image/png;base64,aGVsbG8=",
         },
+      },
+    };
+  }
+  if (path === "/web/crawl" && args.url === "https://example.test/compact") {
+    const result = (path: string, markdown: string, crawlDepth: number) => ({
+      markdown,
+      metadata: {
+        sourceUrl: `https://example.test/${path}`,
+        finalUrl: `https://example.test/${path}`,
+        title: path,
+        description: `${path} page`,
+        language: "en",
+        headings: [{ level: 1, text: path }],
+        openGraph: { title: path },
+        jsonLd: [{ "@type": "WebPage" }],
+        url: `https://example.test/${path}`,
+        crawlDepth,
+        statusCode: 200,
+        success: true,
+      },
+    });
+    return {
+      status: 200,
+      body: {
+        results: [
+          result("docs", "Documentation ".repeat(900), 0),
+          result("api", "API reference ".repeat(1_000), 1),
+        ],
+        metadata: {
+          numUrls: 2,
+          maxCrawlDepth: 1,
+          numSucceeded: 2,
+          numFailed: 0,
+          numSkipped: 0,
+        },
+        cache_metadata: { status: "miss", age_ms: 0 },
+        request_id: "req_crawl",
       },
     };
   }
@@ -453,17 +492,19 @@ test("compact web responses preserve evidence and errors through the MCP protoco
   const client = await connectClient();
   try {
     const { tools } = await client.listTools();
-    for (const name of ["web-search", "web-scrape"]) {
+    for (const name of ["web-search", "web-scrape", "web-crawl"]) {
       const tool = tools.find((entry) => entry.name === name)!;
       assert.deepEqual(
-        (
-          tool.inputSchema.properties?.responseMode as
-            | { enum?: string[] }
-            | undefined
-        )?.enum,
+        (tool.inputSchema.properties?.responseMode as { enum?: string[] })
+          .enum,
         ["full", "compact"],
       );
-      assert.match(tool.description!, /compact/);
+      assert.match(
+        (tool.inputSchema.properties?.responseMode as { description: string })
+          .description,
+        /compact/,
+      );
+      if (name !== "web-crawl") assert.match(tool.description!, /compact/);
     }
     assert.equal(
       tools.find((tool) => tool.name === "web-map")?.inputSchema.properties
@@ -614,6 +655,59 @@ test("compact web responses preserve evidence and errors through the MCP protoco
       JSON.stringify(pairs, null, 2),
     );
     console.log(`Compact response evidence: ${directory}/responses.json`);
+  } finally {
+    await client.close();
+  }
+});
+
+test("compact crawl keeps each page while removing verbose page data", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  try {
+    const args = { url: "https://example.test/compact", maxPages: 2 };
+    const original = await client.callTool({
+      name: "web-crawl",
+      arguments: args,
+    });
+    const full = await client.callTool({
+      name: "web-crawl",
+      arguments: { ...args, responseMode: "full" },
+    });
+    const compact = await client.callTool({
+      name: "web-crawl",
+      arguments: { ...args, responseMode: "compact" },
+    });
+
+    assert.deepEqual(full, original);
+    assert.deepEqual(JSON.parse(captured.at(-1)!.body.toString()), args);
+    const data = resultObject(compact);
+    assert.equal(data.request_id, "req_crawl");
+    assert.equal(data.cache_metadata, undefined);
+    assert.deepEqual(data.metadata, {
+      numUrls: 2,
+      maxCrawlDepth: 1,
+      numSucceeded: 2,
+      numFailed: 0,
+      numSkipped: 0,
+    });
+    const results = data.results as Array<Record<string, unknown>>;
+    assert.equal(results.length, 2);
+    for (const result of results) {
+      assert.ok((result.markdown as string).length <= 4_000);
+      const metadata = result.metadata as Record<string, unknown>;
+      assert.equal(metadata.headings, undefined);
+      assert.equal(metadata.openGraph, undefined);
+      assert.equal(metadata.jsonLd, undefined);
+      assert.equal(metadata.statusCode, 200);
+      assert.equal(metadata.success, true);
+    }
+    assert.equal(
+      (data._context_mcp as Record<string, unknown>).truncated,
+      true,
+    );
+    assert.ok(
+      JSON.stringify(compact).length < JSON.stringify(full).length * 0.4,
+    );
   } finally {
     await client.close();
   }
