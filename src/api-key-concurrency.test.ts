@@ -123,6 +123,25 @@ test("a queued call goes out once its wait deadline passes", async () => {
   releaseThird();
 });
 
+test("concurrency 429s from another server instance keep retrying past the per-minute retry cap", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    const headers = { "X-RateLimit-Mode": "concurrency", "X-RateLimit-Limit": "1" };
+    return calls <= 6
+      ? new Response(
+          JSON.stringify({ message: "Organization concurrency limit exceeded", error_code: "RATE_LIMITED" }),
+          { status: 429, headers: { ...headers, "Retry-After": "0" } },
+        )
+      : new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+  };
+  const [result] = await callInParallel("other-instance-key", 1);
+  assert.equal(result!.isError, undefined);
+  assert.equal(calls, 7);
+});
+
 test("a failed request frees its slot for the next call", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

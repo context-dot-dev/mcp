@@ -323,11 +323,19 @@ const RATE_LIMIT_RETRY_BUDGET_MS = 30_000;
 const RATE_LIMIT_MAX_RETRIES = 5;
 // Leaves the call at least 55 seconds of the upstream timeout to do its work.
 const QUEUE_WAIT_LIMIT_MS = 60_000;
+// The server runs several instances, so their per-key queues cannot see each
+// other's calls; the API's concurrency counter is the shared source of truth.
+// Its 429s did no work, so polling it every couple of seconds until the queue
+// deadline picks up a freed slot soon after another instance's call finishes.
+const CONCURRENCY_RETRY_MAX_WAIT_MS = 2_000;
 
 // Waits at least 0.5s, 1s, 2s, 4s, 8s, so a `Retry-After: 0` from the
 // concurrency limit cannot turn one call into a burst of requests.
 function retryAfterMs(headers: Headers, attempt: number): number {
   const backoff = 500 * 2 ** attempt;
+  if (headers.get("X-RateLimit-Mode") === "concurrency") {
+    return Math.min(Math.max(backoff, 1_000), CONCURRENCY_RETRY_MAX_WAIT_MS);
+  }
   const header = headers.get("Retry-After")?.trim();
   if (!header) return backoff;
   const seconds = /^\d+(\.\d+)?$/.test(header) ? Number(header) : NaN;
@@ -356,9 +364,12 @@ export async function fetchContextApi(
   const keyId = getApiKeyId(init.headers);
   for (let attempt = 0; ; attempt += 1) {
     const response = await fetchInApiKeySlot(url, init, started, keyId);
-    if (response.status !== 429 || attempt >= RATE_LIMIT_MAX_RETRIES) return response;
+    if (response.status !== 429) return response;
+    const isConcurrencyLimit = response.headers.get("X-RateLimit-Mode") === "concurrency";
+    const retryBudgetMs = isConcurrencyLimit ? QUEUE_WAIT_LIMIT_MS : RATE_LIMIT_RETRY_BUDGET_MS;
+    const isOutOfRetries = !isConcurrencyLimit && attempt >= RATE_LIMIT_MAX_RETRIES;
     const wait = retryAfterMs(response.headers, attempt) + Math.random() * 250;
-    if (Date.now() - started + wait > RATE_LIMIT_RETRY_BUDGET_MS) return response;
+    if (isOutOfRetries || Date.now() - started + wait > retryBudgetMs) return response;
     await new Promise((resolve) => setTimeout(resolve, wait));
   }
 }
