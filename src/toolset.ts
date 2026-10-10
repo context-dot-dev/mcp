@@ -83,7 +83,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-crawl": {
     title: "Crawl a website",
     description:
-      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Use this for focused multi-page research when results are needed immediately. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
+      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Prefer responseMode=\"compact\" for focused research; use full for complete page content or metadata. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

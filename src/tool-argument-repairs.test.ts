@@ -281,6 +281,16 @@ test("web-scrape and web-crawl find the page URL under other names", () => {
   });
 });
 
+test("web-crawl ignores unknown response modes", () => {
+  assert.deepEqual(
+    repairToolSpecificArguments("web-crawl", {
+      url: "https://a.test",
+      responseMode: "content",
+    }),
+    { url: "https://a.test" },
+  );
+});
+
 test("repairs leave unrelated extra keys for validation to strip", () => {
   assert.deepEqual(
     repairToolSpecificArguments("brand-retrieve-unified", {

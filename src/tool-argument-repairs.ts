@@ -561,7 +561,7 @@ function withoutUnknownResponseMode(
 const TOOL_REPAIRS: Readonly<Record<string, (args: Arguments) => Arguments>> = {
   "web-scrape": withoutUnknownResponseMode(repairScrapeFormats),
   "web-search": withoutUnknownResponseMode(repairSearch),
-  "web-crawl": withPageUrl,
+  "web-crawl": withoutUnknownResponseMode(withPageUrl),
   "web-answers": repairAnswers,
   "web-map": repairMap,
   "get-news-search": repairNewsSearch,

@@ -59,7 +59,9 @@ function buildRequestBody(
       ([name, value]) =>
         value !== undefined &&
         !(name === "responseMode" &&
-          (endpoint.name === "web-search" || endpoint.name === "web-scrape")) &&
+          (endpoint.name === "web-search" ||
+            endpoint.name === "web-scrape" ||
+            endpoint.name === "web-crawl")) &&
         name !== "fileBase64" &&
         !parameterNames.has(name)
     )
@@ -516,7 +518,9 @@ export async function callContextApi({
     if (requestId) minimized.request_id = requestId;
     const isCompact =
       args.responseMode === "compact" &&
-      (endpoint.name === "web-search" || endpoint.name === "web-scrape");
+      (endpoint.name === "web-search" ||
+        endpoint.name === "web-scrape" ||
+        endpoint.name === "web-crawl");
     const value = isCompact
       ? compactWebResponse(endpoint.name, minimized)
       : minimized;
