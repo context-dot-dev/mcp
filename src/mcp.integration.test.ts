@@ -441,10 +441,10 @@ after(async () => {
   );
 });
 
-async function connectClient(): Promise<Client> {
+async function connectClient(path = "/mcp"): Promise<Client> {
   const client = new Client({ name: "context-test", version: "1.0.0" });
   await client.connect(
-    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`))
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}${path}`))
   );
   return client;
 }
@@ -1097,6 +1097,10 @@ test("lists the public Context API with safety annotations", async () => {
   assert.deepEqual(webAnswers?.inputSchema.required, ["task"]);
   assert.equal(answersProperties.task?.type, "string");
   assert.equal(answersProperties.json_format?.type, "object");
+  assert.match(
+    String(answersProperties.json_format?.description),
+    /not JSON Schema.*"answer"/,
+  );
   assert.equal(answersProperties.mode?.type, "string");
   const newsSearch = tools.find((tool) => tool.name === "get-news-search");
   assert.equal(newsSearch?.annotations?.readOnlyHint, true);
@@ -1160,6 +1164,48 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(submitBatch?.annotations?.destructiveHint, false);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+});
+
+test("offers a smaller core profile without disabling cached tool calls", async () => {
+  const client = await connectClient("/mcp?profile=core");
+  const { tools } = await client.listTools();
+  assert.deepEqual(
+    tools.map((tool) => tool.name),
+    [
+      "web-scrape",
+      "web-map",
+      "web-crawl",
+      "web-search",
+      "web-answers",
+      "brand-retrieve-unified",
+      "brand-search",
+      "web-styleguide",
+      "get-news-search",
+      "parse-document",
+      "get-usage",
+      "submit-feedback",
+    ],
+  );
+  const catalogBytes = Buffer.byteLength(JSON.stringify(tools));
+  assert.ok(
+    catalogBytes < 40_000,
+    `core tool catalog exceeds the release budget: ${catalogBytes} bytes`,
+  );
+  const scrapeProperties = tools.find((tool) => tool.name === "web-scrape")
+    ?.inputSchema.properties as Record<string, Record<string, unknown>>;
+  assert.equal(typeof scrapeProperties.url?.description, "string");
+  const sharedProperties = scrapeProperties.sharedParams?.properties as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assert.equal(sharedProperties.headers?.description, undefined);
+
+  const cachedCall = await client.callTool({
+    name: "get-usage-history",
+    arguments: {},
+  });
+  assert.equal(cachedCall.isError, undefined);
+  await client.close();
 });
 
 test("forwards all scrape formats, browser actions, CSS rules, and request controls", async () => {
