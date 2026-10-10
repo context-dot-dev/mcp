@@ -11,6 +11,7 @@ import { EncryptJWT } from "jose";
 import { NodeOAuthClientProvider } from "mcp-use/auth/node";
 
 const encryptionKey = crypto.getRandomValues(new Uint8Array(32));
+const rejectedRefreshToken = "local-rejected-refresh-token";
 const authorizationRequests: URL[] = [];
 const tokenRequests: URLSearchParams[] = [];
 const upstreamAuthorizationHeaders: string[] = [];
@@ -91,6 +92,16 @@ const authorizationServer = createServer(async (request, response) => {
   if (request.method === "POST" && requestUrl.pathname === "/oauth2/token") {
     const params = new URLSearchParams(await readBody(request));
     tokenRequests.push(params);
+    if (params.get("refresh_token") === rejectedRefreshToken) {
+      response.writeHead(400, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          error: "invalid_grant",
+          error_description: "The refresh token is invalid or expired",
+        })
+      );
+      return;
+    }
     const accessToken = await issueAccessToken();
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
@@ -579,6 +590,24 @@ test("enforces the registration binding at the token endpoint", async () => {
   assert.equal(forgedClient.status, 401);
   const forgedPayload = (await forgedClient.json()) as { error: string };
   assert.equal(forgedPayload.error, "invalid_client");
+});
+
+test("forwards rejected refresh grants without caching the response", async () => {
+  const response = await fetch(`${mcpBase}/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: rejectedRefreshToken,
+    }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("pragma"), "no-cache");
+  assert.deepEqual(await response.json(), {
+    error: "invalid_grant",
+    error_description: "The refresh token is invalid or expired",
+  });
 });
 
 test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t) => {
