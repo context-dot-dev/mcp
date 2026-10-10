@@ -228,6 +228,39 @@ test("web-scrape scopes selector-less nested parse rules to the page", () => {
   );
 });
 
+test("web-scrape gives nested attribute outputs their parent selector", () => {
+  const input = {
+    url: "https://a.test",
+    formats: { parse: true },
+    parseParams: {
+      rules: {
+        links: {
+          selector: "a",
+          type: "list",
+          output: { href: "@href", label: ".label" },
+        },
+      },
+    },
+  };
+  const expected = {
+    ...input,
+    parseParams: {
+      rules: {
+        links: {
+          selector: "a",
+          type: "list",
+          output: {
+            href: { selector: "a", output: "@href" },
+            label: ".label",
+          },
+        },
+      },
+    },
+  };
+  assert.deepEqual(repairToolSpecificArguments("web-scrape", input), expected);
+  assert.deepEqual(completeValidArguments("web-scrape", input), expected);
+});
+
 test("calls carrying only another tool's input go to that tool", () => {
   assert.equal(reroutedToolName("list-monitor-changes", { since: "2026-10-09" }), "list-changes");
   assert.equal(reroutedToolName("list-monitor-changes", { monitor_id: "mon_1" }), undefined);
