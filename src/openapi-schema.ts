@@ -35,6 +35,43 @@ export function anchorPattern(pattern: string): string {
   return `^${startsAnchored ? "" : "[\\s\\S]*"}${body}${endsAnchored ? "" : "[\\s\\S]*"}$`;
 }
 
+// llama.cpp turns patterns into GBNF, which only knows the escapes \t \n \r
+// \x \u and escaped punctuation. Builds before ggml-org/llama.cpp#26939 fail
+// the whole grammar on `[\s\S]` and read `\S` as a literal backslash; later
+// builds drop the pattern. The published copy spells shorthand classes out
+// (`.` stands in for `[\s\S]`, so it stops at newlines); validation keeps the
+// original pattern.
+export function toGrammarSafePattern(pattern: string): string {
+  return pattern
+    .replaceAll("[\\s\\S]", ".")
+    .replace(
+      /\[(\^?)((?:\\.|[^\]\\])*)\]|\\./g,
+      (match, negation: string | undefined, members: string | undefined) => {
+        if (members === undefined) return toGrammarSafeEscape(match, false);
+        const safeMembers = members.replace(/\\./g, (escape) =>
+          toGrammarSafeEscape(escape, true),
+        );
+        return `[${negation}${safeMembers}]`;
+      },
+    );
+}
+
+const SHORTHAND_CLASS_MEMBERS: Readonly<Record<string, string>> = {
+  d: "0-9",
+  w: "A-Za-z0-9_",
+  s: " \\t\\n\\r",
+};
+
+function toGrammarSafeEscape(escape: string, isInClass: boolean): string {
+  const escaped = escape[1]!;
+  if (escaped === "/") return "/";
+  const members = SHORTHAND_CLASS_MEMBERS[escaped.toLowerCase()];
+  if (!members) return escape;
+  const isNegated = escaped !== escaped.toLowerCase();
+  if (isInClass) return isNegated ? escape : members;
+  return `[${isNegated ? "^" : ""}${members}]`;
+}
+
 // Lists like the 239 country codes multiply tool definitions and exceed some
 // providers' schema limits. Publish them as strings, accept any casing, and
 // name the allowed values only when a value is rejected.
@@ -79,7 +116,7 @@ function addStringConstraints(
       const pattern = anchorPattern(schema.pattern);
       constrained = constrained
         .regex(new RegExp(pattern))
-        .meta({ pattern });
+        .meta({ pattern: toGrammarSafePattern(pattern) });
     } catch {
       return constrained;
     }

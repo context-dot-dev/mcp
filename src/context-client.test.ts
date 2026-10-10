@@ -378,6 +378,32 @@ test("preserves request IDs while removing private response metadata", async () 
   }
 });
 
+test("compacts the text mirror without changing structured responses", async () => {
+  const originalFetch = globalThis.fetch;
+  const expected = {
+    ok: true,
+    nested: { values: [1, 2, 3] },
+    request_id: "req_compact_text",
+  };
+  globalThis.fetch = async () => Response.json(expected);
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    assert.deepEqual(result, {
+      content: [{ type: "text", text: JSON.stringify(expected) }],
+      structuredContent: expected,
+      _meta: { mimeType: "application/json" },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("includes request IDs in upstream API errors", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
@@ -503,7 +529,7 @@ test("account limits show limit details and the next step instead of a feedback 
           key_metadata: { credits_consumed: 0, credits_remaining: 0 },
         },
         expected: "Context API 401 [USAGE_EXCEEDED]: Usage limit exceeded (request_id: req_limit; credits_remaining: 0)\n\n" +
-          `${accountLimitGuidance} Context has insufficient credits for this request. Do not retry until credits are added or refilled. Use \`get-usage\` once (free) to tell the user their current balance and next refill, when available. They can add credits at [Manage billing](https://www.context.dev/dashboard/subscription). Continue any work that does not depend on this request.`,
+          `${accountLimitGuidance} Context has insufficient credits for this request, and every other Context tool that costs credits will fail the same way until credits are added or refilled. Stop calling Context tools for the rest of this task, including from parallel calls or subagents; retrying or switching tools only repeats this error. Tell the user once that they can add credits at [Manage billing](https://www.context.dev/dashboard/subscription); \`get-usage\` (free) shows their balance and next refill. Continue any work that does not need Context.`,
       },
       {
         status: 403,
@@ -620,7 +646,7 @@ test("browser actions need the write scope on every tool that accepts them", asy
   assert.equal(captured.length, 1);
 });
 
-test("other error codes keep the feedback nudge and show rate-limit counters only on 429", async () => {
+test("API errors give bounded retry guidance and show rate-limit counters only on 429", async () => {
   const originalFetch = globalThis.fetch;
   try {
     for (const scenario of [
@@ -629,12 +655,14 @@ test("other error codes keep the feedback nudge and show rate-limit counters onl
         headers: new Headers({ "x-ratelimit-limit": "10", "x-ratelimit-remaining": "9", "x-request-id": "req_other" }),
         payload: { message: "Invalid key", error_code: "AUTHENTICATION_FAILED", key_metadata: { credits_remaining: 12 } },
         expected: "Context API 401 [AUTHENTICATION_FAILED]: Invalid key (request_id: req_other; credits_remaining: 12)",
+        expectedGuidance: /Retry: no/,
       },
       {
         status: 503,
         headers: new Headers({ "retry-after": "1", "x-ratelimit-limit": "10", "x-ratelimit-remaining": "9", "x-request-id": "req_other" }),
         payload: { message: "Document parsing is at capacity. Please retry shortly.", error_code: "INTERNAL_ERROR" },
         expected: "Context API 503 [INTERNAL_ERROR]: Document parsing is at capacity. Please retry shortly. (request_id: req_other; Retry-After: 1)",
+        expectedGuidance: /Retry: at most once/,
       },
     ]) {
       globalThis.fetch = async () => new Response(JSON.stringify(scenario.payload), {
@@ -650,7 +678,7 @@ test("other error codes keep the feedback nudge and show rate-limit counters onl
       const message = result.content[0]?.type === "text" ? result.content[0].text : "";
       const [firstLine, guidance] = message.split("\n\n");
       assert.equal(firstLine, scenario.expected);
-      assert.match(guidance ?? "", /^If this behavior is unexpected, always call submit-feedback once/);
+      assert.match(guidance ?? "", scenario.expectedGuidance);
     }
   } finally {
     globalThis.fetch = originalFetch;

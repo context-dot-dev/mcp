@@ -331,6 +331,7 @@ export type Endpoint = {
   annotations: {
     readOnlyHint: boolean;
     destructiveHint: boolean;
+    idempotentHint?: boolean;
     openWorldHint: boolean;
   };
 };

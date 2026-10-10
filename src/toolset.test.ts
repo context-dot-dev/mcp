@@ -136,6 +136,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
   assert.deepEqual(tools.get("delete-batch")?.annotations, {
     readOnlyHint: false,
     destructiveHint: true,
+    idempotentHint: true,
     openWorldHint: false,
   });
   assert.deepEqual(tools.get("list-batches")?.annotations, {
@@ -179,6 +180,11 @@ test("every public tool has annotations that match its most privileged behavior"
     "delete-batch",
     "rotate-monitor-webhook-secret",
   ]);
+  const idempotentTools = new Set([
+    "delete-monitor",
+    "cancel-batch",
+    "delete-batch",
+  ]);
 
   for (const tool of selectEndpoints(ENDPOINTS)) {
     const expected = readOnlyExternalTools.has(tool.name)
@@ -209,6 +215,9 @@ test("every public tool has annotations that match its most privileged behavior"
           ? {
               readOnlyHint: false,
               destructiveHint: true,
+              ...(idempotentTools.has(tool.name)
+                ? { idempotentHint: true }
+                : {}),
               openWorldHint: false,
             }
           : {

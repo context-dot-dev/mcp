@@ -5,8 +5,14 @@ export function compactWebResponse(
   value: JsonObject,
 ): JsonObject {
   const { cache_metadata, ...response } = value;
-  if (name === "web-search" && Array.isArray(value.results)) {
-    const results = value.results.map((result) => compactPage(result, 1_200));
+  if (
+    (name === "web-search" || name === "web-crawl") &&
+    Array.isArray(value.results)
+  ) {
+    const maxCharacters = name === "web-search" ? 1_200 : 4_000;
+    const results = value.results.map((result) =>
+      compactPage(result, maxCharacters),
+    );
     return withTruncation(
       { ...response, results: results.map((result) => result.data) },
       results.some((result) => result.isTruncated),
@@ -31,6 +37,15 @@ function compactPage(value: JsonObject, maxCharacters: number) {
     "product",
   ]) {
     const format = data[name];
+    if (
+      ["html", "markdown", "highlights"].includes(name) &&
+      (typeof format === "string" || Array.isArray(format))
+    ) {
+      const shortened = shortenContent(format, maxCharacters);
+      data[name] = shortened.data;
+      isTruncated ||= shortened.isTruncated;
+      continue;
+    }
     if (!isObject(format)) continue;
     if (format.requested === false || format.code === "NOT_REQUESTED") {
       delete data[name];
