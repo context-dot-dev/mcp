@@ -236,8 +236,22 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
     /^Bearer error="invalid_token"/
   );
 
-  const discovery = await fetch(`${mcpBase}/mcp/.well-known/openid-configuration`);
-  assert.equal(discovery.status, 404);
+  const rootMetadata = await (
+    await fetch(`${mcpBase}/.well-known/oauth-authorization-server`)
+  ).json();
+  assert.equal(rootMetadata.issuer, mcpBase);
+  for (const path of [
+    "/.well-known/oauth-authorization-server/mcp",
+    "/.well-known/openid-configuration/mcp",
+    "/mcp/.well-known/oauth-authorization-server",
+    "/mcp/.well-known/openid-configuration",
+  ]) {
+    const discovery = await fetch(`${mcpBase}${path}`);
+    assert.equal(discovery.status, 200, path);
+    assert.deepEqual(await discovery.json(), rootMetadata, path);
+  }
+  const missingDocument = await fetch(`${mcpBase}/mcp/.well-known/jwks.json`);
+  assert.equal(missingDocument.status, 404);
 
   const rootUrl = await fetch(`${mcpBase}/`, {
     method: "POST",
