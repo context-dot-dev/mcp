@@ -2,6 +2,9 @@ import {
   error, image, object, text, type TypedCallToolResult,
 } from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
+import {
+  acquireApiKeySlot, getApiKeyId, rememberConcurrencyLimit,
+} from "./api-key-concurrency";
 import { contextApiError, contextRequestId } from "./feedback";
 import { compactWebResponse } from "./compact-response";
 
@@ -318,11 +321,21 @@ const UPSTREAM_TIMEOUT_MS = 115_000;
 const RATE_LIMIT_RETRY_BUDGET_MS = 30_000;
 
 const RATE_LIMIT_MAX_RETRIES = 5;
+// Leaves the call at least 55 seconds of the upstream timeout to do its work.
+const QUEUE_WAIT_LIMIT_MS = 60_000;
+// The server runs several instances, so their per-key queues cannot see each
+// other's calls; the API's concurrency counter is the shared source of truth.
+// Its 429s did no work, so polling it every couple of seconds until the queue
+// deadline picks up a freed slot soon after another instance's call finishes.
+const CONCURRENCY_RETRY_MAX_WAIT_MS = 2_000;
 
 // Waits at least 0.5s, 1s, 2s, 4s, 8s, so a `Retry-After: 0` from the
 // concurrency limit cannot turn one call into a burst of requests.
 function retryAfterMs(headers: Headers, attempt: number): number {
   const backoff = 500 * 2 ** attempt;
+  if (headers.get("X-RateLimit-Mode") === "concurrency") {
+    return Math.min(Math.max(backoff, 1_000), CONCURRENCY_RETRY_MAX_WAIT_MS);
+  }
   const header = headers.get("Retry-After")?.trim();
   if (!header) return backoff;
   const seconds = /^\d+(\.\d+)?$/.test(header) ? Number(header) : NaN;
@@ -348,17 +361,45 @@ export async function fetchContextApi(
   init: RequestInit,
 ): Promise<Response> {
   const started = Date.now();
+  const keyId = getApiKeyId(init.headers);
   for (let attempt = 0; ; attempt += 1) {
+    const response = await fetchInApiKeySlot(url, init, started, keyId);
+    if (response.status !== 429) return response;
+    const isConcurrencyLimit = response.headers.get("X-RateLimit-Mode") === "concurrency";
+    const retryBudgetMs = isConcurrencyLimit ? QUEUE_WAIT_LIMIT_MS : RATE_LIMIT_RETRY_BUDGET_MS;
+    const isOutOfRetries = !isConcurrencyLimit && attempt >= RATE_LIMIT_MAX_RETRIES;
+    const wait = retryAfterMs(response.headers, attempt) + Math.random() * 250;
+    if (isOutOfRetries || Date.now() - started + wait > retryBudgetMs) return response;
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+}
+
+// The API frees a concurrency slot only once its response closes, so the body
+// is read before the next queued call for the same key is let through.
+async function fetchInApiKeySlot(
+  url: URL | string,
+  init: RequestInit,
+  started: number,
+  keyId: string | undefined,
+): Promise<Response> {
+  const release = keyId
+    ? await acquireApiKeySlot(keyId, started + QUEUE_WAIT_LIMIT_MS)
+    : undefined;
+  try {
     const elapsed = Date.now() - started;
     const response = await fetch(url, {
       ...init,
       signal: AbortSignal.timeout(Math.max(1, UPSTREAM_TIMEOUT_MS - elapsed)),
     });
-    if (response.status !== 429 || attempt >= RATE_LIMIT_MAX_RETRIES) return response;
-    const wait = retryAfterMs(response.headers, attempt) + Math.random() * 250;
-    if (Date.now() - started + wait > RATE_LIMIT_RETRY_BUDGET_MS) return response;
-    await response.body?.cancel();
-    await new Promise((resolve) => setTimeout(resolve, wait));
+    if (keyId) rememberConcurrencyLimit(keyId, response.headers);
+    const body = await response.arrayBuffer();
+    return new Response(body.byteLength > 0 ? body : null, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  } finally {
+    release?.();
   }
 }
 
