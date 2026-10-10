@@ -219,27 +219,50 @@ function repairScrapeFormats(input: Arguments): Arguments {
       args.parseParams = { ...args.parseParams, rules: Object.fromEntries(entries) };
     }
   }
-  // A rule with nested field rules but no selector means "fields of the page";
-  // `html` is the container that scopes the nested rules to the whole page.
-  if (isPlainObject(args.parseParams) && isPlainObject(args.parseParams.rules)) {
-    args.parseParams = {
-      ...args.parseParams,
-      rules: Object.fromEntries(
-        Object.entries(args.parseParams.rules).map(([field, rule]) => [
-          field,
-          isPlainObject(rule) && rule.selector === undefined && isPlainObject(rule.output)
-            ? { ...rule, selector: "html" }
-            : rule,
-        ]),
-      ),
-    };
-  }
   if (Object.keys(shared).length > 0 || isPlainObject(input.sharedParams)) {
     args.sharedParams = shared;
   } else {
     delete args.sharedParams;
   }
-  return args;
+  return repairScrapeParseParams(args);
+}
+
+function repairParseRuleAttributes(rule: unknown): unknown {
+  if (!isPlainObject(rule) || !isPlainObject(rule.output)) return rule;
+  const selector = typeof rule.selector === "string" ? rule.selector : undefined;
+  let hasChanges = false;
+  const output = Object.fromEntries(
+    Object.entries(rule.output).map(([field, nestedRule]) => {
+      const repairedRule =
+        selector && typeof nestedRule === "string" && nestedRule.startsWith("@")
+          ? { selector, output: nestedRule }
+          : repairParseRuleAttributes(nestedRule);
+      if (repairedRule !== nestedRule) hasChanges = true;
+      return [field, repairedRule];
+    }),
+  );
+  return hasChanges ? { ...rule, output } : rule;
+}
+
+function scopeSelectorlessParseRule(rule: unknown): unknown {
+  return isPlainObject(rule) && rule.selector === undefined && isPlainObject(rule.output)
+    ? { ...rule, selector: "html" }
+    : rule;
+}
+
+function repairScrapeParseParams(args: Arguments): Arguments {
+  if (!isPlainObject(args.parseParams) || !isPlainObject(args.parseParams.rules)) return args;
+  let hasChanges = false;
+  const rules = Object.fromEntries(
+    Object.entries(args.parseParams.rules).map(([field, rule]) => {
+      const repairedRule = scopeSelectorlessParseRule(repairParseRuleAttributes(rule));
+      if (repairedRule !== rule) hasChanges = true;
+      return [field, repairedRule];
+    }),
+  );
+  return hasChanges
+    ? { ...args, parseParams: { ...args.parseParams, rules } }
+    : args;
 }
 
 // web-answers takes an example object, not a JSON Schema. Models often send the
@@ -583,12 +606,13 @@ export function completeValidArguments(toolName: string, args: unknown): unknown
   if (toolName !== "web-scrape" || !isPlainObject(args) || !isPlainObject(args.formats)) {
     return args;
   }
-  const formats: Arguments = { ...args.formats };
+  const completed = repairScrapeParseParams(args);
+  const formats: Arguments = { ...(completed.formats as Arguments) };
   for (const [format, paramsKey] of Object.entries(SCRAPE_FORMAT_PARAMS)) {
-    if (args[paramsKey] !== undefined && formats[format] === undefined) formats[format] = true;
+    if (completed[paramsKey] !== undefined && formats[format] === undefined) formats[format] = true;
   }
   if (!SCRAPE_FORMATS.some((format) => formats[format] === true)) formats.markdown = true;
-  const original = args.formats;
+  const original = completed.formats as Arguments;
   const changed = Object.keys(formats).some((key) => formats[key] !== original[key]);
-  return changed ? { ...args, formats } : args;
+  return changed ? { ...completed, formats } : completed;
 }
