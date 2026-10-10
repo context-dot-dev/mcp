@@ -1,5 +1,5 @@
 import {
-  error, image, object, text, type TypedCallToolResult,
+  error, image, text, type TypedCallToolResult,
 } from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
 import { contextApiError, contextRequestId } from "./feedback";
@@ -251,7 +251,7 @@ function boundedObject(
   isCompact = false,
 ) {
   const render = (data: Record<string, unknown>) =>
-    isCompact ? text(JSON.stringify(data)) : object(data);
+    isCompact ? text(JSON.stringify(data)) : compactObject(data);
   const limit = maxResponseChars();
   if (limit === 0 || originalChars <= limit) {
     return render(value);
@@ -267,6 +267,14 @@ function boundedObject(
         "Response was shortened for MCP client limits. Narrow the request or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
     },
   });
+}
+
+function compactObject(data: Record<string, unknown>): TypedCallToolResult {
+  return {
+    content: text(JSON.stringify(data)).content,
+    structuredContent: data,
+    _meta: { mimeType: "application/json" },
+  };
 }
 
 function contextObject(
