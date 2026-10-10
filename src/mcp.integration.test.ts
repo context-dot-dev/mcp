@@ -15,6 +15,7 @@ type CapturedRequest = {
   idempotencyKey?: string;
   authorization?: string;
   contextAgent?: string;
+  socketPort?: number;
 };
 
 const captured: CapturedRequest[] = [];
@@ -365,6 +366,7 @@ const upstream = createServer((request, response) => {
         : idempotencyHeader,
       authorization: request.headers.authorization,
       contextAgent: request.headers["x-context-agent"] as string | undefined,
+      socketPort: request.socket.remotePort,
     });
     const result = batchResponse(
       request.method ?? "",
@@ -375,6 +377,8 @@ const upstream = createServer((request, response) => {
     response.end(JSON.stringify(result.body));
   });
 });
+// Like api.context.dev behind Cloudflare: keep-alive without a timeout hint.
+upstream.keepAliveTimeout = 0;
 
 async function getOpenPort(): Promise<number> {
   const server = createServer();
@@ -890,6 +894,23 @@ test("keeps tools removed from the list callable for cached clients", async () =
     new URL(captured[0]!.url, "http://upstream").pathname,
     "/web/scrape/markdown",
   );
+});
+
+test("reuses the API connection across calls an agent spaces out", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const scrape = () =>
+    client.callTool({
+      name: "web-scrape",
+      arguments: { url: "https://example.test", formats: { markdown: true } },
+    });
+  await scrape();
+  await new Promise((resolve) => setTimeout(resolve, 4_500));
+  await scrape();
+  await client.close();
+
+  assert.equal(captured.length, 2);
+  assert.equal(captured[1]!.socketPort, captured[0]!.socketPort);
 });
 
 test("accepts a legacy query API key without OAuth", async () => {

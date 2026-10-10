@@ -5,6 +5,7 @@ import {
   widget,
   type EnhancedToolContext,
 } from "mcp-use/server";
+import { Agent, setGlobalDispatcher } from "undici";
 import { z } from "zod";
 import { brandSchema, type Brand } from "./resources/context-brand/types";
 import {
@@ -53,6 +54,11 @@ import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
 import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
+// The API sends no Keep-Alive timeout, so fetch would close idle sockets after
+// 4 s. Agents usually think longer than that between tool calls, so most calls
+// would pay a new TCP and TLS handshake.
+const UPSTREAM_KEEP_ALIVE_MS = 60_000;
+setGlobalDispatcher(new Agent({ keepAliveTimeout: UPSTREAM_KEEP_ALIVE_MS }));
 const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   action: "Browser action.",
   confidence_threshold: "Minimum confidence, 0 to 1.",
