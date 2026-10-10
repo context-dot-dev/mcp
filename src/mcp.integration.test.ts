@@ -1528,8 +1528,9 @@ test("delivers actionable feedback guidance at initialization and discovery", as
   const client = await connectClient();
   try {
     const instructions = client.getInstructions() ?? "";
-    assert.equal(instructions.length, 1982);
+    assert.equal(instructions.length, 2024);
     assert.ok(instructions.length < 2048);
+    assert.match(instructions, /Prefer compact search and scrape results/);
     assert.match(instructions, /Report each distinct unexpected error/);
     assert.match(instructions, /wrong or incomplete successful data/);
     assert.match(instructions, /even after a workaround/);

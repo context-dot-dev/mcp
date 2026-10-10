@@ -199,7 +199,7 @@ const server = new MCPServer({
   description:
     "Turn the live web, company news, and files into reliable, agent-ready context. Connect with OAuth or a Context API key through the Authorization header, X-API-Key header, or api_key URL parameter.",
   instructions:
-    "Use Context for live web or news, URLs, files, brands, people, batches, and monitoring. Route: `get-news-search` for one company's news; `web-search` for broad research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `submit-batch` for large jobs; `parse-document` for file bytes. Browser actions affect sites; use only requested actions.\n\n" +
+    "Use Context for live web or news, URLs, files, brands, people, batches, and monitoring. Route: `get-news-search` for one company's news; `web-search` for broad research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `submit-batch` for large jobs; `parse-document` for file bytes. Prefer compact search and scrape results. Browser actions affect sites; use only requested actions.\n\n" +
     "Use `get-brand` for visual domain data, `brand-retrieve-unified` for raw or non-domain data, `brand-search` for matches, `people-enrich` for people, and `web-styleguide` for design systems. Monitors are recurring only; check `get-monitor-limits`. For batches call `get-batch`, then `get-batch-results`. Webhook list/get tools inspect; retry resends and secret rotation replaces the receiver secret.\n\n" +
     "Only when needed for account failures, use `list-logs`, then `get-log` with its request ID.\n\n" +
     FEEDBACK_INSTRUCTIONS + "\n\n" +
