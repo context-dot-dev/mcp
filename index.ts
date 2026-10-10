@@ -1,5 +1,6 @@
 import {
   error,
+  getRequestContext,
   MCPServer,
   text,
   widget,
@@ -50,7 +51,11 @@ import {
   createNativeCallbackRedirect,
 } from "./src/native-oauth-redirect";
 import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
-import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./src/toolset";
+import {
+  CORE_TOOL_NAMES,
+  LEGACY_TOOL_ANNOTATIONS,
+  selectEndpoints,
+} from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
 const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
@@ -457,6 +462,23 @@ const repairToolCallArguments = async (
 
 const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 
+function compactInputSchema(value: unknown, path: string[] = []): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry, index) =>
+      compactInputSchema(entry, [...path, String(index)]),
+    );
+  }
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([name, entry]) => {
+      const isTopLevelParameterDescription =
+        name === "description" && path.length === 2 && path[0] === "properties";
+      if (name === "description" && !isTopLevelParameterDescription) return [];
+      return [[name, compactInputSchema(entry, [...path, name])]];
+    }),
+  );
+}
+
 // Gemini's function-calling schema subset rejects `$schema`, and the root
 // dialect is already the MCP default.
 server.use("mcp:tools/list", async (_context, next) => {
@@ -464,13 +486,26 @@ server.use("mcp:tools/list", async (_context, next) => {
     name: string;
     inputSchema?: Record<string, unknown>;
   }>;
-  return tools
+  const publicTools = tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
-    .map(({ inputSchema, ...tool }) => {
-      if (!inputSchema) return tool;
-      const { $schema: _dialect, ...schema } = inputSchema;
-      return { ...tool, inputSchema: schema };
-    });
+    .map<{ name: string; inputSchema?: Record<string, unknown> }>(
+      ({ inputSchema, ...tool }) => {
+        if (!inputSchema) return tool;
+        const { $schema: _dialect, ...schema } = inputSchema;
+        return { ...tool, inputSchema: schema };
+      },
+    );
+  if (getRequestContext()?.req.query("profile") !== "core") {
+    return publicTools;
+  }
+  return publicTools
+    .filter((tool) => CORE_TOOL_NAMES.has(tool.name))
+    .map(({ inputSchema, ...tool }) => ({
+      ...tool,
+      ...(inputSchema
+        ? { inputSchema: compactInputSchema(inputSchema) }
+        : {}),
+    }));
 });
 
 // The server is stateless and never sends unsolicited messages, so a GET event
@@ -950,7 +985,7 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "list-webhook-deliveries.body":
     "Webhook delivery filters. Choose batch or monitor as the source type, then optionally filter by source ID, status, creation time, and pagination cursor.",
   "web-answers.json_format":
-    "Example object whose keys and value types define the answer shape. Unknown values may be null.",
+    'Example output object, not JSON Schema. Use placeholder values to declare types, for example {"answer":"","sources":[""]}. Unknown values may be null.',
 };
 
 function mcpParameterDescription(
