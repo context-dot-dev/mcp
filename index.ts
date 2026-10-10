@@ -474,6 +474,29 @@ const repairToolCallArguments = async (
 
 const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 
+type ListedTool = {
+  name: string;
+  inputSchema?: Record<string, unknown>;
+  execution?: { taskSupport?: string };
+};
+
+// The SDK converts every tool's zod schema to JSON Schema on each tools/list,
+// which dominates the request; registered tools never change after startup.
+let publishedToolLists:
+  | Promise<{ fullTools: ListedTool[]; coreTools: ListedTool[] }>
+  | undefined;
+
+server.use("mcp:tools/list", async (_context, next) => {
+  publishedToolLists ??= (next() as Promise<ListedTool[]>)
+    .then(buildPublishedToolLists)
+    .catch((cause) => {
+      publishedToolLists = undefined;
+      throw cause;
+    });
+  const { fullTools, coreTools } = await publishedToolLists;
+  return shouldServeCoreProfile(getRequestContext()?.req) ? coreTools : fullTools;
+});
+
 // These CLIs put every listed tool into every model step and have no tool
 // search. The server is stateless, so tools/list cannot see the initialize
 // clientInfo; the User-Agent is the only per-request client signal.
@@ -505,38 +528,29 @@ function compactInputSchema(value: unknown, path: string[] = []): unknown {
 // Gemini's function-calling schema subset rejects `$schema`, and the root
 // dialect is already the MCP default. `execution.taskSupport: "forbidden"` is
 // the spec default, so publishing it only costs tokens.
-server.use("mcp:tools/list", async (_context, next) => {
-  const tools = (await next()) as Array<{
-    name: string;
-    inputSchema?: Record<string, unknown>;
-    execution?: { taskSupport?: string };
-  }>;
-  const publicTools = tools
+function buildPublishedToolLists(tools: ListedTool[]) {
+  const fullTools = tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
-    .map<{ name: string; inputSchema?: Record<string, unknown> }>(
-      ({ inputSchema, execution, ...tool }) => {
-        const isDefaultExecution =
-          !execution ||
-          (Object.keys(execution).length === 1 &&
-            execution.taskSupport === "forbidden");
-        const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
-        if (!inputSchema) return publishedTool;
-        const { $schema: _dialect, ...schema } = inputSchema;
-        return { ...publishedTool, inputSchema: compactPublishedSchema(schema) };
-      },
-    );
-  if (!shouldServeCoreProfile(getRequestContext()?.req)) {
-    return publicTools;
-  }
-  return publicTools
+    .map<ListedTool>(({ inputSchema, execution, ...tool }) => {
+      const isDefaultExecution =
+        !execution ||
+        (Object.keys(execution).length === 1 &&
+          execution.taskSupport === "forbidden");
+      const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
+      if (!inputSchema) return publishedTool;
+      const { $schema: _dialect, ...schema } = inputSchema;
+      return { ...publishedTool, inputSchema: compactPublishedSchema(schema) };
+    });
+  const coreTools = fullTools
     .filter((tool) => CORE_TOOL_NAMES.has(tool.name))
     .map(({ inputSchema, ...tool }) => ({
       ...tool,
       ...(inputSchema
-        ? { inputSchema: compactInputSchema(inputSchema) }
+        ? { inputSchema: compactInputSchema(inputSchema) as Record<string, unknown> }
         : {}),
     }));
-});
+  return { fullTools, coreTools };
+}
 
 // The server is stateless and never sends unsolicited messages, so a GET event
 // stream would sit idle until a proxy cut it (and some clients mark a server

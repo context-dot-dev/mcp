@@ -1055,6 +1055,20 @@ test("keeps tools removed from the list callable for cached clients", async () =
   );
 });
 
+test("serves the same tool list to every client", async () => {
+  const lists = [];
+  for (let index = 0; index < 3; index += 1) {
+    const client = await connectClient();
+    lists.push((await client.listTools()).tools);
+    await client.close();
+  }
+
+  assert.equal(lists[0]!.some((tool) => tool.name === "web-scrape-markdown"), false);
+  assert.equal(lists[0]!.some((tool) => "$schema" in tool.inputSchema), false);
+  assert.deepEqual(lists[1], lists[0]);
+  assert.deepEqual(lists[2], lists[0]);
+});
+
 test("reuses the API connection across calls an agent spaces out", async () => {
   captured.length = 0;
   const client = await connectClient();
