@@ -85,9 +85,13 @@ function mergeObjectUnion(schema: JsonSchema): JsonSchema {
 }
 
 function summarizeVariants(variants: JsonSchema[]): string | undefined {
-  const firstSentences = variants.flatMap((variant) =>
-    variant.description ? [readFirstSentence(variant.description)] : [],
-  );
+  const firstSentences = [
+    ...new Set(
+      variants.flatMap((variant) =>
+        variant.description ? [readFirstSentence(variant.description)] : [],
+      ),
+    ),
+  ];
   if (firstSentences.length < 2) return undefined;
   return `One of: ${firstSentences.join(" | ")}`;
 }
@@ -149,7 +153,9 @@ function mergeDefinitions(definitions: JsonSchema[]): JsonSchema {
     return { type: typeof values[0], enum: values, description } as JsonSchema;
   }
   const merged = mergeObjectUnion({ anyOf: distinct });
-  if (!merged.anyOf) return { ...merged, description };
+  if (!merged.anyOf) {
+    return { ...merged, description: merged.description ?? description };
+  }
   const undescribedVariants = merged.anyOf.map(
     ({ description: _description, ...variant }) => variant,
   );

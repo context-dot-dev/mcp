@@ -59,6 +59,37 @@ test("object unions are published as one object with a variant summary", () => {
   });
 });
 
+test("nested object unions keep the variant summary when their parents merge", () => {
+  const published = compactPublishedSchema({
+    anyOf: [
+      {
+        type: "object",
+        properties: {
+          lookup: {
+            type: "object",
+            description: "Match by domain.",
+            properties: { domain: { type: "string" } },
+          },
+        },
+      },
+      {
+        type: "object",
+        properties: {
+          lookup: {
+            type: "object",
+            description: "Match by name.",
+            properties: { name: { type: "string" } },
+          },
+        },
+      },
+    ],
+  });
+  assert.equal(
+    published.properties?.lookup?.description,
+    "One of: Match by domain. | Match by name.",
+  );
+});
+
 test("drops default sentences and validator-only string limits", () => {
   const published = compactPublishedSchema({
     type: "string",
