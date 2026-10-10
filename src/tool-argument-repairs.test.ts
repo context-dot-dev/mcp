@@ -365,6 +365,20 @@ test("web-answers converts a nullable object schema", () => {
   );
 });
 
+test("web-answers converts a bare JSON Schema property map", () => {
+  assert.deepEqual(
+    repairToolSpecificArguments("web-answers", {
+      task: "x",
+      json_format: {
+        answer: { type: "string", description: "The sourced answer" },
+        sources: { type: "array", items: { type: "string" } },
+        confidence: { type: ["number", "null"] },
+      },
+    }).json_format,
+    { answer: "", sources: [""], confidence: 0 },
+  );
+});
+
 test("other tools are unchanged", () => {
   const args = { url: "https://a.test" };
   assert.equal(repairToolSpecificArguments("web-styleguide", args), args);

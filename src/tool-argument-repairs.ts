@@ -266,6 +266,18 @@ function isJsonSchemaObject(value: unknown): value is Arguments {
   return Array.isArray(value.type) ? value.type.includes("object") : value.type === "object";
 }
 
+function isJsonSchemaPropertyMap(value: unknown): value is Arguments {
+  if (!isPlainObject(value) || Object.keys(value).length === 0) return false;
+  return Object.values(value).every(
+    (property) =>
+      isPlainObject(property) &&
+      (typeof property.type === "string" ||
+        Array.isArray(property.type) ||
+        isPlainObject(property.properties) ||
+        property.items !== undefined),
+  );
+}
+
 function repairAnswers(input: Arguments): Arguments {
   let args = renameMissing(input, "task", ["query", "question", "prompt", "q"]);
   if (isMissing(args.json_format)) {
@@ -287,6 +299,14 @@ function repairAnswers(input: Arguments): Arguments {
   }
   if (isJsonSchemaObject(args.json_format)) {
     args = { ...args, json_format: exampleFromJsonSchema(args.json_format) };
+  } else if (isJsonSchemaPropertyMap(args.json_format)) {
+    args = {
+      ...args,
+      json_format: exampleFromJsonSchema({
+        type: "object",
+        properties: args.json_format,
+      }),
+    };
   }
   return args;
 }
