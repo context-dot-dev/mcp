@@ -848,6 +848,39 @@ test("does not allocate sessions for stream-capable clients", async () => {
   }
 });
 
+test("compresses MCP responses for clients that accept gzip", async () => {
+  const listTools = (acceptEncoding: string) =>
+    fetch(`${mcpBase}/mcp`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json, text/event-stream",
+        "Accept-Encoding": acceptEncoding,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
+
+  const compressed = await listTools("gzip, deflate, br");
+  assert.equal(compressed.headers.get("content-encoding"), "gzip");
+  assert.equal((await compressed.json()).result.tools.length, 42);
+
+  const uncompressed = await listTools("identity");
+  assert.equal(uncompressed.headers.get("content-encoding"), null);
+  assert.equal((await uncompressed.json()).result.tools.length, 42);
+
+  const notification = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Accept-Encoding": "gzip",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+  });
+  assert.equal(notification.status, 202);
+  assert.equal(notification.headers.get("content-encoding"), null);
+});
+
 test("serves MCP at the bare server URL and declines idle event streams", async () => {
   const initialize = await fetch(`${mcpBase}/`, {
     method: "POST",
