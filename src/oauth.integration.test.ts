@@ -478,6 +478,8 @@ test("completes the proxy flow for a registration-bound client on an unlisted do
     }),
   });
   assert.equal(tokenResponse.status, 200);
+  assert.equal(tokenResponse.headers.get("cache-control"), "no-store");
+  assert.equal(tokenResponse.headers.get("pragma"), "no-cache");
   const upstreamTokenRequest = tokenRequests.at(-1)!;
   assert.equal(upstreamTokenRequest.get("client_id"), "context-mcp-fixed");
   assert.equal(
@@ -554,6 +556,8 @@ test("enforces the registration binding at the token endpoint", async () => {
     }),
   });
   assert.equal(mismatchedRedirect.status, 400);
+  assert.equal(mismatchedRedirect.headers.get("cache-control"), "no-store");
+  assert.equal(mismatchedRedirect.headers.get("pragma"), "no-cache");
   const mismatchPayload = (await mismatchedRedirect.json()) as {
     error: string;
   };

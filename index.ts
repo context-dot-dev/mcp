@@ -765,6 +765,10 @@ if (oauthProvider) {
   // Requests without a signed client_id pass through as before; the upstream
   // PKCE check remains the binding for the authorization code itself.
   server.app.use("/token", async (context, next) => {
+    if (context.req.method === "POST") {
+      context.header("Cache-Control", "no-store");
+      context.header("Pragma", "no-cache");
+    }
     if (context.req.method !== "POST") {
       await next();
       return;
