@@ -17,5 +17,6 @@ test("gives agents bounded retry guidance for stable API errors", () => {
   assert.match(message("INPUT_VALIDATION_ERROR"), /Retry: no/);
   assert.match(message("INTERNAL_ERROR"), /Retry: at most once/);
   assert.match(message("BATCH_NOT_COMPLETED"), /Retry: later/);
+  assert.match(message("BATCH_LIMIT_EXCEEDED"), /Retry: later/);
   assert.match(message("USAGE_EXCEEDED"), /account limit working as intended/);
 });
