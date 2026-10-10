@@ -1443,8 +1443,8 @@ test("publishes spec string patterns unescaped and still enforces them", async (
       name
     ] ?? {}) as Record<string, unknown>;
 
-  assert.equal(property("web-scrape", "url").pattern, "^https?://[\\s\\S]*$");
-  assert.equal(property("list-logs", "path").pattern, "^\\/[\\s\\S]*$");
+  assert.equal(property("web-scrape", "url").pattern, "^https?://.*$");
+  assert.equal(property("list-logs", "path").pattern, "^/.*$");
 
   for (const call of [
     { name: "web-scrape", arguments: { url: "ftp://example.test", formats: { html: true } } },
