@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { Ajv } from "ajv";
 import { z } from "zod";
 import { COMPONENT_SCHEMAS, ENDPOINTS, type JsonSchema } from "../context-endpoints";
-import { schemaToZod } from "./openapi-schema";
+import { schemaToZod, toGrammarSafePattern } from "./openapi-schema";
 import { compactPublishedSchema } from "./published-schema";
 
 test("published schemas accept every sampled payload the validators accept", () => {
@@ -102,6 +102,14 @@ test("drops default sentences and validator-only string limits", () => {
     type: "string",
     description: "Page size. Must be positive.",
   });
+});
+
+test("drops the non-blank pattern after it was made grammar safe", () => {
+  const published = compactPublishedSchema({
+    type: "string",
+    pattern: toGrammarSafePattern("^[\\s\\S]*\\S[\\s\\S]*$"),
+  });
+  assert.deepEqual(published, { type: "string" });
 });
 
 function createEndpointValidator(endpoint: (typeof ENDPOINTS)[number]): z.ZodTypeAny {

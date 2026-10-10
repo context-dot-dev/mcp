@@ -1,4 +1,5 @@
 import type { JsonSchema } from "../context-endpoints";
+import { toGrammarSafePattern } from "./openapi-schema";
 
 // tools/list is resent on every model turn by eager-loading clients, so the
 // published schema is a looser, smaller view of the validator's schema. Calls
@@ -36,6 +37,10 @@ function compactChildren(schema: JsonSchema): JsonSchema {
 }
 
 const NON_BLANK_PATTERN = "^[\\s\\S]*\\S[\\s\\S]*$";
+const NON_BLANK_PATTERNS = new Set([
+  NON_BLANK_PATTERN,
+  toGrammarSafePattern(NON_BLANK_PATTERN),
+]);
 const SHORTEST_PUBLISHED_MAX_LENGTH = 200;
 
 function dropValidationNoise(schema: JsonSchema): JsonSchema {
@@ -55,7 +60,7 @@ function dropValidationNoise(schema: JsonSchema): JsonSchema {
   const isMaxLengthMeaningful =
     maxLength !== undefined && maxLength < SHORTEST_PUBLISHED_MAX_LENGTH;
   const isPatternMeaningful =
-    pattern !== undefined && pattern !== NON_BLANK_PATTERN;
+    pattern !== undefined && !NON_BLANK_PATTERNS.has(pattern);
   return {
     ...rest,
     ...(isMinimumMeaningful ? { minimum } : {}),
