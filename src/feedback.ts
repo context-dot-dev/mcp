@@ -34,6 +34,51 @@ const ACCOUNT_LIMIT_NEXT_STEPS = new Map([
   ],
 ]);
 
+const NO_UNCHANGED_RETRY_CODES = new Set([
+  "AUTHENTICATION_FAILED",
+  "UNAUTHORIZED",
+  "DISABLED",
+  "FORBIDDEN",
+  "INSUFFICIENT_PERMISSIONS",
+  "NOT_FOUND",
+  "INPUT_VALIDATION_ERROR",
+  "TIMEOUT_EXCEEDS_MAXIMUM",
+  "TIMEOUT_TOO_SHORT_FOR_WAIT",
+  "WEBSITE_ACCESS_ERROR",
+  "WEBSITE_BLOCKED",
+  "WEBSITE_NOT_FOUND",
+  "PDF_SKIPPED",
+  "PDF_IMAGES_ONLY",
+  "ZDR_NOT_SUPPORTED",
+  "ZDR_NOT_ENABLED",
+  "FREE_EMAIL_DETECTED",
+  "DISPOSABLE_EMAIL_DETECTED",
+  "COLD_DOMAIN_TIMEOUT_TOO_LOW",
+  "UNSUPPORTED_CONTENT",
+  "CONTENT_TOO_LARGE",
+  "MONITOR_PAUSED",
+  "MONITOR_NO_WEBHOOK",
+  "COLLECTION_PAUSED",
+  "MONITOR_LIMIT_EXCEEDED",
+  "BATCH_NOT_CANCELLABLE",
+  "IDEMPOTENCY_KEY_CONFLICT",
+  "DELIVERY_ALREADY_DELIVERED",
+  "DELIVERY_EXPIRED",
+  "DELIVERY_CANCELLED",
+]);
+
+const RETRY_ONCE_CODES = new Set([
+  "INTERNAL_ERROR",
+  "REQUEST_TIMEOUT",
+  "SEARCH_UNAVAILABLE",
+]);
+
+const RETRY_LATER_CODES = new Set([
+  "BATCH_LIMIT_EXCEEDED",
+  "BATCH_NOT_COMPLETED",
+  "DELIVERY_IN_PROGRESS",
+]);
+
 export function contextApiError(
   toolName: string,
   message: string,
@@ -42,11 +87,22 @@ export function contextApiError(
   const accountLimitNextStep = errorCode
     ? ACCOUNT_LIMIT_NEXT_STEPS.get(errorCode)
     : undefined;
+  const hasNoUnchangedRetry = errorCode
+    ? NO_UNCHANGED_RETRY_CODES.has(errorCode)
+    : false;
+  const shouldRetryOnce = errorCode ? RETRY_ONCE_CODES.has(errorCode) : false;
+  const shouldRetryLater = errorCode ? RETRY_LATER_CODES.has(errorCode) : false;
   const guidance =
     toolName === "submit-feedback"
       ? "Feedback submission was not confirmed. Do not call submit-feedback to report its own failure or loop on retries. Continue the task and tell the user feedback could not be submitted."
       : accountLimitNextStep
         ? `This is an account limit working as intended; do not call submit-feedback. ${accountLimitNextStep}`
+        : hasNoUnchangedRetry
+          ? "Retry: no, not with the same arguments. Fix the input, authentication, permissions, account state, or target before calling again. Only call submit-feedback if the error contradicts the documentation."
+          : shouldRetryOnce
+            ? "Retry: at most once, after any stated delay and with a smaller request when applicable. If it fails again, call submit-feedback once, then stop retrying this issue."
+            : shouldRetryLater
+              ? "Retry: later, after checking the resource status. Do not poll this tool in a tight loop."
         : "If this behavior is unexpected, always call submit-feedback once for this issue, even if a retry or workaround succeeds. Include a category, a sanitized note naming the tool and expected versus actual behavior, and the affected request_id above or a relevant public page/docs url if no ID is available. Never invent an ID or include secrets/private data. Follow the user's reporting preferences and host permissions. Do not report expected validation, authentication, or credit-limit errors as bugs.";
   return error(`${message}\n\n${guidance}`);
 }
