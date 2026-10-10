@@ -1646,16 +1646,22 @@ test("delivers actionable feedback guidance at initialization and discovery", as
   const client = await connectClient();
   try {
     const instructions = client.getInstructions() ?? "";
-    assert.match(instructions, /Always report unexpected Context API behavior/);
-    assert.match(instructions, /wrong or incomplete data in a successful response/);
-    assert.match(instructions, /even if a retry or workaround succeeds/);
+    assert.equal(instructions.length, 2024);
+    assert.ok(instructions.length < 2048);
+    assert.match(instructions, /Prefer compact search and scrape results/);
+    assert.match(instructions, /Report each distinct unexpected error/);
+    assert.match(instructions, /wrong or incomplete successful data/);
+    assert.match(instructions, /even after a workaround/);
     assert.match(instructions, /otherwise use a relevant public page or docs url/);
-    assert.match(instructions, /never include API keys, tokens, cookies, private page contents/);
-    assert.match(instructions, /do not report that failure through submit-feedback/);
+    assert.match(instructions, /Never invent or use an unrelated ID/);
+    assert.match(instructions, /API keys, tokens, cookies, private content, personal data/);
+    assert.match(instructions, /do not retry or report itself/);
     assert.match(
       instructions,
-      /Expected validation\/authentication\/credit-limit errors are not bugs/,
+      /Expected validation, authentication, or credit-limit errors/,
     );
+    assert.match(instructions, /On `USAGE_EXCEEDED`, do not retry/);
+    assert.match(instructions, /call `get-usage` once/);
     const { tools } = await client.listTools();
     const feedback = tools.find((tool) => tool.name === "submit-feedback");
     assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
