@@ -359,7 +359,13 @@ function repairToolCall(message: unknown): RepairedToolCall {
   let name = params.name;
   let target = input;
   let repaired = repairToolArguments(params.arguments, target.schema, name);
-  const rerouted = reroutedToolName(name, repaired);
+  // Decide the route from every key the caller sent, not only the keys the
+  // first tool's schema kept: the other tool's input is what signals it.
+  const sent =
+    params.arguments && typeof params.arguments === "object" && !Array.isArray(params.arguments)
+      ? { ...(params.arguments as Record<string, unknown>), ...(repaired as Record<string, unknown>) }
+      : repaired;
+  const rerouted = reroutedToolName(name, sent);
   const reroutedInput = rerouted ? toolInputs.get(rerouted) : undefined;
   if (rerouted && reroutedInput) {
     name = rerouted;

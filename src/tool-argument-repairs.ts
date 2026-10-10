@@ -564,7 +564,7 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
   "web-search":
     "web-search needs `query`, the text to search for. To read a page whose URL you already have, use web-scrape.",
   "web-scrape":
-    'web-scrape needs `url` and `formats`, for example {"url":"https://example.com","formats":{"markdown":true}}. Options for a format go in its own object, such as markdownParams or jsonParams.',
+    'web-scrape needs `url` and `formats`, for example {"url":"https://example.com","formats":{"markdown":true}}. Options for a format go in its own object, such as markdownParams or jsonParams. To find pages for a query, use web-search.',
   "web-answers":
     'web-answers needs `task`, the research question. Describe the answer shape with `json_format`, an example object such as {"price":0,"currency":""}.',
   "web-map": "web-map needs `domain`, the site's host name, such as docs.example.com.",

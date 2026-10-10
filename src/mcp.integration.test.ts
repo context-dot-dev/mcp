@@ -806,6 +806,27 @@ test("guides unrepairable calls and routes account-wide change listings", async 
   const url = new URL(captured[0]!.url, "http://upstream");
   assert.equal(url.pathname, "/monitors/changes");
   assert.equal(url.searchParams.get("tag"), "launch");
+
+  captured.length = 0;
+  const routingClient = await connectClient();
+  const scrapeSentToSearch = await routingClient.callTool({
+    name: "web-search",
+    arguments: { url: "https://example.test/page", formats: { markdown: true } },
+  });
+  const searchSentToScrape = await routingClient.callTool({
+    name: "web-scrape",
+    arguments: { query: "compact response", numResults: 20 },
+  });
+  await routingClient.close();
+  assert.notEqual(scrapeSentToSearch.isError, true);
+  assert.notEqual(searchSentToScrape.isError, true);
+  assert.deepEqual(
+    captured.map((request) => [request.url, JSON.parse(request.body.toString())]),
+    [
+      ["/web/scrape", { url: "https://example.test/page", formats: { markdown: true } }],
+      ["/web/search", { query: "compact response", numResults: 20 }],
+    ],
+  );
 });
 
 test("sends calls that already validate unchanged and survives hostile bodies", async () => {
