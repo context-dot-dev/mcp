@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { JsonSchema } from "../context-endpoints";
-import { repairToolArgument, repairToolArguments } from "./argument-repair";
+import {
+  repairToolArgument,
+  repairToolArguments,
+  restoreUndeclaredKeys,
+} from "./argument-repair";
 
 const scrapeSchema: JsonSchema = {
   type: "object",
@@ -299,6 +303,48 @@ test("keeps unknown top-level properties for validation to strip", () => {
   });
 });
 
+const optionalSchema: JsonSchema = {
+  type: "object",
+  properties: {
+    status_code: { type: "integer" },
+    maxPages: { type: "integer" },
+    mode: { type: "string" },
+  },
+};
+
+test("restores undeclared keys that name a declared property", () => {
+  assert.deepEqual(
+    restoreUndeclaredKeys({ max_pages: 1, Mode: "web", extra: "x" }, optionalSchema),
+    { maxPages: 1, mode: "web", extra: "x" },
+  );
+  assert.deepEqual(
+    restoreUndeclaredKeys({ arguments: { statusCode: 500, maxPages: 2 } }, optionalSchema),
+    { status_code: 500, maxPages: 2 },
+  );
+});
+
+test("leaves declared, unmatched, and ambiguous keys as sent", () => {
+  const declaredOnly = { maxPages: 1 };
+  const unmatched = { extra: "x" };
+  assert.equal(restoreUndeclaredKeys(declaredOnly, optionalSchema), declaredOnly);
+  assert.equal(restoreUndeclaredKeys(unmatched, optionalSchema), unmatched);
+  assert.deepEqual(
+    restoreUndeclaredKeys({ maxPages: 1, max_pages: 2 }, optionalSchema),
+    { maxPages: 1, max_pages: 2 },
+  );
+  assert.deepEqual(
+    restoreUndeclaredKeys({ MaxPages: 1, max_pages: 2 }, optionalSchema),
+    { MaxPages: 1, max_pages: 2 },
+  );
+  assert.deepEqual(
+    restoreUndeclaredKeys(
+      { Mode: "web" },
+      { type: "object", properties: { mode: { type: "string" }, MODE: { type: "string" } } },
+    ),
+    { Mode: "web" },
+  );
+});
+
 const closedSchema: JsonSchema = {
   type: "object",
   properties: {
@@ -334,5 +380,92 @@ test("moves misplaced top-level parameters and ignores unknown nested keys", () 
       formats: { markdown: true },
       maxAgeMs: 0,
     },
+  );
+});
+
+const highlightsSchema: JsonSchema = {
+  type: "object",
+  properties: {
+    highlightsParams: {
+      type: "object",
+      properties: { query: { type: "string" }, maxCount: { type: "integer" } },
+    },
+    urls: { type: "array", items: { type: "string" } },
+  },
+};
+
+test("closes nested JSON strings that were cut off mid-value", () => {
+  assert.deepEqual(
+    repairToolArgument(
+      { highlightsParams: '{"query": "brand color hex code logo purple blurple' },
+      highlightsSchema,
+    ),
+    { highlightsParams: { query: "brand color hex code logo purple blurple" } },
+  );
+  assert.deepEqual(
+    repairToolArgument({ urls: '["https://a.test", "https://b.test"' }, highlightsSchema),
+    { urls: ["https://a.test", "https://b.test"] },
+  );
+});
+
+test("leaves nested JSON strings cut off inside a key, number, or escape", () => {
+  for (const highlightsParams of [
+    '{"query": "brand", "max',
+    '{"query": "brand", "maxCount": 1',
+    '{"query": "brand",',
+    '{"query": "brand\\',
+    '{"query": "brand"}}',
+  ]) {
+    assert.deepEqual(repairToolArgument({ highlightsParams }, highlightsSchema), {
+      highlightsParams,
+    });
+  }
+});
+
+const batchSchema: JsonSchema = {
+  type: "object",
+  properties: {
+    input: {
+      oneOf: [
+        {
+          type: "object",
+          properties: {
+            mode: { const: "scrape" },
+            data: {
+              type: "object",
+              properties: {
+                format: { type: "string" },
+                urls: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: { url: { type: "string" } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          type: "object",
+          properties: { mode: { const: "crawl" }, url: { type: "string" } },
+        },
+      ],
+    },
+  },
+};
+
+test("unwraps a list sent as a single-key object", () => {
+  const urls = [{ url: "https://example.com/a" }, { url: "https://example.com/b" }];
+  assert.deepEqual(
+    repairToolArgument(
+      { input: { mode: "scrape", data: { format: "markdown", urls: { item: urls } } } },
+      batchSchema,
+    ),
+    { input: { mode: "scrape", data: { format: "markdown", urls } } },
+  );
+  assert.deepEqual(
+    repairToolArgument({ urls: { a: ["x"], b: ["y"] } }, highlightsSchema),
+    { urls: { a: ["x"], b: ["y"] } },
   );
 });

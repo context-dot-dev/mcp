@@ -12,8 +12,11 @@ import { NodeOAuthClientProvider } from "mcp-use/auth/node";
 
 const encryptionKey = crypto.getRandomValues(new Uint8Array(32));
 const rejectedRefreshToken = "local-rejected-refresh-token";
+const initialRefreshToken = "local-initial-refresh-token";
+const rotatedRefreshToken = "local-rotated-refresh-token";
 const authorizationRequests: URL[] = [];
 const tokenRequests: URLSearchParams[] = [];
+const issuedAccessTokens: string[] = [];
 const upstreamAuthorizationHeaders: string[] = [];
 let authorizationServerBase = "";
 let mcpBase = "";
@@ -103,10 +106,15 @@ const authorizationServer = createServer(async (request, response) => {
       return;
     }
     const accessToken = await issueAccessToken();
+    issuedAccessTokens.push(accessToken);
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
         access_token: accessToken,
+        refresh_token:
+          params.get("grant_type") === "refresh_token"
+            ? rotatedRefreshToken
+            : initialRefreshToken,
         token_type: "Bearer",
         expires_in: 300,
         scope: "api.read api.write",
@@ -247,8 +255,22 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
     /^Bearer error="invalid_token"/
   );
 
-  const discovery = await fetch(`${mcpBase}/mcp/.well-known/openid-configuration`);
-  assert.equal(discovery.status, 404);
+  const rootMetadata = await (
+    await fetch(`${mcpBase}/.well-known/oauth-authorization-server`)
+  ).json();
+  assert.equal(rootMetadata.issuer, mcpBase);
+  for (const path of [
+    "/.well-known/oauth-authorization-server/mcp",
+    "/.well-known/openid-configuration/mcp",
+    "/mcp/.well-known/oauth-authorization-server",
+    "/mcp/.well-known/openid-configuration",
+  ]) {
+    const discovery = await fetch(`${mcpBase}${path}`);
+    assert.equal(discovery.status, 200, path);
+    assert.deepEqual(await discovery.json(), rootMetadata, path);
+  }
+  const missingDocument = await fetch(`${mcpBase}/mcp/.well-known/jwks.json`);
+  assert.equal(missingDocument.status, 404);
 
   const rootUrl = await fetch(`${mcpBase}/`, {
     method: "POST",
@@ -608,6 +630,48 @@ test("forwards rejected refresh grants without caching the response", async () =
     error: "invalid_grant",
     error_description: "The refresh token is invalid or expired",
   });
+});
+
+test("proxies refresh grants with server credentials and rotates both tokens", async () => {
+  const clientRedirect = "https://refresh-client.example/oauth/callback";
+  const registration = await registerClient("Refresh client", [clientRedirect]);
+  assert.equal(registration.status, 201);
+  const clientId = String(registration.payload.client_id);
+
+  const refreshResponse = await fetch(`${mcpBase}/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: initialRefreshToken,
+      redirect_uri: clientRedirect,
+      client_id: clientId,
+      client_secret: "untrusted-client-secret",
+    }),
+  });
+  assert.equal(refreshResponse.status, 200);
+  const refreshPayload = (await refreshResponse.json()) as {
+    access_token: string;
+    refresh_token: string;
+  };
+  assert.equal(refreshPayload.access_token, issuedAccessTokens.at(-1));
+  assert.equal(refreshPayload.refresh_token, rotatedRefreshToken);
+
+  const upstreamRefreshRequest = tokenRequests.at(-1)!;
+  assert.equal(upstreamRefreshRequest.get("grant_type"), "refresh_token");
+  assert.equal(
+    upstreamRefreshRequest.get("refresh_token"),
+    initialRefreshToken,
+  );
+  assert.equal(upstreamRefreshRequest.get("client_id"), "context-mcp-fixed");
+  assert.equal(
+    upstreamRefreshRequest.get("client_secret"),
+    "context-mcp-secret",
+  );
+  assert.equal(
+    upstreamRefreshRequest.get("redirect_uri"),
+    `${mcpBase}/oauth/callback`,
+  );
 });
 
 test("an MCP client discovers OAuth, reconnects, and calls get-brand", async (t) => {
