@@ -26,7 +26,9 @@ let mcpProcess: ChildProcess;
 function batchResponse(method: string, requestUrl: string, requestBody: Buffer) {
   const path = new URL(requestUrl, "http://context.test").pathname;
   const args =
-    path === "/web/search" || path === "/web/scrape"
+    path === "/web/search" ||
+    path === "/web/scrape" ||
+    path === "/web/crawl"
       ? JSON.parse(requestBody.toString())
       : {};
   if (path === "/web/search" && args.query === "compact empty") {
@@ -118,6 +120,43 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
           success: true,
           data: "data:image/png;base64,aGVsbG8=",
         },
+      },
+    };
+  }
+  if (path === "/web/crawl" && args.url === "https://example.test/compact") {
+    const result = (path: string, markdown: string, crawlDepth: number) => ({
+      markdown,
+      metadata: {
+        sourceUrl: `https://example.test/${path}`,
+        finalUrl: `https://example.test/${path}`,
+        title: path,
+        description: `${path} page`,
+        language: "en",
+        headings: [{ level: 1, text: path }],
+        openGraph: { title: path },
+        jsonLd: [{ "@type": "WebPage" }],
+        url: `https://example.test/${path}`,
+        crawlDepth,
+        statusCode: 200,
+        success: true,
+      },
+    });
+    return {
+      status: 200,
+      body: {
+        results: [
+          result("docs", "Documentation ".repeat(900), 0),
+          result("api", "API reference ".repeat(1_000), 1),
+        ],
+        metadata: {
+          numUrls: 2,
+          maxCrawlDepth: 1,
+          numSucceeded: 2,
+          numFailed: 0,
+          numSkipped: 0,
+        },
+        cache_metadata: { status: "miss", age_ms: 0 },
+        request_id: "req_crawl",
       },
     };
   }
@@ -457,15 +496,17 @@ test("compact web responses preserve evidence and errors through the MCP protoco
   const client = await connectClient();
   try {
     const { tools } = await client.listTools();
-    for (const name of ["web-search", "web-scrape"]) {
+    for (const name of ["web-search", "web-scrape", "web-crawl"]) {
       const tool = tools.find((entry) => entry.name === name)!;
       assert.deepEqual(
-        (
-          tool.inputSchema.properties?.responseMode as
-            | { enum?: string[] }
-            | undefined
-        )?.enum,
+        (tool.inputSchema.properties?.responseMode as { enum?: string[] })
+          .enum,
         ["full", "compact"],
+      );
+      assert.match(
+        (tool.inputSchema.properties?.responseMode as { description: string })
+          .description,
+        /compact/,
       );
       assert.match(tool.description!, /compact/);
     }
@@ -623,6 +664,59 @@ test("compact web responses preserve evidence and errors through the MCP protoco
   }
 });
 
+test("compact crawl keeps each page while removing verbose page data", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  try {
+    const args = { url: "https://example.test/compact", maxPages: 2 };
+    const original = await client.callTool({
+      name: "web-crawl",
+      arguments: args,
+    });
+    const full = await client.callTool({
+      name: "web-crawl",
+      arguments: { ...args, responseMode: "full" },
+    });
+    const compact = await client.callTool({
+      name: "web-crawl",
+      arguments: { ...args, responseMode: "compact" },
+    });
+
+    assert.deepEqual(full, original);
+    assert.deepEqual(JSON.parse(captured.at(-1)!.body.toString()), args);
+    const data = resultObject(compact);
+    assert.equal(data.request_id, "req_crawl");
+    assert.equal(data.cache_metadata, undefined);
+    assert.deepEqual(data.metadata, {
+      numUrls: 2,
+      maxCrawlDepth: 1,
+      numSucceeded: 2,
+      numFailed: 0,
+      numSkipped: 0,
+    });
+    const results = data.results as Array<Record<string, unknown>>;
+    assert.equal(results.length, 2);
+    for (const result of results) {
+      assert.ok((result.markdown as string).length <= 4_000);
+      const metadata = result.metadata as Record<string, unknown>;
+      assert.equal(metadata.headings, undefined);
+      assert.equal(metadata.openGraph, undefined);
+      assert.equal(metadata.jsonLd, undefined);
+      assert.equal(metadata.statusCode, 200);
+      assert.equal(metadata.success, true);
+    }
+    assert.equal(
+      (data._context_mcp as Record<string, unknown>).truncated,
+      true,
+    );
+    assert.ok(
+      JSON.stringify(compact).length < JSON.stringify(full).length * 0.4,
+    );
+  } finally {
+    await client.close();
+  }
+});
+
 test("serves the OpenAI domain verification token as plain text", async () => {
   const response = await fetch(
     `${mcpBase}/.well-known/openai-apps-challenge`,
@@ -758,6 +852,39 @@ test("does not allocate sessions for stream-capable clients", async () => {
   }
 });
 
+test("compresses MCP responses for clients that accept gzip", async () => {
+  const listTools = (acceptEncoding: string) =>
+    fetch(`${mcpBase}/mcp`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json, text/event-stream",
+        "Accept-Encoding": acceptEncoding,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
+
+  const compressed = await listTools("gzip, deflate, br");
+  assert.equal(compressed.headers.get("content-encoding"), "gzip");
+  assert.equal((await compressed.json()).result.tools.length, 42);
+
+  const uncompressed = await listTools("identity");
+  assert.equal(uncompressed.headers.get("content-encoding"), null);
+  assert.equal((await uncompressed.json()).result.tools.length, 42);
+
+  const notification = await fetch(`${mcpBase}/mcp`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/event-stream",
+      "Accept-Encoding": "gzip",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+  });
+  assert.equal(notification.status, 202);
+  assert.equal(notification.headers.get("content-encoding"), null);
+});
+
 test("serves MCP at the bare server URL and declines idle event streams", async () => {
   const initialize = await fetch(`${mcpBase}/`, {
     method: "POST",
@@ -788,7 +915,7 @@ test("serves MCP at the bare server URL and declines idle event streams", async 
   }
 });
 
-test("guides unrepairable calls and routes account-wide change listings", async () => {
+test("routes topic news and account-wide change listings", async () => {
   captured.length = 0;
   const client = await connectClient();
   const topicNews = await client.callTool({
@@ -801,13 +928,12 @@ test("guides unrepairable calls and routes account-wide change listings", async 
   });
   await client.close();
 
-  assert.equal(topicNews.isError, true);
-  const text = JSON.stringify(topicNews.content);
-  assert.match(text, /Input validation error/);
-  assert.match(text, /use web-search with `freshness` instead/);
+  assert.notEqual(topicNews.isError, true);
   assert.notEqual(changes.isError, true);
-  assert.equal(captured.length, 1);
-  const url = new URL(captured[0]!.url, "http://upstream");
+  assert.equal(captured.length, 2);
+  assert.equal(captured[0]!.url, "/web/search");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), { query: "DeFi OR Solana" });
+  const url = new URL(captured[1]!.url, "http://upstream");
   assert.equal(url.pathname, "/monitors/changes");
   assert.equal(url.searchParams.get("tag"), "launch");
 
@@ -857,6 +983,36 @@ test("sends calls that already validate unchanged and survives hostile bodies", 
     body: nested,
   });
   assert.notEqual(response.status, 500);
+});
+
+test("keeps misnamed optional keys and wrapped arguments that would validate as empty", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const calls = [
+    { name: "web-search", arguments: { query: "x", num_results: 20 } },
+    {
+      name: "create-monitor",
+      arguments: {
+        name: "Pricing monitor",
+        Mode: "web",
+        target: { type: "page", url: "https://example.test/pricing" },
+      },
+    },
+    { name: "list-logs", arguments: { arguments: { status_code: 500, limit: 10 } } },
+  ];
+  for (const call of calls) {
+    const result = await client.callTool(call);
+    assert.notEqual(result.isError, true, call.name);
+  }
+  await client.close();
+
+  const [search, monitor, logs] = captured;
+  assert.equal(JSON.parse(search!.body.toString()).numResults, 20);
+  assert.equal(JSON.parse(monitor!.body.toString()).mode, "web");
+  const logsUrl = new URL(logs!.url, upstreamBase);
+  assert.equal(logsUrl.pathname, "/org/logs");
+  assert.equal(logsUrl.searchParams.get("status_code"), "500");
+  assert.equal(logsUrl.searchParams.get("limit"), "10");
 });
 
 test("adds the hint once on the SSE path", async () => {
@@ -1127,10 +1283,20 @@ test("lists the public Context API with safety annotations", async () => {
     string,
     Record<string, unknown>
   >;
-  assert.deepEqual(newsSearch?.inputSchema.required, ["searchBy"]);
-  assert.equal(newsProperties.searchBy?.type, "object");
+  assert.equal(newsProperties.searchBy, undefined);
+  assert.equal(newsProperties.companyName?.type, "string");
+  assert.equal(newsProperties.domain?.type, "string");
+  assert.equal(newsProperties.ticker?.type, "string");
+  assert.equal(newsProperties.isin?.type, "string");
   assert.equal(newsProperties.filterBy?.type, "object");
-  assert.equal(newsProperties.sortBy?.type, "object");
+  assert.equal(newsProperties.sortBy?.type, "string");
+  assert.deepEqual(newsProperties.sortBy?.enum, ["newest", "relevance"]);
+  assert.deepEqual(newsSearch?.inputSchema.oneOf, [
+    { required: ["companyName"] },
+    { required: ["domain"] },
+    { required: ["ticker"] },
+    { required: ["isin"] },
+  ]);
   assert.equal(newsProperties.limit?.type, "integer");
   assert.equal(newsProperties.cursor?.type, undefined);
   assert.equal(newsProperties.cursor?.anyOf instanceof Array, true);
@@ -1181,6 +1347,34 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(submitBatch?.annotations?.destructiveHint, false);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+  for (const name of ["delete-monitor", "cancel-batch", "delete-batch"]) {
+    const tool = tools.find((candidate) => candidate.name === name);
+    assert.equal(tool?.annotations?.idempotentHint, true, name);
+  }
+});
+
+test("repairs bare answer property maps before forwarding valid calls", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  try {
+    const result = await client.callTool({
+      name: "web-answers",
+      arguments: {
+        task: "Answer with sources",
+        json_format: {
+          answer: { type: "string", description: "Sourced answer" },
+          sources: { type: "array", items: { type: "string" } },
+        },
+      },
+    });
+    assert.notEqual(result.isError, true);
+    assert.deepEqual(JSON.parse(captured.at(-1)!.body.toString()).json_format, {
+      answer: "",
+      sources: [""],
+    });
+  } finally {
+    await client.close();
+  }
 });
 
 test("forwards all scrape formats, browser actions, CSS rules, and request controls", async () => {
@@ -1464,8 +1658,8 @@ test("publishes spec string patterns unescaped and still enforces them", async (
       name
     ] ?? {}) as Record<string, unknown>;
 
-  assert.equal(property("web-scrape", "url").pattern, "^https?://[\\s\\S]*$");
-  assert.equal(property("list-logs", "path").pattern, "^\\/[\\s\\S]*$");
+  assert.equal(property("web-scrape", "url").pattern, "^https?://.*$");
+  assert.equal(property("list-logs", "path").pattern, "^/.*$");
 
   for (const call of [
     { name: "web-scrape", arguments: { url: "ftp://example.test", formats: { html: true } } },
@@ -1549,16 +1743,22 @@ test("delivers actionable feedback guidance at initialization and discovery", as
   const client = await connectClient();
   try {
     const instructions = client.getInstructions() ?? "";
-    assert.match(instructions, /Always report unexpected Context API behavior/);
-    assert.match(instructions, /wrong or incomplete data in a successful response/);
-    assert.match(instructions, /even if a retry or workaround succeeds/);
+    assert.equal(instructions.length, 2024);
+    assert.ok(instructions.length < 2048);
+    assert.match(instructions, /Prefer compact search and scrape results/);
+    assert.match(instructions, /Report each distinct unexpected error/);
+    assert.match(instructions, /wrong or incomplete successful data/);
+    assert.match(instructions, /even after a workaround/);
     assert.match(instructions, /otherwise use a relevant public page or docs url/);
-    assert.match(instructions, /never include API keys, tokens, cookies, private page contents/);
-    assert.match(instructions, /do not report that failure through submit-feedback/);
+    assert.match(instructions, /Never invent or use an unrelated ID/);
+    assert.match(instructions, /API keys, tokens, cookies, private content, personal data/);
+    assert.match(instructions, /do not retry or report itself/);
     assert.match(
       instructions,
-      /Expected validation\/authentication\/credit-limit errors are not bugs/,
+      /Expected validation, authentication, or credit-limit errors/,
     );
+    assert.match(instructions, /On `USAGE_EXCEEDED`, do not retry/);
+    assert.match(instructions, /call `get-usage` once/);
     const { tools } = await client.listTools();
     const feedback = tools.find((tool) => tool.name === "submit-feedback");
     assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
@@ -1625,20 +1825,14 @@ test("API and brand errors guide a report using the affected request ID", async 
   }
 });
 
-test("searches company news with an entity, article types, and a date range", async () => {
+test("translates the flat company-news contract to the public API request", async () => {
   captured.length = 0;
   const client = await connectClient();
   const result = await client.callTool({
     name: "get-news-search",
     arguments: {
-      searchBy: {
-        type: "entity",
-        entity: {
-          type: "ticker",
-          ticker: "AAPL",
-          exchange: "NASDAQ",
-        },
-      },
+      ticker: "AAPL",
+      exchange: "NASDAQ",
       filterBy: {
         articleType: ["editorial", "press_release"],
         date: {
@@ -1646,7 +1840,7 @@ test("searches company news with an entity, article types, and a date range", as
           to: 1_725_235_200_000,
         },
       },
-      sortBy: { type: "newest" },
+      sortBy: "newest",
       limit: 10,
       tags: ["mcp", "news"],
     },
@@ -1688,6 +1882,68 @@ test("searches company news with an entity, article types, and a date range", as
     ],
     has_more: false,
     next_cursor: null,
+  });
+});
+
+test("accepts every company identifier and legacy news-search calls", async () => {
+  captured.length = 0;
+  const scenarios = [
+    {
+      arguments: { companyName: "Apple" },
+      entity: { type: "name", name: "Apple" },
+    },
+    {
+      arguments: { domain: "apple.com", sortBy: "relevance" },
+      entity: { type: "domain", domain: "apple.com" },
+      sortBy: { type: "relevance" },
+    },
+    {
+      arguments: { isin: "US0378331005" },
+      entity: { type: "isin", isin: "US0378331005" },
+    },
+    {
+      arguments: {
+        searchBy: {
+          type: "entity",
+          entity: { type: "ticker", ticker: "AAPL", exchange: "NASDAQ" },
+        },
+        sortBy: { type: "newest" },
+      },
+      entity: { type: "ticker", ticker: "AAPL", exchange: "NASDAQ" },
+      sortBy: { type: "newest" },
+    },
+    {
+      arguments: { searchBy: { type: "domain", domain: "example.com" }, sortBy: "newest" },
+      entity: { type: "domain", domain: "example.com" },
+      sortBy: { type: "newest" },
+    },
+  ];
+  const client = await connectClient();
+  for (const scenario of scenarios) {
+    const result = await client.callTool({
+      name: "get-news-search",
+      arguments: scenario.arguments,
+    });
+    assert.notEqual(result.isError, true);
+  }
+  const missingIdentity = await client.callTool({
+    name: "get-news-search",
+    arguments: {},
+  });
+  const ambiguousIdentity = await client.callTool({
+    name: "get-news-search",
+    arguments: { companyName: "Apple", domain: "apple.com" },
+  });
+  await client.close();
+
+  assert.equal(missingIdentity.isError, true);
+  assert.equal(ambiguousIdentity.isError, true);
+  assert.equal(captured.length, scenarios.length);
+  scenarios.forEach((scenario, index) => {
+    assert.deepEqual(JSON.parse(captured[index]!.body.toString()), {
+      searchBy: { type: "entity", entity: scenario.entity },
+      ...(scenario.sortBy ? { sortBy: scenario.sortBy } : {}),
+    });
   });
 });
 
@@ -1971,7 +2227,7 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
     .map((block) => block.text ?? "")
     .join("\n");
   assert.ok(
-    brandCardText.includes(JSON.stringify({ brand: brandCard.brand }, null, 2)),
+    brandCardText.includes(JSON.stringify({ brand: brandCard.brand })),
     "clients that only read text must still receive the full brand",
   );
   assert.equal(brandCard.brand.domain, "example.test");
