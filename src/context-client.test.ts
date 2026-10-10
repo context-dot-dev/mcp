@@ -503,7 +503,7 @@ test("account limits show limit details and the next step instead of a feedback 
           key_metadata: { credits_consumed: 0, credits_remaining: 0 },
         },
         expected: "Context API 401 [USAGE_EXCEEDED]: Usage limit exceeded (request_id: req_limit; credits_remaining: 0)\n\n" +
-          `${accountLimitGuidance} Context has insufficient credits for this request. Do not retry until credits are added or refilled. Use \`get-usage\` once (free) to tell the user their current balance and next refill, when available. They can add credits at [Manage billing](https://www.context.dev/dashboard/subscription). Continue any work that does not depend on this request.`,
+          `${accountLimitGuidance} Context has insufficient credits for this request, and every other Context tool that costs credits will fail the same way until credits are added or refilled. Stop calling Context tools for the rest of this task, including from parallel calls or subagents; retrying or switching tools only repeats this error. Tell the user once that they can add credits at [Manage billing](https://www.context.dev/dashboard/subscription); \`get-usage\` (free) shows their balance and next refill. Continue any work that does not need Context.`,
       },
       {
         status: 403,

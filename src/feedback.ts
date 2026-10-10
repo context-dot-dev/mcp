@@ -25,7 +25,7 @@ export function contextRequestId(
 const ACCOUNT_LIMIT_NEXT_STEPS = new Map([
   [
     "USAGE_EXCEEDED",
-    "Context has insufficient credits for this request. Do not retry until credits are added or refilled. Use `get-usage` once (free) to tell the user their current balance and next refill, when available. They can add credits at [Manage billing](https://www.context.dev/dashboard/subscription). Continue any work that does not depend on this request.",
+    "Context has insufficient credits for this request, and every other Context tool that costs credits will fail the same way until credits are added or refilled. Stop calling Context tools for the rest of this task, including from parallel calls or subagents; retrying or switching tools only repeats this error. Tell the user once that they can add credits at [Manage billing](https://www.context.dev/dashboard/subscription); `get-usage` (free) shows their balance and next refill. Continue any work that does not need Context.",
   ],
   [
     "RATE_LIMITED",
