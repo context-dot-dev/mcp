@@ -39,7 +39,7 @@ import {
   registerDcrClient,
 } from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
-import { repairToolArguments } from "./src/argument-repair";
+import { repairToolArguments, restoreUndeclaredKeys } from "./src/argument-repair";
 import {
   completeValidArguments,
   reroutedToolName,
@@ -332,7 +332,8 @@ type RepairedToolCall = {
 };
 
 // Calls that already validate are sent as they are, apart from completions
-// the API would otherwise reject; only calls that would fail are repaired.
+// the API would otherwise reject and undeclared keys validation would drop;
+// only calls that would fail are repaired.
 function repairToolCall(message: unknown): RepairedToolCall {
   const unchanged = { message, changed: false };
   if (!message || typeof message !== "object" || Array.isArray(message)) {
@@ -347,8 +348,12 @@ function repairToolCall(message: unknown): RepairedToolCall {
   }
   const input = toolInputs.get(params.name);
   if (!input) return unchanged;
-  if (input.validator.safeParse(params.arguments).success) {
-    const completed = completeValidArguments(params.name, params.arguments);
+  const isValid = input.validator.safeParse(params.arguments).success;
+  const restored = restoreUndeclaredKeys(params.arguments, input.schema);
+  const isRestoredValid =
+    restored === params.arguments || input.validator.safeParse(restored).success;
+  if (isValid && isRestoredValid) {
+    const completed = completeValidArguments(params.name, restored);
     return completed === params.arguments
       ? unchanged
       : {

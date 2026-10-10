@@ -855,6 +855,36 @@ test("sends calls that already validate unchanged and survives hostile bodies", 
   assert.notEqual(response.status, 500);
 });
 
+test("keeps misnamed optional keys and wrapped arguments that would validate as empty", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const calls = [
+    { name: "web-search", arguments: { query: "x", num_results: 20 } },
+    {
+      name: "create-monitor",
+      arguments: {
+        name: "Pricing monitor",
+        Mode: "web",
+        target: { type: "page", url: "https://example.test/pricing" },
+      },
+    },
+    { name: "list-logs", arguments: { arguments: { status_code: 500, limit: 10 } } },
+  ];
+  for (const call of calls) {
+    const result = await client.callTool(call);
+    assert.notEqual(result.isError, true, call.name);
+  }
+  await client.close();
+
+  const [search, monitor, logs] = captured;
+  assert.equal(JSON.parse(search!.body.toString()).numResults, 20);
+  assert.equal(JSON.parse(monitor!.body.toString()).mode, "web");
+  const logsUrl = new URL(logs!.url, upstreamBase);
+  assert.equal(logsUrl.pathname, "/org/logs");
+  assert.equal(logsUrl.searchParams.get("status_code"), "500");
+  assert.equal(logsUrl.searchParams.get("limit"), "10");
+});
+
 test("adds the hint once on the SSE path", async () => {
   const response = await fetch(`${mcpBase}/sse`, {
     method: "POST",
