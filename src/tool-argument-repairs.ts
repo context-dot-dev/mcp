@@ -266,6 +266,49 @@ function isJsonSchemaObject(value: unknown): value is Arguments {
   return Array.isArray(value.type) ? value.type.includes("object") : value.type === "object";
 }
 
+function isJsonSchemaPropertyMap(value: unknown): value is Arguments {
+  if (!isPlainObject(value) || Object.keys(value).length === 0) return false;
+  const properties = Object.values(value);
+  const schemaTypes = new Set([
+    "array",
+    "boolean",
+    "integer",
+    "null",
+    "number",
+    "object",
+    "string",
+  ]);
+  const hasSchemaDetail = properties.some(
+    (property) =>
+      isPlainObject(property) &&
+      (property.description !== undefined ||
+        property.items !== undefined ||
+        isPlainObject(property.properties) ||
+        property.enum !== undefined ||
+        property.format !== undefined ||
+        property.oneOf !== undefined ||
+        property.anyOf !== undefined ||
+        property.allOf !== undefined),
+  );
+  return (
+    hasSchemaDetail &&
+    properties.every((property) => {
+      if (!isPlainObject(property)) return false;
+      const types = Array.isArray(property.type)
+        ? property.type
+        : [property.type];
+      const hasSchemaType = types.some(
+        (type) => typeof type === "string" && schemaTypes.has(type),
+      );
+      return (
+        hasSchemaType ||
+        isPlainObject(property.properties) ||
+        property.items !== undefined
+      );
+    })
+  );
+}
+
 function repairAnswers(input: Arguments): Arguments {
   let args = renameMissing(input, "task", ["query", "question", "prompt", "q"]);
   if (isMissing(args.json_format)) {
@@ -287,6 +330,14 @@ function repairAnswers(input: Arguments): Arguments {
   }
   if (isJsonSchemaObject(args.json_format)) {
     args = { ...args, json_format: exampleFromJsonSchema(args.json_format) };
+  } else if (isJsonSchemaPropertyMap(args.json_format)) {
+    args = {
+      ...args,
+      json_format: exampleFromJsonSchema({
+        type: "object",
+        properties: args.json_format,
+      }),
+    };
   }
   return args;
 }
@@ -580,7 +631,9 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
 // (`highlightsParams` without `formats.highlights`) or that requests no format.
 // Complete those even when the arguments already pass validation.
 export function completeValidArguments(toolName: string, args: unknown): unknown {
-  if (toolName !== "web-scrape" || !isPlainObject(args) || !isPlainObject(args.formats)) {
+  if (!isPlainObject(args)) return args;
+  if (toolName === "web-answers") return repairAnswers(args);
+  if (toolName !== "web-scrape" || !isPlainObject(args.formats)) {
     return args;
   }
   const formats: Arguments = { ...args.formats };
