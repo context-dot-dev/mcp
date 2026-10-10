@@ -201,6 +201,10 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
     unauthorized.headers.get("www-authenticate") ?? "",
     /oauth-protected-resource/
   );
+  assert.doesNotMatch(
+    unauthorized.headers.get("www-authenticate") ?? "",
+    /error=/
+  );
 
   const staleToken = await fetch(`${mcpBase}/mcp`, {
     method: "POST",
@@ -225,6 +229,26 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
     staleToken.headers.get("www-authenticate") ?? "",
     /oauth-protected-resource/
   );
+  // RFC 6750: a rejected token is invalid_token, which tells clients to
+  // refresh it instead of waiting for the user to sign in again.
+  assert.match(
+    staleToken.headers.get("www-authenticate") ?? "",
+    /^Bearer error="invalid_token"/
+  );
+
+  const discovery = await fetch(`${mcpBase}/mcp/.well-known/openid-configuration`);
+  assert.equal(discovery.status, 404);
+
+  const rootUrl = await fetch(`${mcpBase}/`, {
+    method: "POST",
+    headers: {
+      accept: "application/json, text/event-stream",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/list" }),
+  });
+  assert.equal(rootUrl.status, 401);
+  assert.match(rootUrl.headers.get("www-authenticate") ?? "", /oauth-protected-resource/);
 });
 
 async function registerClient(

@@ -63,16 +63,40 @@ function buildRequestBody(
   );
 }
 
-function isReadOnlyRequest(endpoint: Endpoint, args: ToolArguments): boolean {
-  if (endpoint.name !== "web-scrape") {
-    return endpoint.annotations.readOnlyHint;
-  }
-  const body = buildRequestBody(endpoint, args) as {
-    sharedParams?: { actions?: Array<{ type: string }> };
-  } | undefined;
-  return !body?.sharedParams?.actions?.some(
-    (action) => !["scroll", "wait", "waitFor"].includes(action.type),
+const READ_ONLY_BROWSER_STEPS = new Set(["scroll", "wait", "waitFor"]);
+
+// Browser actions other than scrolling or waiting can change third-party state
+// and need api.write. web-scrape nests them under sharedParams with `type`;
+// older scraping tools take a top-level `actions` list with `do`.
+function requestsBrowserActions(args: ToolArguments): boolean {
+  const containers = [args, args.body].filter(
+    (value): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null,
   );
+  const lists = containers.flatMap((container) => [
+    container.actions,
+    (container.sharedParams as Record<string, unknown> | undefined)?.actions,
+  ]);
+  return lists.some(
+    (list) =>
+      Array.isArray(list) &&
+      list.some((action) => {
+        const step =
+          action && typeof action === "object"
+            ? (action as Record<string, unknown>).type ??
+              (action as Record<string, unknown>).do
+            : undefined;
+        return !READ_ONLY_BROWSER_STEPS.has(String(step));
+      }),
+  );
+}
+
+function isReadOnlyRequest(endpoint: Endpoint, args: ToolArguments): boolean {
+  // web-scrape is annotated for its browser actions but only needs write
+  // access when a request uses them.
+  const readOnly =
+    endpoint.name === "web-scrape" || endpoint.annotations.readOnlyHint;
+  return readOnly && !requestsBrowserActions(args);
 }
 
 export function contextErrorMessage(
@@ -285,6 +309,60 @@ function getScreenshot(value: Record<string, unknown>) {
   return { mimeType: match[1]!, data: match[2]! };
 }
 
+// Hosting proxies end MCP requests after about 125 seconds; stop waiting on the
+// API first so the client gets an actionable error instead of a gateway 524.
+const UPSTREAM_TIMEOUT_MS = 115_000;
+// Plans with a concurrency limit of 1 reject parallel tool calls with 429.
+// Those requests did no work, so waiting briefly and retrying is safe and
+// turns most of them into successes instead of agent retry loops.
+const RATE_LIMIT_RETRY_BUDGET_MS = 30_000;
+
+const RATE_LIMIT_MAX_RETRIES = 5;
+
+// Waits at least 0.5s, 1s, 2s, 4s, 8s, so a `Retry-After: 0` from the
+// concurrency limit cannot turn one call into a burst of requests.
+function retryAfterMs(headers: Headers, attempt: number): number {
+  const backoff = 500 * 2 ** attempt;
+  const header = headers.get("Retry-After")?.trim();
+  if (!header) return backoff;
+  const seconds = /^\d+(\.\d+)?$/.test(header) ? Number(header) : NaN;
+  const date = Number.isNaN(seconds) ? Date.parse(header) : NaN;
+  const requested = Number.isFinite(seconds)
+    ? seconds * 1000
+    : Number.isFinite(date)
+      ? date - Date.now()
+      : 0;
+  return Math.max(backoff, requested);
+}
+
+export function contextFetchFailure(cause: unknown): string {
+  if (cause instanceof Error && cause.name === "TimeoutError") {
+    return `Context API did not respond within ${UPSTREAM_TIMEOUT_MS / 1000} seconds, so the request was stopped before the MCP client timed out. Retry with a smaller request (fewer pages, results, or formats), or use submit-batch for long jobs.`;
+  }
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return `Failed to reach Context API: ${message}`;
+}
+
+export async function fetchContextApi(
+  url: URL | string,
+  init: RequestInit,
+): Promise<Response> {
+  const started = Date.now();
+  for (let attempt = 0; ; attempt += 1) {
+    const elapsed = Date.now() - started;
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(Math.max(1, UPSTREAM_TIMEOUT_MS - elapsed)),
+    });
+    if (response.status !== 429 || attempt >= RATE_LIMIT_MAX_RETRIES) return response;
+    const wait = retryAfterMs(response.headers, attempt) + Math.random() * 250;
+    if (Date.now() - started + wait > RATE_LIMIT_RETRY_BUDGET_MS) return response;
+    await response.body?.cancel();
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+}
+
+
 export async function callContextApi({
   apiBase,
   endpoint,
@@ -364,13 +442,17 @@ export async function callContextApi({
 
   let response: Response;
   try {
-    response = await fetch(url, request);
+    response = await fetchContextApi(url, request);
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : String(cause);
-    return contextApiError(endpoint.name, `Failed to reach Context API: ${message}`);
+    return contextApiError(endpoint.name, contextFetchFailure(cause));
   }
 
-  const raw = await response.text();
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (cause) {
+    return contextApiError(endpoint.name, contextFetchFailure(cause));
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

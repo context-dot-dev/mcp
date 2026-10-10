@@ -23,6 +23,8 @@ import {
   callContextApi,
   contextErrorCode,
   contextErrorMessage,
+  contextFetchFailure,
+  fetchContextApi,
 } from "./src/context-client";
 import {
   contextApiError,
@@ -37,18 +39,25 @@ import {
   registerDcrClient,
 } from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
+import { repairToolArguments } from "./src/argument-repair";
+import {
+  completeValidArguments,
+  reroutedToolName,
+  VALIDATION_HINTS,
+} from "./src/tool-argument-repairs";
 import {
   createNativeAuthorizationRedirect,
   createNativeCallbackRedirect,
 } from "./src/native-oauth-redirect";
 import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
-import { selectEndpoints } from "./src/toolset";
+import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
 const MCP_SCHEMA_PROPERTY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   action: "Browser action.",
   confidence_threshold: "Minimum confidence, 0 to 1.",
-  force_language: "Brand-data language code.",
+  force_language:
+    "Language for brand data, as a lowercase English name such as `english`, `spanish`, or `haitian-creole`.",
   follow_subdomains: "Include target subdomains.",
   timeMs: "Wait in milliseconds.",
   url: "Target URL.",
@@ -304,12 +313,235 @@ const promoteApiKeyCredential = async (
   }
   await next();
 };
-server.app.use("/mcp/*", validateMcpOrigin);
-server.app.use("/mcp/*", promoteApiKeyCredential);
-server.app.use("/sse", validateMcpOrigin);
-server.app.use("/sse/*", validateMcpOrigin);
-server.app.use("/sse", promoteApiKeyCredential);
-server.app.use("/sse/*", promoteApiKeyCredential);
+// Each tool's validator and published input schema, filled in as tools are
+// registered.
+const toolInputs = new Map<string, { schema: JsonSchema; validator: z.ZodTypeAny }>();
+
+function registerToolInput(name: string, validator: z.ZodTypeAny): void {
+  toolInputs.set(name, {
+    validator,
+    schema: z.toJSONSchema(validator, { io: "input" }) as JsonSchema,
+  });
+}
+
+type RepairedToolCall = {
+  message: unknown;
+  changed: boolean;
+  // Tool whose arguments still fail validation after repair.
+  stillInvalid?: string;
+};
+
+// Calls that already validate are sent as they are, apart from completions
+// the API would otherwise reject; only calls that would fail are repaired.
+function repairToolCall(message: unknown): RepairedToolCall {
+  const unchanged = { message, changed: false };
+  if (!message || typeof message !== "object" || Array.isArray(message)) {
+    return unchanged;
+  }
+  const { method, params } = message as {
+    method?: unknown;
+    params?: { name?: unknown; arguments?: unknown };
+  };
+  if (method !== "tools/call" || typeof params?.name !== "string") {
+    return unchanged;
+  }
+  const input = toolInputs.get(params.name);
+  if (!input) return unchanged;
+  if (input.validator.safeParse(params.arguments).success) {
+    const completed = completeValidArguments(params.name, params.arguments);
+    return completed === params.arguments
+      ? unchanged
+      : {
+          message: { ...message, params: { ...params, arguments: completed } },
+          changed: true,
+        };
+  }
+  let name = params.name;
+  let target = input;
+  let repaired = repairToolArguments(params.arguments, target.schema, name);
+  // Decide the route from every key the caller sent, not only the keys the
+  // first tool's schema kept: the other tool's input is what signals it.
+  const sent =
+    params.arguments && typeof params.arguments === "object" && !Array.isArray(params.arguments)
+      ? { ...(params.arguments as Record<string, unknown>), ...(repaired as Record<string, unknown>) }
+      : repaired;
+  const rerouted = reroutedToolName(name, sent);
+  const reroutedInput = rerouted ? toolInputs.get(rerouted) : undefined;
+  if (rerouted && reroutedInput) {
+    name = rerouted;
+    target = reroutedInput;
+    repaired = repairToolArguments(params.arguments, target.schema, name);
+  }
+  return {
+    message: { ...message, params: { ...params, name, arguments: repaired } },
+    changed: true,
+    stillInvalid: target.validator.safeParse(repaired).success ? undefined : name,
+  };
+}
+
+async function withValidationHint(
+  response: Response,
+  toolName: string,
+): Promise<Response> {
+  const hint = VALIDATION_HINTS[toolName];
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!hint || !contentType.includes("application/json")) return response;
+  const payload = await response.clone().json().catch(() => undefined);
+  const content = payload?.result?.isError ? payload.result.content : undefined;
+  const first = Array.isArray(content) ? content[0] : undefined;
+  if (
+    first?.type !== "text" ||
+    typeof first.text !== "string" ||
+    !first.text.includes("Input validation error")
+  ) {
+    return response;
+  }
+  first.text = `${first.text}\n\n${hint}`;
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  return new Response(JSON.stringify(payload), { status: response.status, headers });
+}
+
+// Large bodies are file uploads (parse-document), which repair does not need.
+const MAX_REPAIRED_BODY_BYTES = 1_000_000;
+
+// Repairs run before the SDK validates arguments; mcp-use's tools/call
+// middleware only sees arguments after validation has already rejected them.
+const repairToolCallArguments = async (
+  context: {
+    req: {
+      method: string;
+      raw: Request;
+      header: (name: string) => string | undefined;
+    };
+    res: Response;
+  },
+  next: () => Promise<void>,
+) => {
+  let hintTool: string | undefined;
+  const length = Number(context.req.header("content-length") ?? 0);
+  // With OAuth on, a request without credentials is rejected anyway.
+  const authenticated = !oauthProvider || Boolean(context.req.header("authorization"));
+  if (
+    context.req.method === "POST" &&
+    authenticated &&
+    !(length > MAX_REPAIRED_BODY_BYTES)
+  ) {
+    try {
+      const body: unknown = await context.req.raw.clone().json();
+      const calls = (Array.isArray(body) ? body : [body]).map(repairToolCall);
+      if (calls.some((call) => call.changed)) {
+        const repaired = Array.isArray(body)
+          ? calls.map((call) => call.message)
+          : calls[0]!.message;
+        const { url, method } = context.req.raw;
+        const headers = new Headers(context.req.raw.headers);
+        headers.delete("content-length");
+        context.req.raw = new Request(url, {
+          method,
+          headers,
+          body: JSON.stringify(repaired),
+        });
+      }
+      if (!Array.isArray(body)) hintTool = calls[0]!.stillInvalid;
+    } catch (cause) {
+      // Repair is best effort; validation still reports the original arguments.
+      if (!(cause instanceof SyntaxError)) {
+        console.warn("[MCP] Argument repair skipped:", cause);
+      }
+    }
+  }
+  await next();
+  if (hintTool) context.res = await withValidationHint(context.res, hintTool);
+};
+
+const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
+
+// Gemini's function-calling schema subset rejects `$schema`, and the root
+// dialect is already the MCP default.
+server.use("mcp:tools/list", async (_context, next) => {
+  const tools = (await next()) as Array<{
+    name: string;
+    inputSchema?: Record<string, unknown>;
+  }>;
+  return tools
+    .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
+    .map(({ inputSchema, ...tool }) => {
+      if (!inputSchema) return tool;
+      const { $schema: _dialect, ...schema } = inputSchema;
+      return { ...tool, inputSchema: schema };
+    });
+});
+
+// The server is stateless and never sends unsolicited messages, so a GET event
+// stream would sit idle until a proxy cut it (and some clients mark a server
+// failed while it hangs). 405 tells clients there is no stream to open.
+const rejectIdleEventStream = async (
+  context: { req: { method: string; header: (name: string) => string | undefined } },
+  next: () => Promise<void>,
+) => {
+  const accept = context.req.header("accept") ?? "";
+  if (
+    context.req.method === "GET" &&
+    accept.includes("text/event-stream") &&
+    !accept.includes("text/html")
+  ) {
+    return new Response(null, { status: 405, headers: { Allow: "POST, DELETE" } });
+  }
+  await next();
+};
+
+// mcp-use answers every 401 with error="unauthorized", which RFC 6750 does not
+// define. Clients refresh an expired access token after error="invalid_token";
+// without it, expired sessions stall until the user signs in again by hand.
+const describeBearerChallenge = async (
+  context: {
+    req: { header: (name: string) => string | undefined };
+    res: Response;
+  },
+  next: () => Promise<void>,
+) => {
+  await next();
+  const challenge = context.res.headers.get("www-authenticate");
+  if (context.res.status !== 401 || !challenge?.startsWith("Bearer")) return;
+  const resourceMetadata = /resource_metadata="([^"]+)"/.exec(challenge)?.[1];
+  const sentToken = /^bearer\s+\S/i.test(context.req.header("authorization") ?? "");
+  const parameters = [
+    ...(sentToken
+      ? [
+          'error="invalid_token"',
+          'error_description="The access token is invalid or expired"',
+        ]
+      : []),
+    ...(resourceMetadata ? [`resource_metadata="${resourceMetadata}"`] : []),
+    'scope="api.read api.write"',
+  ];
+  context.res.headers.set("WWW-Authenticate", `Bearer ${parameters.join(", ")}`);
+};
+
+// "/mcp/*" and "/sse/*" also match "/mcp" and "/sse".
+for (const path of ["/mcp/*", "/sse/*"]) {
+  server.app.use(path, validateMcpOrigin);
+  server.app.use(path, rejectIdleEventStream);
+  server.app.use(path, describeBearerChallenge);
+  server.app.use(path, promoteApiKeyCredential);
+  server.app.use(path, repairToolCallArguments);
+}
+
+// The issuer is the server root, so discovery documents under /mcp do not
+// exist. Answer 404 instead of the bearer challenge that would otherwise apply.
+server.app.get("/mcp/.well-known/*", (context) => context.notFound());
+
+// Users often configure the bare server URL; serve MCP there too.
+server.app.post("/", (context) => {
+  const target = new URL(context.req.url);
+  target.pathname = "/mcp";
+  const { method, headers, body } = context.req.raw;
+  return server.app.fetch(
+    new Request(target, { method, headers, body, duplex: "half" } as RequestInit),
+    context.env,
+  );
+});
 
 // Registration-bound (DCR) clients carry their redirect URI set inside a
 // signed client_id, so any client may connect; the upstream consent screen
@@ -754,23 +986,25 @@ function withoutRedundantQueryNull(schema: JsonSchema): JsonSchema {
 }
 
 function registerBrandTool(): void {
+  const schema = z.object({
+    domain: z
+      .string()
+      .describe(
+        "Domain to look up, e.g. 'stripe.com'. Bare domain, no https://.",
+      ),
+    maxSpeed: z
+      .boolean()
+      .optional()
+      .describe("Optimize for speed, skipping slower enrichment steps."),
+  });
+  registerToolInput("get-brand", schema);
   server.tool(
     {
       name: "get-brand",
       title: "Show a brand profile",
       description:
         "Retrieve live brand intelligence for a domain and render a visual Context card with its logo, colors, slogan, description, social profiles, industry, location, and key links. Use this when a user wants to see or inspect a company's brand. Use brand-retrieve-unified instead for raw structured data or lookup by name, email, ticker, ISIN, transaction descriptor, or direct URL.",
-      schema: z.object({
-        domain: z
-          .string()
-          .describe(
-            "Domain to look up, e.g. 'stripe.com'. Bare domain, no https://.",
-          ),
-        maxSpeed: z
-          .boolean()
-          .optional()
-          .describe("Optimize for speed, skipping slower enrichment steps."),
-      }),
+      schema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -792,7 +1026,7 @@ function registerBrandTool(): void {
         .replace(/\/.*$/, "");
       let res: Response;
       try {
-        res = await fetch(`${API_BASE}/brand/retrieve`, {
+        res = await fetchContextApi(`${API_BASE}/brand/retrieve`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${credential.apiKey}`,
@@ -804,13 +1038,18 @@ function registerBrandTool(): void {
             ...(maxSpeed ? { maxSpeed: true } : {}),
           }),
         });
-      } catch (e: any) {
-        return contextApiError(
-          "get-brand",
-          `Failed to reach Context API: ${e?.message ?? e}`,
-        );
+      } catch (cause) {
+        return contextApiError("get-brand", contextFetchFailure(cause));
       }
-      const payload = await res.json().catch(() => ({}));
+      let payload: any;
+      try {
+        payload = await res.json();
+      } catch (cause) {
+        if (cause instanceof Error && cause.name === "TimeoutError") {
+          return contextApiError("get-brand", contextFetchFailure(cause));
+        }
+        payload = {};
+      }
       if (!res.ok) {
         return contextApiError(
           "get-brand",
@@ -916,13 +1155,15 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodObject {
   return z.object(shape);
 }
 
-for (const ep of registeredEndpoints as Endpoint[]) {
+function registerEndpointTool(ep: Endpoint): void {
+  const schema = createEndpointSchema(ep);
+  registerToolInput(ep.name, schema);
   server.tool(
     {
       name: ep.name,
       title: ep.title,
       description: ep.description,
-      schema: createEndpointSchema(ep),
+      schema,
       annotations: ep.annotations,
     },
     async (args, context: EnhancedToolContext) => {
@@ -937,9 +1178,18 @@ for (const ep of registeredEndpoints as Endpoint[]) {
       });
     },
   );
+}
+
+for (const ep of registeredEndpoints as Endpoint[]) {
+  registerEndpointTool(ep);
   if (ep.name === "brand-retrieve-unified") {
     registerBrandTool();
   }
+}
+
+for (const ep of ENDPOINTS as Endpoint[]) {
+  const annotations = LEGACY_TOOL_ANNOTATIONS[ep.name];
+  if (annotations) registerEndpointTool({ ...ep, annotations });
 }
 
 server.listen().then(() => {

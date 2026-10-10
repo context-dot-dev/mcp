@@ -532,6 +532,94 @@ test("account limits show limit details and the next step instead of a feedback 
   }
 });
 
+test("short rate-limit waits are retried before reporting an error", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async () => {
+      calls += 1;
+      return calls < 3
+        ? new Response(
+            JSON.stringify({
+              message: "Organization concurrency limit exceeded: 1 requests can run at once.",
+              error_code: "RATE_LIMITED",
+            }),
+            { status: 429, headers: { "retry-after": "0" } },
+          )
+        : new Response(JSON.stringify({ ok: true }), { status: 200 });
+    };
+    const result = await callContextApi({
+      apiBase,
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "key" },
+    });
+    assert.equal(calls, 3);
+    assert.equal(result.isError, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rate-limit retries back off and stop after a few attempts", async () => {
+  const originalFetch = globalThis.fetch;
+  const callTimes: number[] = [];
+  try {
+    globalThis.fetch = async () => {
+      callTimes.push(Date.now());
+      return new Response(
+        JSON.stringify({ message: "Concurrency limit", error_code: "RATE_LIMITED" }),
+        { status: 429, headers: { "retry-after": "" } },
+      );
+    };
+    const result = await callContextApi({
+      apiBase,
+      endpoint: endpoint({ path: "/test" }),
+      args: {},
+      credential: { apiKey: "key" },
+    });
+    assert.equal(result.isError, true);
+    assert.ok(callTimes.length <= 6, `called ${callTimes.length} times`);
+    for (let index = 1; index < callTimes.length; index += 1) {
+      assert.ok(callTimes[index]! - callTimes[index - 1]! >= 450);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("browser actions need the write scope on every tool that accepts them", async () => {
+  captured.length = 0;
+  const readOnlyCredential = { apiKey: "key", scopes: ["api.read"] };
+  const extract = endpoint({
+    name: "web-extract",
+    method: "POST",
+    path: "/web/extract",
+    requestBody: {
+      required: true,
+      schema: { type: "object" },
+      contentType: "application/json",
+      binary: false,
+    },
+  });
+  const perform = await callContextApi({
+    apiBase,
+    endpoint: extract,
+    args: { url: "https://a.test", actions: [{ do: "perform", action: "Click buy" }] },
+    credential: readOnlyCredential,
+  });
+  assert.equal(perform.isError, true);
+  assert.match(JSON.stringify(perform), /api\.write/);
+  const waitOnly = await callContextApi({
+    apiBase,
+    endpoint: extract,
+    args: { url: "https://a.test", actions: [{ do: "wait", timeMs: 100 }] },
+    credential: readOnlyCredential,
+  });
+  assert.notEqual(waitOnly.isError, true);
+  assert.equal(captured.length, 1);
+});
+
 test("other error codes keep the feedback nudge and show rate-limit counters only on 429", async () => {
   const originalFetch = globalThis.fetch;
   try {

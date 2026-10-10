@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { ENDPOINTS } from "../context-endpoints";
-import { selectEndpoints } from "./toolset";
+import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./toolset";
 
 test("toolset follows API reference order and excludes prefetch", () => {
   const selected = selectEndpoints([...ENDPOINTS].reverse());
@@ -278,5 +278,20 @@ test("submission annotations and justifications match the published tools", () =
         `${name}.${key}`,
       );
     }
+  }
+});
+
+test("legacy tools exist and those accepting browser actions require write scope", () => {
+  for (const [name, annotations] of Object.entries(LEGACY_TOOL_ANNOTATIONS)) {
+    const endpoint = ENDPOINTS.find((entry) => entry.name === name);
+    assert.ok(endpoint, name);
+    const acceptsActions = endpoint.parameters.some(
+      (parameter) => parameter.name === "actions",
+    );
+    if (acceptsActions) assert.equal(annotations.readOnlyHint, false, name);
+  }
+  const listed = new Set(selectEndpoints(ENDPOINTS).map((endpoint) => endpoint.name));
+  for (const name of Object.keys(LEGACY_TOOL_ANNOTATIONS)) {
+    assert.equal(listed.has(name), false, name);
   }
 });

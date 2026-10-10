@@ -469,6 +469,21 @@ function applyToolOverride(endpoint: Endpoint): Endpoint {
   };
 }
 
+// Scraping tools merged into web-scrape, web-map, and web-crawl on 2026-09-26.
+// Clients cache tool lists and keep calling these names, so they stay callable
+// but are left out of tools/list. Annotations are the ones they were published
+// with: the scrapers that accept browser actions require the api.write scope.
+export const LEGACY_TOOL_ANNOTATIONS: Readonly<
+  Record<string, Endpoint["annotations"]>
+> = {
+  "web-scrape-html": { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  "web-scrape-markdown": { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  "web-scrape-images": { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  "web-scrape-sitemap": { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  "web-extract": { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  "web-screenshot": { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+};
+
 export function selectEndpoints(endpoints: Endpoint[]): Endpoint[] {
   const endpointsByName = new Map(
     endpoints.map((endpoint) => [endpoint.name, endpoint]),
