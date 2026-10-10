@@ -100,13 +100,10 @@ function repairString(value: string, candidates: JsonSchema[]): unknown {
   const acceptsObject = candidates.some((c) => hasType(c, "object"));
   const acceptsArray = candidates.some((c) => hasType(c, "array"));
   if ((acceptsObject && trimmed.startsWith("{")) || (acceptsArray && trimmed.startsWith("["))) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (isPlainObject(parsed) && acceptsObject) return parsed;
-      if (Array.isArray(parsed) && acceptsArray) return parsed;
-    } catch {
-      // Leave malformed JSON for validation to report.
-    }
+    const closedJson = closeTruncatedJson(trimmed);
+    const parsed = parseJson(trimmed) ?? (closedJson && parseJson(closedJson));
+    if (isPlainObject(parsed) && acceptsObject) return parsed;
+    if (Array.isArray(parsed) && acceptsArray) return parsed;
     return value;
   }
   if (
@@ -121,6 +118,52 @@ function repairString(value: string, candidates: JsonSchema[]): unknown {
     if (lowered === "false") return false;
   }
   return value;
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+// Models out of output budget cut a nested JSON string off mid-value, for
+// example '{"query": "brand colors'. Closing what was opened keeps exactly
+// what was sent; a cut inside a key, number, or literal still fails to parse.
+function closeTruncatedJson(text: string): string | undefined {
+  const closers: string[] = [];
+  let isInString = false;
+  let isEscaped = false;
+  for (const char of text) {
+    if (isInString) {
+      if (isEscaped) isEscaped = false;
+      else if (char === "\\") isEscaped = true;
+      else if (char === '"') isInString = false;
+    } else if (char === '"') {
+      isInString = true;
+    } else if (char === "{" || char === "[") {
+      closers.push(char === "{" ? "}" : "]");
+    } else if ((char === "}" || char === "]") && closers.pop() !== char) {
+      return undefined;
+    }
+  }
+  const isTruncated = isInString || closers.length > 0;
+  const endsAfterCompleteValue = isInString || /["\]}]$/.test(text);
+  if (!isTruncated || isEscaped || !endsAfterCompleteValue) return undefined;
+  const closingQuote = isInString ? '"' : "";
+  return text + closingQuote + closers.reverse().join("");
+}
+
+// Models trained on XML tool calls send a list as `{ "item": [...] }`.
+function unwrapListWrapper(value: unknown, candidates: JsonSchema[]): unknown {
+  if (!isPlainObject(value) || acceptsAnything(candidates)) return value;
+  const acceptsOnlyArray =
+    candidates.some((c) => hasType(c, "array")) &&
+    !candidates.some((c) => hasType(c, "object") || c.properties !== undefined);
+  const entries = Object.values(value);
+  const isSingleList = entries.length === 1 && Array.isArray(entries[0]);
+  return acceptsOnlyArray && isSingleList ? entries[0] : value;
 }
 
 // In a union of objects such as `{ format: "html", options }` versus
@@ -204,8 +247,9 @@ export function repairToolArgument(
   dropUnknownKeys = true,
 ): unknown {
   const candidates = alternatives(schema);
-  const repaired =
+  const parsed =
     typeof value === "string" ? repairString(value, candidates) : value;
+  const repaired = unwrapListWrapper(parsed, candidates);
 
   if (Array.isArray(repaired)) {
     const itemSchema = mergedSchema(
