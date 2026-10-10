@@ -155,6 +155,32 @@ test("a timed-out call does not transfer a nonexistent slot to another waiter", 
   releaseThird();
 });
 
+test("an unknown burst drains to the learned limit before releasing waiters", async () => {
+  const keyId = "learned-limit-key";
+  const releaseFirst = await acquireApiKeySlot(keyId, Date.now() + 1_000);
+  const releaseSecond = await acquireApiKeySlot(keyId, Date.now() + 1_000);
+  const releaseThird = await acquireApiKeySlot(keyId, Date.now() + 1_000);
+  rememberConcurrencyLimit(
+    keyId,
+    new Headers({ "X-RateLimit-Mode": "concurrency", "X-RateLimit-Limit": "1" }),
+  );
+
+  let hasFourthSlot = false;
+  const fourthSlot = acquireApiKeySlot(keyId, Date.now() + 1_000).then((release) => {
+    hasFourthSlot = true;
+    return release;
+  });
+  releaseFirst();
+  releaseSecond();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(hasFourthSlot, false);
+
+  releaseThird();
+  const releaseFourth = await fourthSlot;
+  assert.equal(hasFourthSlot, true);
+  releaseFourth();
+});
+
 test("concurrency 429s from another server instance keep retrying past the per-minute retry cap", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

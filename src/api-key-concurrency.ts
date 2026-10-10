@@ -46,11 +46,16 @@ export function rememberConcurrencyLimit(keyId: string, headers: Headers) {
   if (oldestKeyId) concurrencyLimits.delete(oldestKeyId);
 }
 
-// The slot moves straight to the next waiter so a new call cannot take it in between.
 function releaseSlot(keyId: string, queue: KeyQueue) {
-  const nextWaiter = queue.waiting.shift();
-  if (nextWaiter) return nextWaiter();
   queue.running -= 1;
+  const limit = concurrencyLimits.get(keyId) ?? Infinity;
+  if (queue.running < limit) {
+    const nextWaiter = queue.waiting.shift();
+    if (nextWaiter) {
+      queue.running += 1;
+      return nextWaiter();
+    }
+  }
   if (queue.running === 0) queues.delete(keyId);
 }
 
