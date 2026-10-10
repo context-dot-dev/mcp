@@ -268,13 +268,44 @@ function isJsonSchemaObject(value: unknown): value is Arguments {
 
 function isJsonSchemaPropertyMap(value: unknown): value is Arguments {
   if (!isPlainObject(value) || Object.keys(value).length === 0) return false;
-  return Object.values(value).every(
+  const properties = Object.values(value);
+  const schemaTypes = new Set([
+    "array",
+    "boolean",
+    "integer",
+    "null",
+    "number",
+    "object",
+    "string",
+  ]);
+  const hasSchemaDetail = properties.some(
     (property) =>
       isPlainObject(property) &&
-      (typeof property.type === "string" ||
-        Array.isArray(property.type) ||
+      (property.description !== undefined ||
+        property.items !== undefined ||
         isPlainObject(property.properties) ||
-        property.items !== undefined),
+        property.enum !== undefined ||
+        property.format !== undefined ||
+        property.oneOf !== undefined ||
+        property.anyOf !== undefined ||
+        property.allOf !== undefined),
+  );
+  return (
+    hasSchemaDetail &&
+    properties.every((property) => {
+      if (!isPlainObject(property)) return false;
+      const types = Array.isArray(property.type)
+        ? property.type
+        : [property.type];
+      const hasSchemaType = types.some(
+        (type) => typeof type === "string" && schemaTypes.has(type),
+      );
+      return (
+        hasSchemaType ||
+        isPlainObject(property.properties) ||
+        property.items !== undefined
+      );
+    })
   );
 }
 

@@ -377,6 +377,14 @@ test("web-answers converts a bare JSON Schema property map", () => {
     }).json_format,
     { answer: "", sources: [""], confidence: 0 },
   );
+  const example = {
+    task: "x",
+    json_format: {
+      entity: { type: "company", properties: 3 },
+      source: { type: "primary", description: "Annual report" },
+    },
+  };
+  assert.deepEqual(repairToolSpecificArguments("web-answers", example), example);
 });
 
 test("other tools are unchanged", () => {
