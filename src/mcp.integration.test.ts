@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { after, before, test } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { CORE_TOOL_NAMES } from "./toolset";
 
 type CapturedRequest = {
   method: string;
@@ -484,10 +485,12 @@ after(async () => {
   );
 });
 
-async function connectClient(): Promise<Client> {
+async function connectClient(path = "/mcp", userAgent?: string): Promise<Client> {
   const client = new Client({ name: "context-test", version: "1.0.0" });
   await client.connect(
-    new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`))
+    new StreamableHTTPClientTransport(new URL(`${mcpBase}${path}`), {
+      requestInit: userAgent ? { headers: { "User-Agent": userAgent } } : undefined,
+    })
   );
   return client;
 }
@@ -1274,6 +1277,10 @@ test("lists the public Context API with safety annotations", async () => {
   assert.deepEqual(webAnswers?.inputSchema.required, ["task"]);
   assert.equal(answersProperties.task?.type, "string");
   assert.equal(answersProperties.json_format?.type, "object");
+  assert.match(
+    String(answersProperties.json_format?.description),
+    /not JSON Schema.*"answer"/,
+  );
   assert.equal(answersProperties.mode?.type, "string");
   const newsSearch = tools.find((tool) => tool.name === "get-news-search");
   assert.equal(newsSearch?.annotations?.readOnlyHint, true);
@@ -1375,6 +1382,61 @@ test("repairs bare answer property maps before forwarding valid calls", async ()
   } finally {
     await client.close();
   }
+});
+
+test("offers a smaller core profile without disabling cached tool calls", async () => {
+  const client = await connectClient("/mcp?profile=core");
+  const { tools } = await client.listTools();
+  assert.deepEqual(
+    tools.map((tool) => tool.name),
+    [
+      "web-scrape",
+      "web-map",
+      "web-crawl",
+      "web-search",
+      "web-answers",
+      "get-brand",
+      "get-news-search",
+      "parse-document",
+      "get-usage",
+      "submit-feedback",
+    ],
+  );
+  const catalogBytes = Buffer.byteLength(JSON.stringify(tools));
+  assert.ok(
+    catalogBytes < 40_000,
+    `core tool catalog exceeds the release budget: ${catalogBytes} bytes`,
+  );
+  const scrapeProperties = tools.find((tool) => tool.name === "web-scrape")
+    ?.inputSchema.properties as Record<string, Record<string, unknown>>;
+  assert.equal(typeof scrapeProperties.url?.description, "string");
+  const sharedProperties = scrapeProperties.sharedParams?.properties as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assert.equal(sharedProperties.headers?.description, undefined);
+
+  const cachedCall = await client.callTool({
+    name: "get-usage-history",
+    arguments: {},
+  });
+  assert.equal(cachedCall.isError, undefined);
+  await client.close();
+});
+
+test("serves the core profile to agent CLIs without tool search unless they ask for the full catalog", async () => {
+  const listToolCount = async (path: string, userAgent: string) => {
+    const client = await connectClient(path, userAgent);
+    const { tools } = await client.listTools();
+    await client.close();
+    return tools.length;
+  };
+  const coreToolCount = CORE_TOOL_NAMES.size;
+
+  assert.equal(await listToolCount("/mcp", "opencode/1.18.35"), coreToolCount);
+  assert.equal(await listToolCount("/mcp", "kilo/7.8.8"), coreToolCount);
+  assert.ok((await listToolCount("/mcp?profile=full", "opencode/1.18.35")) > coreToolCount);
+  assert.ok((await listToolCount("/mcp", "node")) > coreToolCount);
 });
 
 test("forwards all scrape formats, browser actions, CSS rules, and request controls", async () => {

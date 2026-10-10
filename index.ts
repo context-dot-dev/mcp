@@ -1,10 +1,12 @@
 import {
   error,
+  getRequestContext,
   MCPServer,
   text,
   widget,
   type EnhancedToolContext,
 } from "mcp-use/server";
+import type { HonoRequest } from "hono";
 import { Agent, setGlobalDispatcher } from "undici";
 import { compress } from "hono/compress";
 import { z } from "zod";
@@ -53,7 +55,11 @@ import {
   createNativeCallbackRedirect,
 } from "./src/native-oauth-redirect";
 import { withAuthorizationServerIssuer } from "./src/oauth-issuer";
-import { LEGACY_TOOL_ANNOTATIONS, selectEndpoints } from "./src/toolset";
+import {
+  CORE_TOOL_NAMES,
+  LEGACY_TOOL_ANNOTATIONS,
+  selectEndpoints,
+} from "./src/toolset";
 
 const API_BASE = process.env.CONTEXT_API_BASE || "https://api.context.dev/v1";
 // The API sends no Keep-Alive timeout, so fetch would close idle sockets after
@@ -469,6 +475,34 @@ const repairToolCallArguments = async (
 
 const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 
+// These CLIs put every listed tool into every model step and have no tool
+// search. The server is stateless, so tools/list cannot see the initialize
+// clientInfo; the User-Agent is the only per-request client signal.
+const CORE_PROFILE_USER_AGENT = /^(opencode|kilo)\//i;
+
+function shouldServeCoreProfile(request: HonoRequest | undefined): boolean {
+  const requestedProfile = request?.query("profile");
+  if (requestedProfile) return requestedProfile === "core";
+  return CORE_PROFILE_USER_AGENT.test(request?.header("user-agent") ?? "");
+}
+
+function compactInputSchema(value: unknown, path: string[] = []): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry, index) =>
+      compactInputSchema(entry, [...path, String(index)]),
+    );
+  }
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([name, entry]) => {
+      const isTopLevelParameterDescription =
+        name === "description" && path.length === 2 && path[0] === "properties";
+      if (name === "description" && !isTopLevelParameterDescription) return [];
+      return [[name, compactInputSchema(entry, [...path, name])]];
+    }),
+  );
+}
+
 // Gemini's function-calling schema subset rejects `$schema`, and the root
 // dialect is already the MCP default. `execution.taskSupport: "forbidden"` is
 // the spec default, so publishing it only costs tokens.
@@ -478,27 +512,40 @@ server.use("mcp:tools/list", async (_context, next) => {
     inputSchema?: Record<string, unknown>;
     execution?: { taskSupport?: string };
   }>;
-  return tools
+  const publicTools = tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
-    .map(({ inputSchema, execution, ...tool }) => {
-      const isDefaultExecution =
-        !execution ||
-        (Object.keys(execution).length === 1 &&
-          execution.taskSupport === "forbidden");
-      const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
-      if (!inputSchema) return publishedTool;
-      const { $schema: _dialect, ...schema } = inputSchema;
-      const compactSchema = compactPublishedSchema(schema);
-      return {
-        ...publishedTool,
-        inputSchema: tool.name === "get-news-search"
-          ? {
-              ...compactSchema,
-              oneOf: NEWS_SEARCH_IDENTIFIERS.map((name) => ({ required: [name] })),
-            }
-          : compactSchema,
-      };
-    });
+    .map<{ name: string; inputSchema?: Record<string, unknown> }>(
+      ({ inputSchema, execution, ...tool }) => {
+        const isDefaultExecution =
+          !execution ||
+          (Object.keys(execution).length === 1 &&
+            execution.taskSupport === "forbidden");
+        const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
+        if (!inputSchema) return publishedTool;
+        const { $schema: _dialect, ...schema } = inputSchema;
+        const compactSchema = compactPublishedSchema(schema);
+        return {
+          ...publishedTool,
+          inputSchema: tool.name === "get-news-search"
+            ? {
+                ...compactSchema,
+                oneOf: NEWS_SEARCH_IDENTIFIERS.map((name) => ({ required: [name] })),
+              }
+            : compactSchema,
+        };
+      },
+    );
+  if (!shouldServeCoreProfile(getRequestContext()?.req)) {
+    return publicTools;
+  }
+  return publicTools
+    .filter((tool) => CORE_TOOL_NAMES.has(tool.name))
+    .map(({ inputSchema, ...tool }) => ({
+      ...tool,
+      ...(inputSchema
+        ? { inputSchema: compactInputSchema(inputSchema) }
+        : {}),
+    }));
 });
 
 // The server is stateless and never sends unsolicited messages, so a GET event
@@ -1002,7 +1049,7 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "list-webhook-deliveries.body":
     "Webhook delivery filters. Choose batch or monitor as the source type, then optionally filter by source ID, status, creation time, and pagination cursor.",
   "web-answers.json_format":
-    "Example object whose keys and value types define the answer shape. Unknown values may be null.",
+    'Example output object, not JSON Schema. Use placeholder values to declare types, for example {"answer":"","sources":[""]}. Unknown values may be null.',
 };
 
 function mcpParameterDescription(

@@ -45,6 +45,19 @@ const API_REFERENCE_TOOL_ORDER = [
   "submit-feedback",
 ] as const;
 
+export const CORE_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "web-scrape",
+  "web-map",
+  "web-crawl",
+  "web-search",
+  "web-answers",
+  "get-brand",
+  "get-news-search",
+  "parse-document",
+  "get-usage",
+  "submit-feedback",
+]);
+
 type ToolOverride = Partial<
   Pick<Endpoint, "title" | "description" | "annotations">
 >;
