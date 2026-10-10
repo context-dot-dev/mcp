@@ -44,6 +44,34 @@ function buildRequestBody(
   endpoint: Endpoint,
   args: ToolArguments
 ): unknown {
+  if (endpoint.name === "get-news-search") {
+    const {
+      companyName,
+      domain,
+      ticker,
+      exchange,
+      isin,
+      sortBy,
+      ...rest
+    } = args;
+    const entity =
+      typeof companyName === "string"
+        ? { type: "name", name: companyName }
+        : typeof domain === "string"
+          ? { type: "domain", domain }
+          : typeof ticker === "string"
+            ? {
+                type: "ticker",
+                ticker,
+                ...(typeof exchange === "string" ? { exchange } : {}),
+              }
+            : { type: "isin", isin };
+    return {
+      ...rest,
+      searchBy: { type: "entity", entity },
+      ...(typeof sortBy === "string" ? { sortBy: { type: sortBy } } : {}),
+    };
+  }
   if ("body" in args) {
     return args.body;
   }

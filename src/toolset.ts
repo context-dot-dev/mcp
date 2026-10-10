@@ -113,7 +113,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-news-search": {
     title: "Search company news",
     description:
-      "Search live and historical news for one company, identified by exactly one name, domain, ticker with an optional exchange, or ISIN. Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Paginate results with stable story IDs and verified entity relevance. Use web-search for broader topics or news that is not tied to one company.",
+      "Search live and historical news for one company. Provide exactly one top-level identifier: companyName, domain, ticker with an optional exchange, or isin. Set sortBy to newest or relevance. Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Use web-search for broader topics or news that is not tied to one company.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

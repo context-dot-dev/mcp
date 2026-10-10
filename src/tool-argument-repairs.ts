@@ -351,6 +351,35 @@ function newsEntity(value: unknown): unknown {
   return parsed;
 }
 
+function flatNewsIdentity(value: unknown): Arguments {
+  const entity = newsEntity(value);
+  if (!isPlainObject(entity)) return {};
+  const type = entity.type ?? entity.entityType ?? entity.entity_type;
+  const valueForType = typeof type === "string"
+    ? entity[type] ?? entity.entityCode ?? entity.entity_code ?? entity.value
+    : undefined;
+  const companyName = entity.name ?? entity.companyName ?? entity.company_name ?? entity.company;
+  if (type === "name" && typeof (valueForType ?? companyName) === "string") {
+    return { companyName: valueForType ?? companyName };
+  }
+  if (type === "domain" && typeof valueForType === "string") {
+    return { domain: valueForType };
+  }
+  if (type === "ticker" && typeof valueForType === "string") {
+    return {
+      ticker: valueForType,
+      ...(typeof entity.exchange === "string" ? { exchange: entity.exchange } : {}),
+    };
+  }
+  if (type === "isin" && typeof valueForType === "string") {
+    return { isin: valueForType };
+  }
+  if (typeof companyName === "string") {
+    return { companyName };
+  }
+  return {};
+}
+
 // Only unambiguous dates become a filter: epoch milliseconds or ISO 8601.
 function toEpochMs(value: unknown): number | undefined {
   // Numbers count only in the epoch-millisecond range (2001 onward), so a year
@@ -368,39 +397,28 @@ function toEpochMs(value: unknown): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-// get-news-search needs one company identity under searchBy.entity. Models
-// send flat company fields or a bare string where the entity object belongs.
-// A free-text query is left alone: it is usually a topic, not a company, and
-// the validation hint points the model to web-search.
+// get-news-search publishes flat company identifiers to MCP clients, while the
+// API still accepts searchBy.entity. Normalize old and near-miss MCP calls to
+// the flat shape; the request boundary translates it back for the API.
 function repairNewsSearch(input: Arguments): Arguments {
   const args = { ...input };
-  let searchBy: Arguments = isPlainObject(args.searchBy) ? { ...args.searchBy } : {};
-  if (isMissing(searchBy.entity)) {
-    const entityType = take(searchBy, ["entityType", "entity_type"]);
-    const entityCode = take(searchBy, ["entityCode", "entity_code", "value"]);
-    const company =
-      take(searchBy, ["company", "company_name", "companyName"]) ??
-      take(args, ["company", "company_name", "companyName"]);
-    const domain = take(args, ["company_domain", "companyDomain", "domain"]);
-    const ticker = take(args, ["ticker"]);
-    const isin = take(args, ["isin"]);
-    if (typeof entityType === "string" && typeof entityCode === "string") {
-      searchBy.entity = { type: entityType, [entityType]: entityCode };
-    } else if (typeof domain === "string") {
-      searchBy.entity = { type: "domain", domain };
-    } else if (typeof ticker === "string") {
-      searchBy.entity = { type: "ticker", ticker };
-    } else if (typeof isin === "string") {
-      searchBy.entity = { type: "isin", isin };
-    } else if (typeof company === "string") {
-      searchBy.entity = newsEntity(company);
-    }
-  } else {
-    searchBy.entity = newsEntity(searchBy.entity);
+  const searchBy = isPlainObject(args.searchBy) ? args.searchBy : undefined;
+  const legacyIdentity = flatNewsIdentity(searchBy?.entity ?? searchBy);
+  delete args.searchBy;
+
+  const company = take(args, ["company", "company_name"]);
+  const domain = take(args, ["company_domain", "companyDomain"]);
+  if (isMissing(args.companyName) && typeof company === "string") {
+    args.companyName = company;
   }
-  if (searchBy.entity !== undefined) {
-    searchBy = { ...searchBy, type: "entity" };
-    args.searchBy = searchBy;
+  if (isMissing(args.domain) && typeof domain === "string") {
+    args.domain = domain;
+  }
+  if (["companyName", "domain", "ticker", "isin"].every((name) => isMissing(args[name]))) {
+    Object.assign(args, legacyIdentity);
+  }
+  if (isPlainObject(args.sortBy) && typeof args.sortBy.type === "string") {
+    args.sortBy = args.sortBy.type;
   }
   const count = take(args, ["num_results", "numResults", "maxResults", "max_results"]);
   if (count !== undefined) args.limit ??= count;
@@ -555,6 +573,16 @@ export function reroutedToolName(
   ) {
     return "web-search";
   }
+  if (
+    toolName === "get-news-search" &&
+    typeof args.query === "string" &&
+    args.query.trim() !== "" &&
+    ["companyName", "domain", "ticker", "isin", "searchBy"].every(
+      (name) => isMissing(args[name]),
+    )
+  ) {
+    return "web-search";
+  }
   return undefined;
 }
 
@@ -569,7 +597,7 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
     'web-answers needs `task`, the research question. Describe the answer shape with `json_format`, an example object such as {"price":0,"currency":""}.',
   "web-map": "web-map needs `domain`, the site's host name, such as docs.example.com.",
   "get-news-search":
-    'get-news-search returns news about one company. Send {"searchBy":{"type":"entity","entity":{"type":"name","name":"Acme"}}}, or identify it by domain, ticker, or isin instead of name. For topics, keywords, or several companies, use web-search with `freshness` instead.',
+    'get-news-search returns news about one company. Send exactly one top-level identifier, for example {"companyName":"Acme"}, {"domain":"acme.com"}, {"ticker":"ACME"}, or {"isin":"US0000000000"}. Set sortBy to "newest" or "relevance". For topics, keywords, or several companies, use web-search with `freshness` instead.',
   "brand-retrieve-unified":
     'Send one lookup in `body`, for example {"body":{"type":"by_domain","domain":"stripe.com"}}. Other lookups: by_name with name, by_email with email, by_ticker with ticker, by_direct_url with direct_url, by_transaction with transaction_info.',
   "submit-batch":
