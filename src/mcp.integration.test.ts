@@ -1263,6 +1263,10 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(submitBatch?.annotations?.destructiveHint, false);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
+  for (const name of ["delete-monitor", "cancel-batch", "delete-batch"]) {
+    const tool = tools.find((candidate) => candidate.name === name);
+    assert.equal(tool?.annotations?.idempotentHint, true, name);
+  }
 });
 
 test("repairs bare answer property maps before forwarding valid calls", async () => {
