@@ -6,6 +6,7 @@ import {
   widget,
   type EnhancedToolContext,
 } from "mcp-use/server";
+import type { HonoRequest } from "hono";
 import { z } from "zod";
 import { brandSchema, type Brand } from "./resources/context-brand/types";
 import {
@@ -462,6 +463,17 @@ const repairToolCallArguments = async (
 
 const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 
+// These CLIs put every listed tool into every model step and have no tool
+// search. The server is stateless, so tools/list cannot see the initialize
+// clientInfo; the User-Agent is the only per-request client signal.
+const CORE_PROFILE_USER_AGENT = /^(opencode|kilo)\//i;
+
+function shouldServeCoreProfile(request: HonoRequest | undefined): boolean {
+  const requestedProfile = request?.query("profile");
+  if (requestedProfile) return requestedProfile === "core";
+  return CORE_PROFILE_USER_AGENT.test(request?.header("user-agent") ?? "");
+}
+
 function compactInputSchema(value: unknown, path: string[] = []): unknown {
   if (Array.isArray(value)) {
     return value.map((entry, index) =>
@@ -495,7 +507,7 @@ server.use("mcp:tools/list", async (_context, next) => {
         return { ...tool, inputSchema: schema };
       },
     );
-  if (getRequestContext()?.req.query("profile") !== "core") {
+  if (!shouldServeCoreProfile(getRequestContext()?.req)) {
     return publicTools;
   }
   return publicTools
