@@ -40,6 +40,7 @@ import {
   registerDcrClient,
 } from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
+import { compactPublishedSchema } from "./src/published-schema";
 import { repairToolArguments } from "./src/argument-repair";
 import {
   completeValidArguments,
@@ -480,21 +481,30 @@ function compactInputSchema(value: unknown, path: string[] = []): unknown {
 }
 
 // Gemini's function-calling schema subset rejects `$schema`, and the root
-// dialect is already the MCP default.
+// dialect is already the MCP default. `execution.taskSupport: "forbidden"` is
+// the spec default, so publishing it only costs tokens.
 server.use("mcp:tools/list", async (_context, next) => {
   const tools = (await next()) as Array<{
     name: string;
     inputSchema?: Record<string, unknown>;
+    execution?: { taskSupport?: string };
   }>;
   const publicTools = tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
-    .map<{ name: string; inputSchema?: Record<string, unknown> }>(
-      ({ inputSchema, ...tool }) => {
-        if (!inputSchema) return tool;
-        const { $schema: _dialect, ...schema } = inputSchema;
-        return { ...tool, inputSchema: schema };
-      },
-    );
+    .map<{
+      name: string;
+      inputSchema?: Record<string, unknown>;
+      execution?: { taskSupport?: string };
+    }>(({ inputSchema, execution, ...tool }) => {
+      const isDefaultExecution =
+        !execution ||
+        (Object.keys(execution).length === 1 &&
+          execution.taskSupport === "forbidden");
+      const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
+      if (!inputSchema) return publishedTool;
+      const { $schema: _dialect, ...schema } = inputSchema;
+      return { ...publishedTool, inputSchema: compactPublishedSchema(schema) };
+    });
   if (getRequestContext()?.req.query("profile") !== "core") {
     return publicTools;
   }
