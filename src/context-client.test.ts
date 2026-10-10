@@ -79,6 +79,12 @@ function endpoint(overrides: Partial<Endpoint>): Endpoint {
   };
 }
 
+function resultJson(result: Awaited<ReturnType<typeof callContextApi>>) {
+  const textBlock = result.content.find((block) => block.type === "text");
+  assert.ok(textBlock?.type === "text");
+  return JSON.parse(textBlock.text) as Record<string, unknown>;
+}
+
 test("serializes path, repeated arrays, and nested query objects", async () => {
   captured.length = 0;
   await callContextApi({
@@ -287,7 +293,7 @@ test("bounds oversized tool responses while preserving structured data", async (
       args: {},
       credential: { apiKey: "ctxt_secret_test" },
     });
-    const structured = result.structuredContent as Record<string, unknown>;
+    const structured = resultJson(result);
     assert.equal(
       (structured._context_mcp as Record<string, unknown>).truncated,
       true
@@ -332,7 +338,7 @@ test("returns unified screenshots as MCP image content", async () => {
       data: "aGVsbG8=",
       mimeType: "image/webp",
     });
-    assert.deepEqual(result.structuredContent, {
+    assert.deepEqual(resultJson(result), {
       screenshot: {
         requested: true,
         success: true,
@@ -368,11 +374,61 @@ test("preserves request IDs while removing private response metadata", async () 
       args: {},
       credential: { apiKey: "ctxt_secret_test" },
     });
-    assert.deepEqual(result.structuredContent, {
+    assert.deepEqual(resultJson(result), {
       ok: true,
       data: [{ id: "batch_result_needed_by_the_client" }],
       request_id: "req_internal",
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("returns one compact JSON copy without unrequested formats or cache metadata", async () => {
+  const originalFetch = globalThis.fetch;
+  const extracted = { requested: false, markdown: { requested: false } };
+  globalThis.fetch = async () =>
+    Response.json({
+      url: "https://example.test/",
+      html: { requested: false, success: null, data: null },
+      markdown: { requested: true, success: true, data: "# Page" },
+      json: { requested: true, success: true, data: extracted },
+      product: { requested: true, success: false, error_code: "NO_PRODUCT" },
+      results: [
+        {
+          url: "https://example.test/result",
+          markdown: { markdown: null, code: "NOT_REQUESTED" },
+          highlights: { highlights: ["passage"], code: "SUCCESS" },
+        },
+      ],
+      cache_metadata: { status: "hit", age_ms: 42 },
+      request_id: "req_compact",
+    });
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ name: "web-scrape", path: "/web/scrape" }),
+      args: { url: "https://example.test", formats: { markdown: true } },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const expected = {
+      url: "https://example.test/",
+      markdown: { requested: true, success: true, data: "# Page" },
+      json: { requested: true, success: true, data: extracted },
+      product: { requested: true, success: false, error_code: "NO_PRODUCT" },
+      results: [
+        {
+          url: "https://example.test/result",
+          highlights: { highlights: ["passage"], code: "SUCCESS" },
+        },
+      ],
+      request_id: "req_compact",
+    };
+    assert.equal(result.structuredContent, undefined);
+    assert.deepEqual(result.content, [
+      { type: "text", text: JSON.stringify(expected) },
+    ]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -730,7 +786,7 @@ test("retains header request IDs on successful responses for quality feedback", 
       credential: { apiKey: "key" },
     });
     assert.notEqual(result.isError, true);
-    assert.deepEqual(result.structuredContent, {
+    assert.deepEqual(resultJson(result), {
       markdown: "# Incomplete",
       request_id: "header-success-id",
     });

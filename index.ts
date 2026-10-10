@@ -1066,8 +1066,8 @@ function registerBrandTool(): void {
           : "");
       const requestId = contextRequestId(payload, res.headers);
       // Clients that ignore structuredContent and don't render the widget
-      // (e.g. Cursor, Codex) only see this text, so it must carry the brand.
-      const brandJson = JSON.stringify({ brand }, null, 2);
+      // (e.g. Cursor, opencode) only see this text, so it must carry the brand.
+      const brandJson = JSON.stringify({ brand });
       return widget({
         props: { brand },
         output: text(

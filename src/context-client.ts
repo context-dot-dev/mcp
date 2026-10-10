@@ -1,5 +1,5 @@
 import {
-  error, image, object, text, type TypedCallToolResult,
+  error, image, text, type TypedCallToolResult,
 } from "mcp-use/server";
 import type { Endpoint } from "../context-endpoints";
 import { contextApiError, contextRequestId } from "./feedback";
@@ -11,6 +11,18 @@ const OMITTED_RESPONSE_FIELDS = new Set([
   "key_metadata",
   "trace_id",
   "debug",
+  "cache_metadata",
+]);
+const FORMAT_FIELDS = new Set([
+  "html",
+  "markdown",
+  "highlights",
+  "screenshot",
+  "images",
+  "bytes",
+  "parsed",
+  "json",
+  "product",
 ]);
 const RATE_LIMIT_HEADERS = ["X-RateLimit-Remaining", "X-RateLimit-Limit"];
 
@@ -166,11 +178,31 @@ function formatValidationIssue(issue: unknown): string | undefined {
 function minimizeContextResponse(
   value: Record<string, unknown>,
 ): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(value).filter(
-      ([name]) => !OMITTED_RESPONSE_FIELDS.has(name),
-    ),
+  const responseFields = Object.entries(value)
+    .filter(([name]) => !OMITTED_RESPONSE_FIELDS.has(name))
+    .map(([name, field]) => [
+      name,
+      name === "results" && Array.isArray(field)
+        ? field.map(withoutUnrequestedFormats)
+        : field,
+    ]);
+  return withoutUnrequestedFormats(Object.fromEntries(responseFields));
+}
+
+// Only page-level format slots are checked: extracted JSON and parsed fields
+// are caller-shaped and may legitimately contain the same keys.
+function withoutUnrequestedFormats<T>(page: T): T {
+  if (!page || typeof page !== "object" || Array.isArray(page)) return page;
+  const requestedFields = Object.entries(page).filter(
+    ([name, field]) => !(FORMAT_FIELDS.has(name) && isUnrequestedFormat(field)),
   );
+  return Object.fromEntries(requestedFields) as T;
+}
+
+function isUnrequestedFormat(field: unknown): boolean {
+  if (!field || typeof field !== "object") return false;
+  const format = field as Record<string, unknown>;
+  return format.requested === false || format.code === "NOT_REQUESTED";
 }
 
 function maxResponseChars(): number {
@@ -245,20 +277,21 @@ function truncateJsonValue(
   return String(value);
 }
 
+// Compact JSON text only, without a structuredContent copy: these tools publish
+// no outputSchema, some clients (ChatGPT, AI SDK 5) put both copies in the
+// model's context, and Codex drops image content whenever structuredContent
+// is present.
 function boundedObject(
   value: Record<string, unknown>,
   originalChars: number,
-  isCompact = false,
 ) {
-  const render = (data: Record<string, unknown>) =>
-    isCompact ? text(JSON.stringify(data)) : object(data);
   const limit = maxResponseChars();
   if (limit === 0 || originalChars <= limit) {
-    return render(value);
+    return text(JSON.stringify(value));
   }
   const budget = { remaining: Math.max(1_000, limit - 500), truncated: false };
   const truncated = truncateJsonValue(value, budget) as Record<string, unknown>;
-  return render({
+  return text(JSON.stringify({
     ...truncated,
     _context_mcp: {
       truncated: true,
@@ -266,17 +299,16 @@ function boundedObject(
       message:
         "Response was shortened for MCP client limits. Narrow the request or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
     },
-  });
+  }));
 }
 
 function contextObject(
   endpoint: Endpoint,
   value: Record<string, unknown>,
-  isCompact = false,
 ) {
   const screenshot = getScreenshot(value);
   if (endpoint.name !== "web-scrape" || !screenshot) {
-    return boundedObject(value, JSON.stringify(value).length, isCompact);
+    return boundedObject(value, JSON.stringify(value).length);
   }
 
   const withoutInlineScreenshot = {
@@ -290,7 +322,6 @@ function contextObject(
   const result = boundedObject(
     withoutInlineScreenshot,
     JSON.stringify(withoutInlineScreenshot).length,
-    isCompact,
   );
   const imageResult = image(screenshot.data, screenshot.mimeType);
   return {
@@ -513,7 +544,7 @@ export async function callContextApi({
         clientUserAgent,
       });
     }
-    return contextObject(endpoint, value, isCompact);
+    return contextObject(endpoint, value);
   }
   const resultText = parsed === undefined ? raw : JSON.stringify(parsed);
   const limit = maxResponseChars();

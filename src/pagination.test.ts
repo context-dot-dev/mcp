@@ -47,10 +47,13 @@ for (const repetitions of [2500, 5000]) {
           credential: { apiKey: "ctxt_secret_test" },
         });
         assert.deepEqual(args, originalArgs);
-        const body = result.structuredContent as {
+        const textBlock = result.content[0];
+        assert.ok(textBlock?.type === "text");
+        const body = JSON.parse(textBlock.text) as {
           data: { url: string }[];
           has_more: boolean;
           next_cursor: string | null;
+          _context_mcp?: { truncated: boolean };
         };
         if (repetitions === 2500) {
           const expectedRecords = records.filter((record) =>
@@ -58,12 +61,7 @@ for (const repetitions of [2500, 5000]) {
           );
           assert.deepEqual(body.data, expectedRecords);
         } else {
-          assert.equal(
-            result.structuredContent?._context_mcp &&
-              (result.structuredContent._context_mcp as { truncated: boolean })
-                .truncated,
-            true,
-          );
+          assert.equal(body._context_mcp?.truncated, true);
         }
         received.push(...body.data.map((record) => record.url));
         if (!body.has_more) break;
