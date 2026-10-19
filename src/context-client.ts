@@ -1,3 +1,4 @@
+import { getAccountToolError } from "./account-error";
 import {
   error, image, text, type TypedCallToolResult,
 } from "mcp-use/server";
@@ -540,6 +541,8 @@ export async function callContextApi({
   }
 
   if (!response.ok) {
+    const accountError = getAccountToolError(parsed, response.headers);
+    if (accountError) return accountError;
     return contextApiError(
       endpoint.name,
       contextErrorMessage(response.status, parsed, response.headers),

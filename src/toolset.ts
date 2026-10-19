@@ -196,7 +196,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-usage": {
     title: "Get credit usage",
     description:
-      "Get the authenticated Context account's credit balance, credits used in the current monthly period, the next refill time and amount, and Auto-Topup status. Use this before large jobs or after a 401 USAGE_EXCEEDED to see how many credits are left and when they refill. Use get-usage-history for usage over time. Costs no credits.",
+      "Get the authenticated Context account's credit balance, credits used in the current monthly period, the next refill time and amount, and Auto-Topup status. Use this before large jobs or after a 402 USAGE_EXCEEDED (or legacy 401) to see how many credits are left and when they refill. Use get-usage-history for usage over time. Costs no credits.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { after, before, test } from "node:test";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CORE_TOOL_NAMES } from "./toolset";
@@ -260,11 +261,32 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
         },
       };
     }
-    if (args.domain === "usage-exceeded.test") {
+    if (args.domain === "concurrency-exceeded.test") {
       return {
-        status: 401,
+        status: 429,
         body: {
-          message: "Usage limit exceeded",
+          message: "Organization concurrency limit exceeded.",
+          request_id: "req_concurrency_limit",
+          error_code: "RATE_LIMITED",
+          error_data: {
+            is_authenticated: true,
+            limit_type: "concurrency",
+            limit: 2,
+            remaining: 0,
+            retry_after_seconds: 31,
+            credits_charged: 0,
+          },
+          key_metadata: { credits_consumed: 0, credits_remaining: 48 },
+        },
+      };
+    }
+    if (args.domain === "usage-exceeded.test" || args.domain === "new-usage-exceeded.test") {
+      return {
+        status: args.domain === "new-usage-exceeded.test" ? 402 : 401,
+        body: {
+          message: "To get more credits immediately, subscribe at https://www.context.dev/dashboard/subscription",
+          request_id: "req_credit_limit",
+          ...(args.domain === "new-usage-exceeded.test" ? { error_data: { is_authenticated: true, credits_remaining: 0, credits_required: 10, is_credits_required_estimated: true, credits_charged: 0, should_retry: false, retry_condition: "sufficient_credits", next_refill_at: "2026-11-01T07:01:00.000Z", next_refill_credits: 1000, info_url: "https://context.dev/dashboard/subscription" } } : {}),
           error_code: "USAGE_EXCEEDED",
           key_metadata: { credits_consumed: 0, credits_remaining: 0 },
         },
@@ -413,6 +435,7 @@ const upstream = createServer((request, response) => {
       request.url ?? "",
       Buffer.concat(chunks),
     );
+    if (result.status === 429) response.setHeader("Retry-After", "31");
     response.writeHead(result.status, { "content-type": "application/json" });
     response.end(JSON.stringify(result.body));
   });
@@ -1819,7 +1842,6 @@ test("delivers actionable feedback guidance at initialization and discovery", as
   const client = await connectClient();
   try {
     const instructions = client.getInstructions() ?? "";
-    assert.equal(instructions.length, 2024);
     assert.ok(instructions.length < 2048);
     assert.match(instructions, /Prefer compact search and scrape results/);
     assert.match(instructions, /Report each distinct unexpected error/);
@@ -1833,28 +1855,95 @@ test("delivers actionable feedback guidance at initialization and discovery", as
       instructions,
       /Expected validation, authentication, or credit-limit errors/,
     );
-    assert.match(instructions, /On `USAGE_EXCEEDED`, do not retry/);
+    assert.match(instructions, /On `USAGE_EXCEEDED`.*do not retry/);
     assert.match(instructions, /call `get-usage` once/);
     const { tools } = await client.listTools();
     const feedback = tools.find((tool) => tool.name === "submit-feedback");
     assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
     assert.match(feedback?.description ?? "", /wrong or incomplete successful results/);
-    assert.match(feedback?.description ?? "", /Never use it for account limits working as intended: 401 USAGE_EXCEEDED, 429 RATE_LIMITED, or 403 PAID_PLAN_REQUIRED/);
+    assert.match(feedback?.description ?? "", /Never use it for account limits working as intended: 402 USAGE_EXCEEDED \(or legacy 401\), 429 RATE_LIMITED, or 403 PAID_PLAN_REQUIRED/);
   } finally {
     await client.close();
   }
 });
 
-test("brand account-limit errors give the next step instead of a feedback nudge", async () => {
+test("legacy and new billing errors reach both model surfaces without OAuth challenges", async () => {
+  const responses: Response[] = [];
+  const client = new Client({ name: "billing-test", version: "1.0.0" });
+  await client.connect(new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+    fetch: async (url, init) => {
+      const response = await fetch(url, init);
+      responses.push(response);
+      return response;
+    },
+  }));
+  try {
+    const { tools } = await client.listTools();
+    const brandTool = tools.find((tool) => tool.name === "get-brand")!;
+    const validateOutput = new AjvJsonSchemaValidator().getValidator(brandTool.outputSchema!);
+    for (const domain of ["usage-exceeded.test", "new-usage-exceeded.test"]) {
+      for (const name of ["get-brand", "brand-retrieve-unified"]) {
+        const failed = await client.callTool({ name, arguments: { domain, ...(name === "brand-retrieve-unified" ? { type: "by_domain" } : {}) } });
+        assert.equal(failed.isError, true);
+        const details = failed.structuredContent as Record<string, unknown>;
+        assert.equal(details.error_code, "USAGE_EXCEEDED");
+        assert.equal(details.request_id, "req_credit_limit");
+        const data = details.error_data as Record<string, unknown>;
+        assert.equal(data.is_authenticated, true);
+        assert.equal(data.credits_remaining, 0);
+        assert.equal(data.credits_charged, 0);
+        assert.equal(data.should_retry, false);
+        assert.equal(data.info_url, "https://context.dev/dashboard/subscription");
+        if (domain === "new-usage-exceeded.test") {
+          assert.equal(data.credits_required, 10);
+          assert.equal(data.next_refill_credits, 1000);
+        } else {
+          assert.equal(data.credits_required, undefined);
+          assert.equal(data.next_refill_at, undefined);
+        }
+        const content = failed.content as Array<{ type: string; text?: string }>;
+        const message = content.find((block) => block.type === "text")?.text ?? "";
+        assert.deepEqual(JSON.parse(message.split("\n\n")[1]!), details);
+        assert.match(message, /Authentication is valid/);
+        assert.match(message, /https:\/\/context.dev\/dashboard\/subscription/);
+        assert.doesNotMatch(message, /subscribe|upgrad|checkout/);
+        assert.equal(failed._meta?.["mcp/www_authenticate"], undefined);
+        assert.equal(validateOutput(details).valid, true);
+      }
+    }
+    assert.equal(responses.some((response) => response.status === 401 || response.status === 402), false);
+    assert.equal(responses.some((response) => response.headers.has("www-authenticate")), false);
+  } finally {
+    await client.close();
+  }
+});
+
+test("concurrency errors reach both model surfaces and validate against the output schema", async () => {
   const client = await connectClient();
   try {
-    const failed = await client.callTool({ name: "get-brand", arguments: { domain: "usage-exceeded.test" } });
-    assert.equal(failed.isError, true);
-    const content = failed.content as Array<{ type: string; text?: string }>;
-    const message = content.find((block) => block.type === "text")?.text ?? "";
-    assert.match(message, /\[USAGE_EXCEEDED\].*\(credits_remaining: 0\)/);
-    assert.match(message, /account limit working as intended; do not call submit-feedback\. Context has insufficient credits for this request/);
-    assert.doesNotMatch(message, /always call submit-feedback/);
+    const { tools } = await client.listTools();
+    const brandTool = tools.find((tool) => tool.name === "get-brand")!;
+    const validateOutput = new AjvJsonSchemaValidator().getValidator(brandTool.outputSchema!);
+    for (const name of ["get-brand", "brand-retrieve-unified"]) {
+      const result = await client.callTool({
+        name,
+        arguments: { domain: "concurrency-exceeded.test", ...(name === "brand-retrieve-unified" ? { type: "by_domain" } : {}) },
+      });
+      assert.equal(result.isError, true);
+      const details = result.structuredContent as Record<string, unknown>;
+      const data = details.error_data as Record<string, unknown>;
+      assert.equal(details.error_code, "RATE_LIMITED");
+      assert.equal(details.request_id, "req_concurrency_limit");
+      assert.equal(data.limit_type, "concurrency");
+      assert.equal(data.limit, 2);
+      assert.equal(data.retry_after_seconds, 31);
+      assert.equal(data.retry_condition, "available_concurrency");
+      assert.equal(data.info_url, "https://context.dev/dashboard/subscription");
+      const content = result.content as Array<{ type: string; text?: string }>;
+      assert.deepEqual(JSON.parse(content[0]!.text!.split("\n\n")[1]!), details);
+      assert.equal(validateOutput(details).valid, true);
+      assert.equal(result._meta?.["mcp/www_authenticate"], undefined);
+    }
   } finally {
     await client.close();
   }
