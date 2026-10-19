@@ -695,7 +695,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Search news",
     "method": "POST",
     "path": "/news/search",
-    "description": "Search news — Find company news by name, domain, ticker, or ISIN. Filter articles and continue through results with a cursor.",
+    "description": "Search news — Find news about a company by name, domain, ticker, or ISIN, or search all news with a natural-language query. Filter articles and continue through results with a cursor.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -703,48 +703,22 @@ export const ENDPOINTS: Endpoint[] = [
         "type": "object",
         "properties": {
           "searchBy": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "entity"
-                ],
-                "description": "How to search. Only entity search is supported."
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NewsSearchByNaturalLanguage"
               },
-              "entity": {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/NewsSearchEntityByName"
-                  },
-                  {
-                    "$ref": "#/components/schemas/NewsSearchEntityByDomain"
-                  },
-                  {
-                    "$ref": "#/components/schemas/NewsSearchEntityByTicker"
-                  },
-                  {
-                    "$ref": "#/components/schemas/NewsSearchEntityByIsin"
-                  }
-                ],
-                "discriminator": {
-                  "propertyName": "type",
-                  "mapping": {
-                    "name": "#/components/schemas/NewsSearchEntityByName",
-                    "domain": "#/components/schemas/NewsSearchEntityByDomain",
-                    "ticker": "#/components/schemas/NewsSearchEntityByTicker",
-                    "isin": "#/components/schemas/NewsSearchEntityByIsin"
-                  }
-                },
-                "description": "The company to search news for, identified by name, domain, ticker, or ISIN."
+              {
+                "$ref": "#/components/schemas/NewsSearchByEntity"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "natural_language": "#/components/schemas/NewsSearchByNaturalLanguage",
+                "entity": "#/components/schemas/NewsSearchByEntity"
               }
             },
-            "required": [
-              "type",
-              "entity"
-            ],
-            "additionalProperties": false,
-            "description": "What to search for."
+            "description": "What to search for: a specific company, or a natural-language query across all news."
           },
           "filterBy": {
             "type": "object",
@@ -785,6 +759,7 @@ export const ENDPOINTS: Endpoint[] = [
                     "mx",
                     "ng",
                     "nl",
+                    "pk",
                     "qa",
                     "sa",
                     "se",
@@ -802,18 +777,79 @@ export const ENDPOINTS: Endpoint[] = [
                 "items": {
                   "type": "string",
                   "enum": [
+                    "am",
                     "ar",
+                    "az",
+                    "be",
+                    "bg",
+                    "bn",
+                    "ca",
+                    "ceb",
+                    "cs",
+                    "cy",
+                    "da",
                     "de",
+                    "el",
                     "en",
                     "es",
+                    "et",
+                    "eu",
+                    "fa",
+                    "fi",
                     "fr",
+                    "gu",
+                    "ha",
+                    "haw",
+                    "he",
                     "hi",
+                    "hr",
+                    "hu",
+                    "hy",
+                    "id",
+                    "is",
                     "it",
                     "ja",
+                    "ka",
+                    "kk",
+                    "kn",
                     "ko",
+                    "ku",
+                    "ky",
+                    "lo",
+                    "lt",
+                    "lv",
+                    "mk",
+                    "ml",
+                    "mn",
+                    "mr",
+                    "ms",
+                    "ne",
                     "nl",
+                    "no",
+                    "or",
+                    "pa",
+                    "pl",
+                    "ps",
                     "pt",
+                    "ro",
                     "ru",
+                    "sk",
+                    "sl",
+                    "so",
+                    "sq",
+                    "sr",
+                    "sv",
+                    "sw",
+                    "ta",
+                    "te",
+                    "th",
+                    "tl",
+                    "tr",
+                    "uk",
+                    "ur",
+                    "uz",
+                    "vi",
+                    "yo",
                     "zh"
                   ]
                 },
@@ -917,14 +953,11 @@ export const ENDPOINTS: Endpoint[] = [
                 "description": "Result ordering."
               }
             },
-            "default": {
-              "type": "newest"
-            },
             "required": [
               "type"
             ],
             "additionalProperties": false,
-            "description": "Result ordering. Defaults to newest."
+            "description": "Result ordering. Defaults to newest for entity searches. Natural-language searches are always ordered by relevance."
           },
           "limit": {
             "type": "integer",
@@ -956,240 +989,6 @@ export const ENDPOINTS: Endpoint[] = [
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "post-news-query",
-    "title": "News search by natural language query",
-    "method": "POST",
-    "path": "/news_query",
-    "description": "News search by natural language query — Search news by natural language! Use explicit date filters; relevance sorting only, up to 800 ranked matches.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "type": "object",
-        "properties": {
-          "filterBy": {
-            "type": "object",
-            "properties": {
-              "sourceDomain": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 253
-                },
-                "minItems": 1,
-                "maxItems": 3,
-                "description": "Publisher domains to include. Up to 3."
-              },
-              "sourceCountry": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "ae",
-                    "ar",
-                    "au",
-                    "ca",
-                    "cg",
-                    "ch",
-                    "cl",
-                    "cz",
-                    "de",
-                    "fi",
-                    "fr",
-                    "gb",
-                    "hk",
-                    "il",
-                    "in",
-                    "jp",
-                    "kr",
-                    "mx",
-                    "ng",
-                    "nl",
-                    "qa",
-                    "sa",
-                    "se",
-                    "sg",
-                    "us",
-                    "za"
-                  ]
-                },
-                "minItems": 1,
-                "maxItems": 3,
-                "description": "Publisher countries to include, as lowercase ISO 3166-1 alpha-2 codes. Up to 3."
-              },
-              "articleLanguage": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "ar",
-                    "de",
-                    "en",
-                    "es",
-                    "fr",
-                    "hi",
-                    "it",
-                    "ja",
-                    "ko",
-                    "nl",
-                    "pt",
-                    "ru",
-                    "zh"
-                  ]
-                },
-                "minItems": 1,
-                "maxItems": 3,
-                "description": "Article languages to include. Up to 3."
-              },
-              "articleType": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "editorial",
-                    "press_release",
-                    "regulatory_filing",
-                    "advisory"
-                  ]
-                },
-                "minItems": 1,
-                "maxItems": 3,
-                "description": "Article types to include. Up to 3."
-              },
-              "date": {
-                "type": "object",
-                "properties": {
-                  "from": {
-                    "type": "integer",
-                    "description": "Inclusive start of the published-at window, in epoch milliseconds."
-                  },
-                  "to": {
-                    "type": "integer",
-                    "description": "Inclusive end of the published-at window, in epoch milliseconds."
-                  }
-                },
-                "additionalProperties": false,
-                "description": "Published-at window in epoch milliseconds. from must be before or equal to to."
-              }
-            },
-            "additionalProperties": false,
-            "description": "Optional result filters. Use at most one of sourceDomain, sourceCountry, articleLanguage, or articleType. A date range may accompany that category; date.from must not exceed date.to.",
-            "allOf": [
-              {
-                "not": {
-                  "required": [
-                    "sourceDomain",
-                    "sourceCountry"
-                  ]
-                }
-              },
-              {
-                "not": {
-                  "required": [
-                    "sourceDomain",
-                    "articleLanguage"
-                  ]
-                }
-              },
-              {
-                "not": {
-                  "required": [
-                    "sourceDomain",
-                    "articleType"
-                  ]
-                }
-              },
-              {
-                "not": {
-                  "required": [
-                    "sourceCountry",
-                    "articleLanguage"
-                  ]
-                }
-              },
-              {
-                "not": {
-                  "required": [
-                    "sourceCountry",
-                    "articleType"
-                  ]
-                }
-              },
-              {
-                "not": {
-                  "required": [
-                    "articleLanguage",
-                    "articleType"
-                  ]
-                }
-              }
-            ]
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "default": 10,
-            "description": "Maximum results to return. Defaults to 10."
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "query"
-            ]
-          },
-          "query": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 1000
-          },
-          "sortBy": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "relevance"
-                ]
-              }
-            },
-            "default": {
-              "type": "relevance"
-            },
-            "required": [
-              "type"
-            ],
-            "additionalProperties": false
-          },
-          "cursor": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 1000
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
-          }
-        },
-        "required": [
-          "type",
-          "query"
-        ],
-        "additionalProperties": false,
-        "description": "Search news articles using a natural-language query. Results are ordered by relevance, with up to 100 reranked matches per query. Use date filters to restrict publication dates."
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
       "openWorldHint": true
     }
   },
@@ -7844,6 +7643,76 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         }
       }
     ]
+  },
+  "NewsSearchByNaturalLanguage": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "natural_language"
+        ],
+        "description": "Use `natural_language` to search all news with a plain-language query."
+      },
+      "query": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 1000,
+        "description": "What to search for, in plain language, such as \"chip export restrictions to China\"."
+      }
+    },
+    "required": [
+      "type",
+      "query"
+    ],
+    "additionalProperties": false,
+    "description": "Search all news with a plain-language query. Returns up to 100 matches, ordered by relevance.",
+    "title": "By Natural Language"
+  },
+  "NewsSearchByEntity": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "entity"
+        ],
+        "description": "Use `entity` to find news about a specific company."
+      },
+      "entity": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/NewsSearchEntityByName"
+          },
+          {
+            "$ref": "#/components/schemas/NewsSearchEntityByDomain"
+          },
+          {
+            "$ref": "#/components/schemas/NewsSearchEntityByTicker"
+          },
+          {
+            "$ref": "#/components/schemas/NewsSearchEntityByIsin"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "name": "#/components/schemas/NewsSearchEntityByName",
+            "domain": "#/components/schemas/NewsSearchEntityByDomain",
+            "ticker": "#/components/schemas/NewsSearchEntityByTicker",
+            "isin": "#/components/schemas/NewsSearchEntityByIsin"
+          }
+        },
+        "description": "The company to search news for, identified by name, domain, ticker, or ISIN."
+      }
+    },
+    "required": [
+      "type",
+      "entity"
+    ],
+    "additionalProperties": false,
+    "description": "Find news about a specific company.",
+    "title": "By Entity"
   },
   "NewsSearchEntityByName": {
     "type": "object",

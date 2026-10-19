@@ -50,6 +50,7 @@ function buildRequestBody(
 ): unknown {
   if (endpoint.name === "get-news-search") {
     const {
+      query,
       companyName,
       domain,
       ticker,
@@ -70,9 +71,13 @@ function buildRequestBody(
                 ...(typeof exchange === "string" ? { exchange } : {}),
               }
             : { type: "isin", isin };
+    const searchBy =
+      typeof query === "string"
+        ? { type: "natural_language", query }
+        : { type: "entity", entity };
     return {
       ...rest,
-      searchBy: { type: "entity", entity },
+      searchBy,
       ...(typeof sortBy === "string" ? { sortBy: { type: sortBy } } : {}),
     };
   }

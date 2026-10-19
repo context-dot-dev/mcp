@@ -143,9 +143,16 @@ test("get-news-search flattens legacy and near-miss company identities", () => {
     limit: 5,
     filterBy: { date: { from: Date.parse("2026-10-04") } },
   });
-  // Free text is usually a topic, not a company; leave it for the hint.
-  assert.equal(news({ query: "after-hours stock movers earnings" }).searchBy, undefined);
-  assert.deepEqual(news({ searchBy: { query: "stocks Wall Street midday" } }), {});
+  // Free text is a topic: it stays a natural-language query and is never guessed into a company.
+  assert.deepEqual(news({ query: "after-hours stock movers earnings" }), {
+    query: "after-hours stock movers earnings",
+  });
+  assert.deepEqual(news({ searchBy: { query: "stocks Wall Street midday" } }), {
+    query: "stocks Wall Street midday",
+  });
+  assert.deepEqual(news({ searchBy: { type: "natural_language", query: "chip export rules" } }), {
+    query: "chip export rules",
+  });
   assert.deepEqual(news({ searchBy: { entity: "puls4.com", type: "entity" } }), {
     domain: "puls4.com",
   });
@@ -273,7 +280,7 @@ test("calls carrying only another tool's input go to that tool", () => {
   assert.equal(reroutedToolName("web-search", { query: "x", url: "https://a.test" }), undefined);
   assert.equal(reroutedToolName("web-scrape", { query: "pricing", numResults: 20 }), "web-search");
   assert.equal(reroutedToolName("web-scrape", { query: "", numResults: 20 }), undefined);
-  assert.equal(reroutedToolName("get-news-search", { query: "AI funding news" }), "web-search");
+  assert.equal(reroutedToolName("get-news-search", { query: "AI funding news" }), undefined);
 });
 
 test("web-search takes the one query from a list or wrapper", () => {

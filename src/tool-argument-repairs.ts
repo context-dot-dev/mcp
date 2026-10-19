@@ -471,14 +471,18 @@ function toEpochMs(value: unknown): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-// get-news-search publishes flat company identifiers to MCP clients, while the
-// API still accepts searchBy.entity. Normalize old and near-miss MCP calls to
-// the flat shape; the request boundary translates it back for the API.
+// get-news-search publishes a flat query or flat company identifiers to MCP
+// clients, while the API takes searchBy. Normalize old and near-miss MCP calls
+// to the flat shape; the request boundary translates it back for the API.
 function repairNewsSearch(input: Arguments): Arguments {
   const args = { ...input };
   const searchBy = isPlainObject(args.searchBy) ? args.searchBy : undefined;
-  const legacyIdentity = flatNewsIdentity(searchBy?.entity ?? searchBy);
+  const legacyQuery = typeof searchBy?.query === "string" ? searchBy.query : undefined;
+  const legacyIdentity = legacyQuery === undefined ? flatNewsIdentity(searchBy?.entity ?? searchBy) : {};
   delete args.searchBy;
+  if (isMissing(args.query) && legacyQuery !== undefined) {
+    args.query = legacyQuery;
+  }
 
   const company = take(args, ["company", "company_name"]);
   const domain = take(args, ["company_domain", "companyDomain"]);
@@ -488,7 +492,7 @@ function repairNewsSearch(input: Arguments): Arguments {
   if (isMissing(args.domain) && typeof domain === "string") {
     args.domain = domain;
   }
-  if (["companyName", "domain", "ticker", "isin"].every((name) => isMissing(args[name]))) {
+  if (["query", "companyName", "domain", "ticker", "isin"].every((name) => isMissing(args[name]))) {
     Object.assign(args, legacyIdentity);
   }
   if (isPlainObject(args.sortBy) && typeof args.sortBy.type === "string") {
@@ -647,16 +651,6 @@ export function reroutedToolName(
   ) {
     return "web-search";
   }
-  if (
-    toolName === "get-news-search" &&
-    typeof args.query === "string" &&
-    args.query.trim() !== "" &&
-    ["companyName", "domain", "ticker", "isin", "searchBy"].every(
-      (name) => isMissing(args[name]),
-    )
-  ) {
-    return "web-search";
-  }
   return undefined;
 }
 
@@ -671,7 +665,7 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
     'web-answers needs `task`, the research question. Describe the answer shape with `json_format`, an example object such as {"price":0,"currency":""}.',
   "web-map": "web-map needs `domain`, the site's host name, such as docs.example.com.",
   "get-news-search":
-    'get-news-search returns news about one company. Send exactly one top-level identifier, for example {"companyName":"Acme"}, {"domain":"acme.com"}, {"ticker":"ACME"}, or {"isin":"US0000000000"}. Set sortBy to "newest" or "relevance". For topics, keywords, or several companies, use web-search with `freshness` instead.',
+    'get-news-search takes exactly one of: `query`, a plain-language topic such as {"query":"chip export restrictions to China"}, ordered by relevance; or one company identifier, for example {"companyName":"Acme"}, {"domain":"acme.com"}, {"ticker":"ACME"}, or {"isin":"US0000000000"}, with sortBy "newest" or "relevance".',
   "brand-retrieve-unified":
     'Send one lookup in `body`, for example {"body":{"type":"by_domain","domain":"stripe.com"}}. Other lookups: by_name with name, by_email with email, by_ticker with ticker, by_direct_url with direct_url, by_transaction with transaction_info.',
   "submit-batch":

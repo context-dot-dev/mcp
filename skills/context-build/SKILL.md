@@ -19,7 +19,7 @@ Add the smallest correct Context.dev integration to the user's existing applicat
    - Prefer a single-page scrape when the URL is known.
    - Prefer crawl for a focused set of linked pages and sitemap for URL discovery only.
    - Prefer extract when the output must follow a JSON schema.
-   - Prefer News for company-specific stories and Web Search for broader topics.
+   - Prefer News for news coverage, either a plain-language topic or one company, and Web Search for general web pages.
    - Use batches only for genuinely large asynchronous work and monitors only for recurring change detection.
 
 3. Use the official Context SDK when it supports the project language and capability. Use the REST API only when the SDK is unavailable or the repository already standardizes on raw HTTP.
