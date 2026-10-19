@@ -20,7 +20,7 @@ export function contextRequestId(
 }
 
 const ACCOUNT_LIMIT_NEXT_STEPS = new Map([
-  ["USAGE_EXCEEDED", "Authentication is valid. Retry once the balance covers the operation; get-usage is free. See credit and entitlement information: https://docs.context.dev/account/billing"],
+  ["USAGE_EXCEEDED", "Authentication is valid. Retry once the balance covers the operation; get-usage is free. Review billing settings: https://context.dev/dashboard/subscription"],
   [
     "RATE_LIMITED",
     "Wait for the Retry-After window before retrying, and make fewer parallel calls.",

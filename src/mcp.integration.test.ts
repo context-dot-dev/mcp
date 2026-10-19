@@ -261,13 +261,32 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
         },
       };
     }
+    if (args.domain === "concurrency-exceeded.test") {
+      return {
+        status: 429,
+        body: {
+          message: "Organization concurrency limit exceeded.",
+          request_id: "req_concurrency_limit",
+          error_code: "RATE_LIMITED",
+          error_data: {
+            is_authenticated: true,
+            limit_type: "concurrency",
+            limit: 2,
+            remaining: 0,
+            retry_after_seconds: 31,
+            credits_charged: 0,
+          },
+          key_metadata: { credits_consumed: 0, credits_remaining: 48 },
+        },
+      };
+    }
     if (args.domain === "usage-exceeded.test" || args.domain === "new-usage-exceeded.test") {
       return {
         status: args.domain === "new-usage-exceeded.test" ? 402 : 401,
         body: {
           message: "To get more credits immediately, subscribe at https://www.context.dev/dashboard/subscription",
           request_id: "req_credit_limit",
-          ...(args.domain === "new-usage-exceeded.test" ? { error_data: { is_authenticated: true, credits_remaining: 0, credits_required: 10, is_credits_required_estimated: true, credits_charged: 0, should_retry: false, retry_condition: "sufficient_credits", next_refill_at: "2026-11-01T07:01:00.000Z", next_refill_credits: 1000, info_url: "https://docs.context.dev/account/billing" } } : {}),
+          ...(args.domain === "new-usage-exceeded.test" ? { error_data: { is_authenticated: true, credits_remaining: 0, credits_required: 10, is_credits_required_estimated: true, credits_charged: 0, should_retry: false, retry_condition: "sufficient_credits", next_refill_at: "2026-11-01T07:01:00.000Z", next_refill_credits: 1000, info_url: "https://context.dev/dashboard/subscription" } } : {}),
           error_code: "USAGE_EXCEEDED",
           key_metadata: { credits_consumed: 0, credits_remaining: 0 },
         },
@@ -416,6 +435,7 @@ const upstream = createServer((request, response) => {
       request.url ?? "",
       Buffer.concat(chunks),
     );
+    if (result.status === 429) response.setHeader("Retry-After", "31");
     response.writeHead(result.status, { "content-type": "application/json" });
     response.end(JSON.stringify(result.body));
   });
@@ -1873,7 +1893,7 @@ test("legacy and new billing errors reach both model surfaces without OAuth chal
         assert.equal(data.credits_remaining, 0);
         assert.equal(data.credits_charged, 0);
         assert.equal(data.should_retry, false);
-        assert.equal(data.info_url, "https://docs.context.dev/account/billing");
+        assert.equal(data.info_url, "https://context.dev/dashboard/subscription");
         if (domain === "new-usage-exceeded.test") {
           assert.equal(data.credits_required, 10);
           assert.equal(data.next_refill_credits, 1000);
@@ -1885,14 +1905,45 @@ test("legacy and new billing errors reach both model surfaces without OAuth chal
         const message = content.find((block) => block.type === "text")?.text ?? "";
         assert.deepEqual(JSON.parse(message.split("\n\n")[1]!), details);
         assert.match(message, /Authentication is valid/);
-        assert.match(message, /https:\/\/docs.context.dev\/account\/billing/);
-        assert.doesNotMatch(message, /dashboard|subscribe|upgrad|checkout/);
+        assert.match(message, /https:\/\/context.dev\/dashboard\/subscription/);
+        assert.doesNotMatch(message, /subscribe|upgrad|checkout/);
         assert.equal(failed._meta?.["mcp/www_authenticate"], undefined);
         assert.equal(validateOutput(details).valid, true);
       }
     }
     assert.equal(responses.some((response) => response.status === 401 || response.status === 402), false);
     assert.equal(responses.some((response) => response.headers.has("www-authenticate")), false);
+  } finally {
+    await client.close();
+  }
+});
+
+test("concurrency errors reach both model surfaces and validate against the output schema", async () => {
+  const client = await connectClient();
+  try {
+    const { tools } = await client.listTools();
+    const brandTool = tools.find((tool) => tool.name === "get-brand")!;
+    const validateOutput = new AjvJsonSchemaValidator().getValidator(brandTool.outputSchema!);
+    for (const name of ["get-brand", "brand-retrieve-unified"]) {
+      const result = await client.callTool({
+        name,
+        arguments: { domain: "concurrency-exceeded.test", ...(name === "brand-retrieve-unified" ? { type: "by_domain" } : {}) },
+      });
+      assert.equal(result.isError, true);
+      const details = result.structuredContent as Record<string, unknown>;
+      const data = details.error_data as Record<string, unknown>;
+      assert.equal(details.error_code, "RATE_LIMITED");
+      assert.equal(details.request_id, "req_concurrency_limit");
+      assert.equal(data.limit_type, "concurrency");
+      assert.equal(data.limit, 2);
+      assert.equal(data.retry_after_seconds, 31);
+      assert.equal(data.retry_condition, "available_concurrency");
+      assert.equal(data.info_url, "https://context.dev/dashboard/subscription");
+      const content = result.content as Array<{ type: string; text?: string }>;
+      assert.deepEqual(JSON.parse(content[0]!.text!.split("\n\n")[1]!), details);
+      assert.equal(validateOutput(details).valid, true);
+      assert.equal(result._meta?.["mcp/www_authenticate"], undefined);
+    }
   } finally {
     await client.close();
   }
