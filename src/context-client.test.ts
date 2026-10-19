@@ -520,24 +520,6 @@ test("account limits show limit details and the next step instead of a feedback 
         expected: "Context API 429 [RATE_LIMITED]: API rate limit exceeded: 10 request units are allowed per minute and this request uses 1. Retry in 37 seconds. (request_id: req_limit; Retry-After: 37; X-RateLimit-Remaining: 0; X-RateLimit-Limit: 10; credits_remaining: 48)\n\n" +
           `${accountLimitGuidance} Wait for the Retry-After window before retrying, and make fewer parallel calls.`,
       },
-      {
-        status: 401,
-        headers: new Headers({ "x-request-id": "req_limit" }),
-        payload: {
-          message: "Usage limit exceeded",
-          error_code: "USAGE_EXCEEDED",
-          key_metadata: { credits_consumed: 0, credits_remaining: 0 },
-        },
-        expected: "Context API 401 [USAGE_EXCEEDED]: Usage limit exceeded (request_id: req_limit; credits_remaining: 0)\n\n" +
-          `${accountLimitGuidance} Context has insufficient credits for this request, and every other Context tool that costs credits will fail the same way until credits are added or refilled. Stop calling Context tools for the rest of this task, including from parallel calls or subagents; retrying or switching tools only repeats this error. Tell the user once that they can add credits at [Manage billing](https://www.context.dev/dashboard/subscription); \`get-usage\` (free) shows their balance and next refill. Continue any work that does not need Context.`,
-      },
-      {
-        status: 403,
-        headers: new Headers({ "x-request-id": "req_limit" }),
-        payload: { message: "Browser actions require a paid plan", error_code: "PAID_PLAN_REQUIRED" },
-        expected: "Context API 403 [PAID_PLAN_REQUIRED]: Browser actions require a paid plan (request_id: req_limit)\n\n" +
-          `${accountLimitGuidance} Retry without \`sharedParams.actions\`; use \`sharedParams.waitFor\` to wait for content instead.`,
-      },
     ]) {
       globalThis.fetch = async () => new Response(JSON.stringify(scenario.payload), {
         status: scenario.status,

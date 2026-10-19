@@ -126,7 +126,19 @@ const authorizationServer = createServer(async (request, response) => {
 });
 
 const upstream = createServer(async (request, response) => {
-  await readBody(request);
+  const body = await readBody(request);
+  const args = body ? JSON.parse(body) : {};
+  const billingMatch = /^billing-(401|402)\.test$/.exec(args.domain ?? "");
+  if (billingMatch) {
+    response.writeHead(Number(billingMatch[1]), { "content-type": "application/json" });
+    response.end(JSON.stringify({ message: "Insufficient credits", error_code: "USAGE_EXCEEDED", key_metadata: { credits_consumed: 0, credits_remaining: 0 } }));
+    return;
+  }
+  if (request.url === "/org/usage") {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify({ credits_remaining: 0, next_refill: null }));
+    return;
+  }
   upstreamAuthorizationHeaders.push(request.headers.authorization ?? "");
   response.writeHead(200, { "content-type": "application/json" });
   response.end(JSON.stringify({ ok: true }));
@@ -1086,4 +1098,36 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     }),
   });
   assert.equal(dottedToken.status, 401);
+});
+
+
+test("billing errors do not challenge valid OAuth or refresh tokens, and zero-balance usage works", async () => {
+  const token = await issueAccessToken();
+  const requestsBefore = tokenRequests.length;
+  const responses: Response[] = [];
+  const client = new Client({ name: "billing-oauth-test", version: "1.0.0" });
+  await client.connect(new StreamableHTTPClientTransport(new URL(`${mcpBase}/mcp`), {
+    requestInit: { headers: { Authorization: `Bearer ${token}` } },
+    fetch: async (url, init) => {
+      const response = await fetch(url, init);
+      responses.push(response);
+      return response;
+    },
+  }));
+  try {
+    for (const status of [401, 402]) {
+      const result = await client.callTool({ name: "get-brand", arguments: { domain: `billing-${status}.test` } });
+      assert.equal(result.isError, true);
+      assert.equal((result.structuredContent as Record<string, unknown>)?.error_code, "USAGE_EXCEEDED");
+      assert.equal(result._meta?.["mcp/www_authenticate"], undefined);
+    }
+    const usage = await client.callTool({ name: "get-usage", arguments: {} });
+    assert.notEqual(usage.isError, true);
+    assert.equal((usage.structuredContent as Record<string, unknown>)?.credits_remaining, 0);
+    assert.equal(tokenRequests.length, requestsBefore);
+    assert.equal(responses.some((response) => response.status === 401 || response.status === 402), false);
+    assert.equal(responses.some((response) => response.headers.has("www-authenticate")), false);
+  } finally {
+    await client.close();
+  }
 });

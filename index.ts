@@ -1,3 +1,4 @@
+import { accountErrorShape, getAccountToolError } from "./src/account-error";
 import {
   error,
   getRequestContext,
@@ -217,7 +218,7 @@ const server = new MCPServer({
     "Use `get-brand` for visual domain data, `brand-retrieve-unified` for raw or non-domain data, `brand-search` for matches, `people-enrich` for people, and `web-styleguide` for design systems. Monitors are recurring only; check `get-monitor-limits`. For batches call `get-batch`, then `get-batch-results`. Webhook list/get tools inspect; retry resends and secret rotation replaces the receiver secret.\n\n" +
     "Only when needed for account failures, use `list-logs`, then `get-log` with its request ID.\n\n" +
     FEEDBACK_INSTRUCTIONS + "\n\n" +
-    "Auth: OAuth or an API key via `Authorization: Bearer <key>`, `X-API-Key: <key>`, or URL `api_key`. Prefer OAuth or headers; URLs may be logged. Avoid duplicate calls. On `USAGE_EXCEEDED`, do not retry; call `get-usage` once, tell the user the balance and refill, and continue independent work. Use idempotency keys for batch retries.",
+    "Auth: OAuth or an API key (`Authorization: Bearer <key>`, `X-API-Key`, or URL `api_key`). Prefer headers; URLs may be logged. On `USAGE_EXCEEDED` (402 or legacy 401), do not retry or reconnect; call `get-usage` once, explain the known balance and refill, and continue independent work. Use idempotency keys for batch retries.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
   websiteUrl: "https://context.dev",
@@ -1113,7 +1114,7 @@ function registerBrandTool(): void {
         destructiveHint: false,
         openWorldHint: true,
       },
-      outputSchema: z.object({ brand: brandSchema }),
+      outputSchema: z.object({ brand: brandSchema.optional(), ...accountErrorShape }),
       widget: {
         name: "context-brand",
         invoking: "Querying Context...",
@@ -1154,6 +1155,8 @@ function registerBrandTool(): void {
         payload = {};
       }
       if (!res.ok) {
+        const accountError = getAccountToolError(payload, res.headers);
+        if (accountError) return accountError;
         return contextApiError(
           "get-brand",
           contextErrorMessage(res.status, payload, res.headers),
