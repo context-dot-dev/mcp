@@ -7,7 +7,7 @@ Use the API reference linked for each capability before implementing request or 
 | Need | Capability | REST route | Notes |
 |---|---|---|---|
 | Find current sources when the URL is unknown | Web Search | `POST /web/search` | Returns ranked results and can include page Markdown or query-relevant highlights. |
-| Find company-specific coverage | News Search | `POST /news/search` | Requires exactly one company identifier: name, domain, ticker, or ISIN. |
+| Find news coverage by topic or company | News Search | `POST /news/search` | `searchBy.type` is `natural_language` with a plain-language `query`, or `entity` with exactly one company identifier: name, domain, ticker, or ISIN. |
 | Read one known page | Scrape | `POST /web/scrape` | Enable `formats.markdown` for summaries, RAG, and readable page content. |
 | Inspect the DOM or raw markup | Scrape | `POST /web/scrape` | Enable `formats.html` when HTML structure matters. |
 | Discover images on one page | Scrape | `POST /web/scrape` | Enable `formats.images` for image assets and metadata. |
@@ -29,9 +29,23 @@ Use the API reference linked for each capability before implementing request or 
 | Inspect or retry webhook notifications | Webhook Deliveries | `/webhooks/deliveries` routes | List, retrieve, inspect attempts, or retry a delivery. |
 | Report a Context problem you hit | Agent Feedback | `POST /feedback` | Send a category, a note, and the affected `request_id` or a `url`. Costs 0 credits. |
 
-## Company news request
+## News request
 
 `POST /news/search` uses a structured body. Choose at most one filter category (publisher domain, publisher country, article language, or article type), optionally with a date range. Do not send the retired flat query-parameter shape.
+
+Search by topic with a natural-language query. These results are ordered by relevance, up to 100 matches; `sortBy.type: "newest"` is rejected.
+
+```json
+{
+  "searchBy": {
+    "type": "natural_language",
+    "query": "chip export restrictions to China"
+  },
+  "limit": 10
+}
+```
+
+Search for one company with an entity:
 
 ```json
 {

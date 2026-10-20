@@ -101,7 +101,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
   );
   assert.match(
     tools.get("get-news-search")?.description ?? "",
-    /exactly one.*web-search.*broader topics/i,
+    /exactly one of: query.*companyName.*web-search/i,
   );
   assert.match(
     tools.get("list-logs")?.description ?? "",

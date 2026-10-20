@@ -214,7 +214,7 @@ const server = new MCPServer({
   description:
     "Turn the live web, company news, and files into reliable, agent-ready context. Connect with OAuth or a Context API key through the Authorization header, X-API-Key header, or api_key URL parameter.",
   instructions:
-    "Use Context for live web or news, URLs, files, brands, people, batches, and monitoring. Route: `get-news-search` for one company's news; `web-search` for broad research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `submit-batch` for large jobs; `parse-document` for file bytes. Prefer compact search and scrape results. Browser actions affect sites; use only requested actions.\n\n" +
+    "Use Context for live web or news, URLs, files, brands, people, batches, and monitoring. Route: `get-news-search` for news on a topic or about one company; `web-search` for broad web research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `submit-batch` for large jobs; `parse-document` for file bytes. Prefer compact search and scrape results. Browser actions affect sites; use only requested actions.\n\n" +
     "Use `get-brand` for visual domain data, `brand-retrieve-unified` for raw or non-domain data, `brand-search` for matches, `people-enrich` for people, and `web-styleguide` for design systems. Monitors are recurring only; check `get-monitor-limits`. For batches call `get-batch`, then `get-batch-results`. Webhook list/get tools inspect; retry resends and secret rotation replaces the receiver secret.\n\n" +
     "Only when needed for account failures, use `list-logs`, then `get-log` with its request ID.\n\n" +
     FEEDBACK_INSTRUCTIONS + "\n\n" +
@@ -1194,6 +1194,7 @@ function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
     components,
   )!;
   const properties = body.properties!;
+  const query = components.NewsSearchByNaturalLanguage!.properties!.query!;
   const name = components.NewsSearchEntityByName!.properties!.name!;
   const domain = components.NewsSearchEntityByDomain!.properties!.domain!;
   const ticker = components.NewsSearchEntityByTicker!.properties!.ticker!;
@@ -1201,32 +1202,38 @@ function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
   const isin = components.NewsSearchEntityByIsin!.properties!.isin!;
 
   return z.object({
+    query: schemaToZod(query, components).optional().describe(
+      "What to search for across all news, in plain language, such as \"chip export restrictions to China\". Provide exactly one of query, companyName, domain, ticker, or isin.",
+    ),
     companyName: schemaToZod(name, components).optional().describe(
-      "Company name. Provide exactly one of companyName, domain, ticker, or isin.",
+      "Company name. Provide exactly one of query, companyName, domain, ticker, or isin.",
     ),
     domain: schemaToZod(domain, components).optional().describe(
-      "Company website domain. Provide exactly one of companyName, domain, ticker, or isin.",
+      "Company website domain. Provide exactly one of query, companyName, domain, ticker, or isin.",
     ),
     ticker: schemaToZod(ticker, components).optional().describe(
-      "Public-company ticker. Provide exactly one of companyName, domain, ticker, or isin.",
+      "Public-company ticker. Provide exactly one of query, companyName, domain, ticker, or isin.",
     ),
     exchange: schemaToZod(exchange, components).optional().describe(
       "Optional stock exchange when ticker is used, such as NASDAQ or NYSE.",
     ),
     isin: schemaToZod(isin, components).optional().describe(
-      "International Securities Identification Number. Provide exactly one of companyName, domain, ticker, or isin.",
+      "International Securities Identification Number. Provide exactly one of query, companyName, domain, ticker, or isin.",
     ),
     filterBy: schemaToZod(properties.filterBy!, components).optional(),
     sortBy: z.enum(["newest", "relevance"]).optional().describe(
-      "Result ordering. Defaults to newest.",
+      "Result ordering for company searches. Defaults to newest. query searches are always ordered by relevance.",
     ),
     limit: schemaToZod(properties.limit!, components).optional(),
     cursor: schemaToZod(properties.cursor!, components).optional(),
     tags: schemaToZod(properties.tags!, components).optional(),
   }).refine(
-    ({ companyName, domain, ticker, isin }) =>
-      [companyName, domain, ticker, isin].filter((value) => value !== undefined).length === 1,
-    { message: "Provide exactly one of companyName, domain, ticker, or isin." },
+    ({ query, companyName, domain, ticker, isin }) =>
+      [query, companyName, domain, ticker, isin].filter((value) => value !== undefined).length === 1,
+    { message: "Provide exactly one of query, companyName, domain, ticker, or isin." },
+  ).refine(
+    ({ query, sortBy }) => query === undefined || sortBy !== "newest",
+    { message: "query searches are ordered by relevance; omit sortBy or set it to relevance." },
   ).refine(
     ({ exchange, ticker }) => exchange === undefined || ticker !== undefined,
     { message: "exchange can only be used with ticker." },

@@ -957,8 +957,10 @@ test("routes topic news and account-wide change listings", async () => {
   assert.notEqual(topicNews.isError, true);
   assert.notEqual(changes.isError, true);
   assert.equal(captured.length, 2);
-  assert.equal(captured[0]!.url, "/web/search");
-  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), { query: "DeFi OR Solana" });
+  assert.equal(captured[0]!.url, "/news/search");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    searchBy: { type: "natural_language", query: "DeFi OR Solana" },
+  });
   const url = new URL(captured[1]!.url, "http://upstream");
   assert.equal(url.pathname, "/monitors/changes");
   assert.equal(url.searchParams.get("tag"), "launch");
@@ -1328,6 +1330,7 @@ test("lists the public Context API with safety annotations", async () => {
     Record<string, unknown>
   >;
   assert.equal(newsProperties.searchBy, undefined);
+  assert.equal(newsProperties.query?.type, "string");
   assert.equal(newsProperties.companyName?.type, "string");
   assert.equal(newsProperties.domain?.type, "string");
   assert.equal(newsProperties.ticker?.type, "string");
@@ -2048,6 +2051,39 @@ test("translates the flat company-news contract to the public API request", asyn
     has_more: false,
     next_cursor: null,
   });
+});
+
+test("translates a natural-language news query and rejects mixing it with a company or newest sort", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "get-news-search",
+    arguments: { query: "chip export restrictions to China", filterBy: { articleLanguage: ["en"] }, limit: 5 },
+  });
+  const withCompany = await client.callTool({
+    name: "get-news-search",
+    arguments: { query: "earnings", companyName: "Apple" },
+  });
+  const withNewest = await client.callTool({
+    name: "get-news-search",
+    arguments: { query: "earnings", sortBy: "newest" },
+  });
+  await client.close();
+
+  assert.notEqual(result.isError, true);
+  assert.equal(captured.length, 1);
+  assert.equal(new URL(captured[0]!.url, upstreamBase).pathname, "/news/search");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    searchBy: { type: "natural_language", query: "chip export restrictions to China" },
+    filterBy: { articleLanguage: ["en"] },
+    limit: 5,
+  });
+  const errorText = (call: typeof withCompany) =>
+    (call.content as Array<{ type: string; text?: string }>).find((block) => block.type === "text")?.text ?? "";
+  assert.equal(withCompany.isError, true);
+  assert.match(errorText(withCompany), /exactly one of query, companyName, domain, ticker, or isin/);
+  assert.equal(withNewest.isError, true);
+  assert.match(errorText(withNewest), /ordered by relevance/);
 });
 
 test("accepts every company identifier and legacy news-search calls", async () => {
