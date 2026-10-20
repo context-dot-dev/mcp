@@ -278,8 +278,7 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
     "/mcp/.well-known/openid-configuration",
   ]) {
     const discovery = await fetch(`${mcpBase}${path}`);
-    assert.equal(discovery.status, 200, path);
-    assert.deepEqual(await discovery.json(), rootMetadata, path);
+    assert.equal(discovery.status, 404, path);
   }
   const missingDocument = await fetch(`${mcpBase}/mcp/.well-known/jwks.json`);
   assert.equal(missingDocument.status, 404);
@@ -294,6 +293,54 @@ test("publishes protected-resource metadata and challenges unauthenticated MCP c
   });
   assert.equal(rootUrl.status, 401);
   assert.match(rootUrl.headers.get("www-authenticate") ?? "", /oauth-protected-resource/);
+});
+
+test("discovers OAuth from non-browser MCP GET requests", async (t) => {
+  for (const [name, headers] of [
+    ["Codex discovery", { accept: "*/*", "mcp-protocol-version": "2024-11-05" }],
+    ["wildcard Accept", { accept: "*/*" }],
+    ["empty Accept", { accept: "" }],
+    ["JSON Accept", { accept: "application/json" }],
+  ] as const) {
+    await t.test(name, async () => {
+      const response = await fetch(`${mcpBase}/mcp`, { headers });
+      assert.equal(response.status, 401);
+      const challenge = response.headers.get("www-authenticate") ?? "";
+      const metadataUrl = /resource_metadata="([^"]+)"/.exec(challenge)?.[1];
+      assert.equal(metadataUrl, `${mcpBase}/.well-known/oauth-protected-resource`);
+      assert.doesNotMatch(challenge, /error=/);
+
+      const resourceResponse = await fetch(metadataUrl!);
+      assert.equal(resourceResponse.status, 200);
+      const resource = await resourceResponse.json();
+      assert.equal(resource.resource, mcpBase);
+      assert.deepEqual(resource.authorization_servers, [mcpBase]);
+
+      const issuer = resource.authorization_servers[0];
+      const discovery = await fetch(`${issuer}/.well-known/oauth-authorization-server`);
+      assert.equal(discovery.status, 200);
+      const metadata = await discovery.json();
+      assert.equal(metadata.issuer, issuer);
+      assert.equal(metadata.registration_endpoint, `${mcpBase}/register`);
+      assert.equal(metadata.authorization_endpoint, `${mcpBase}/authorize`);
+    });
+  }
+});
+
+test("preserves browser landing pages and rejects idle MCP event streams", async () => {
+  const browser = await fetch(`${mcpBase}/mcp`, {
+    headers: { accept: "text/html,application/xhtml+xml,*/*;q=0.8" },
+  });
+  assert.equal(browser.status, 200);
+  assert.match(browser.headers.get("content-type") ?? "", /text\/html/);
+  assert.match(await browser.text(), /<html/);
+  assert.equal(browser.headers.get("www-authenticate"), null);
+
+  const eventStream = await fetch(`${mcpBase}/mcp`, {
+    headers: { accept: "text/event-stream" },
+  });
+  assert.equal(eventStream.status, 405);
+  assert.equal(eventStream.headers.get("allow"), "POST, DELETE");
 });
 
 async function registerClient(
