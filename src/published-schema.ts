@@ -119,11 +119,12 @@ function mergeObjects(variants: JsonSchema[]): JsonSchema {
   const propertyNames = [
     ...new Set(variants.flatMap((variant) => Object.keys(variant.properties ?? {}))),
   ];
+  const variantLabels = readVariantLabels(variants);
   const properties = Object.fromEntries(
     propertyNames.map((name) => {
-      const definitions = variants.flatMap((variant) => {
+      const definitions = variants.flatMap((variant, index) => {
         const definition = variant.properties?.[name];
-        return definition ? [definition] : [];
+        return definition ? [{ definition, label: variantLabels[index] }] : [];
       });
       return [name, mergeDefinitions(definitions)];
     }),
@@ -142,52 +143,97 @@ function mergeObjects(variants: JsonSchema[]): JsonSchema {
   };
 }
 
-function mergeDefinitions(definitions: JsonSchema[]): JsonSchema {
-  const distinct = [
-    ...new Map(
-      definitions.map((definition) => [JSON.stringify(definition), definition]),
-    ).values(),
-  ];
-  if (distinct.length === 1) return distinct[0];
-  const description = distinct.find((definition) => definition.description)
-    ?.description;
-  const constants = distinct.map(readConstant);
+// The discriminator is the property each variant pins to its own value, such
+// as `type: "page"`; those values name the variants in merged descriptions.
+function readVariantLabels(variants: JsonSchema[]): Array<string | undefined> {
+  const discriminator = Object.keys(variants[0].properties ?? {}).find((name) => {
+    const values = variants.map((variant) =>
+      readConstant(variant.properties?.[name] ?? {}),
+    );
+    return (
+      values.every((value) => value !== undefined) &&
+      new Set(values).size === variants.length
+    );
+  });
+  return variants.map((variant) =>
+    discriminator === undefined
+      ? undefined
+      : String(readConstant(variant.properties![discriminator]!)),
+  );
+}
+
+type LabeledDefinition = { definition: JsonSchema; label?: string };
+type DefinitionGroup = { definition: JsonSchema; labels: Array<string | undefined> };
+
+function mergeDefinitions(definitions: LabeledDefinition[]): JsonSchema {
+  const distinct = groupDefinitions(definitions);
+  if (distinct.length === 1) return distinct[0].definition;
+  const description = describeAlternatives(distinct);
+  const constants = distinct.map(({ definition }) => readConstant(definition));
   const isDiscriminator = constants.every((value) => value !== undefined);
   if (isDiscriminator) {
     const values = [...new Set(constants)];
-    return {
-      type: typeof values[0],
-      enum: values,
-      description: describeDiscriminator(distinct, constants) ?? description,
-    } as JsonSchema;
+    return { type: typeof values[0], enum: values, description } as JsonSchema;
   }
-  const merged = mergeObjectUnion({ anyOf: distinct });
+  const merged = mergeObjectUnion({
+    anyOf: distinct.map(({ definition }) => definition),
+  });
   if (!merged.anyOf) {
     return { ...merged, description: merged.description ?? description };
   }
-  const undescribedVariants = merged.anyOf.map(
-    ({ description: _description, ...variant }) => variant,
-  );
-  return { anyOf: undescribedVariants, description };
+  const undescribedVariants = [
+    ...new Map(
+      merged.anyOf.map(({ description: _description, ...variant }) => [
+        JSON.stringify(variant),
+        variant,
+      ]),
+    ).values(),
+  ];
+  return undescribedVariants.length === 1
+    ? { ...undescribedVariants[0], description }
+    : { anyOf: undescribedVariants, description };
 }
 
-// The merged enum would otherwise carry only the first variant's description,
-// such as "Reuse a saved profile." for a type that also accepts `new`.
-// Placeholder descriptions ("Use `new`.") say nothing the enum doesn't.
-function describeDiscriminator(
-  definitions: JsonSchema[],
-  constants: unknown[],
-): string | undefined {
-  const described = definitions.flatMap((definition, index) =>
-    definition.description && !/^Use `[^`]*`\.$/.test(definition.description)
-      ? [{ value: constants[index], description: definition.description }]
-      : [],
+function groupDefinitions(definitions: LabeledDefinition[]): DefinitionGroup[] {
+  const groups = new Map<string, DefinitionGroup>();
+  for (const { definition, label } of definitions) {
+    const key = JSON.stringify(definition);
+    const group = groups.get(key);
+    groups.set(key, {
+      definition,
+      labels: [...(group?.labels ?? []), label],
+    });
+  }
+  return [...groups.values()];
+}
+
+// A merged property keeps what it means in every variant, labeled by variant,
+// instead of only the first variant's description.
+function describeAlternatives(groups: DefinitionGroup[]): string | undefined {
+  const descriptions = [
+    ...new Set(
+      groups.flatMap(({ definition }) =>
+        definition.description ? [definition.description] : [],
+      ),
+    ),
+  ];
+  const isLabeled = groups.every(({ labels }) =>
+    labels.every((label) => label !== undefined),
   );
-  const descriptions = new Set(described.map(({ description }) => description));
-  if (descriptions.size < 2) return undefined;
-  return described
-    .map(({ value, description }) => `\`${String(value)}\`: ${description}`)
-    .join(" ");
+  if (descriptions.length < 2 || !isLabeled) return descriptions[0];
+  const labeledDescriptions = groups.flatMap(({ definition, labels }) => {
+    if (!definition.description) return [];
+    const names = labels.map((label) => `\`${label}\``);
+    const isSelfLabeled = names.every((name) =>
+      definition.description!.includes(name),
+    );
+    return [
+      isSelfLabeled
+        ? definition.description
+        : `${names.join(", ")}: ${definition.description}`,
+    ];
+  });
+  return [...new Set(labeledDescriptions)].join(" ");
 }
 
 function readConstant(schema: JsonSchema): unknown {
@@ -196,10 +242,13 @@ function readConstant(schema: JsonSchema): unknown {
   return undefined;
 }
 
-const DEFAULT_SENTENCE = /(?:^|(?<=[.!?])\s+)Defaults? to [^.]*\.(?=\s|$)/g;
+// A default sentence is dropped only when the schema publishes that default as
+// a keyword. Conditional or relative defaults, such as "24 hours before `to`",
+// have no keyword, and sentences that say more than the default are kept.
+const DEFAULT_SENTENCE = /(?:^|(?<=[.!?])\s+)Defaults? to [^.;]*\.(?=\s|$)/g;
 
 function shortenDescription(schema: JsonSchema): JsonSchema {
-  if (!schema.description) return schema;
+  if (!schema.description || schema.default === undefined) return schema;
   const shortened = schema.description.replace(DEFAULT_SENTENCE, "").trim();
   if (!shortened) return schema;
   return { ...schema, description: shortened };

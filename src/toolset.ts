@@ -73,6 +73,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: false,
       openWorldHint: true,
     },
   },
@@ -83,6 +84,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -93,6 +95,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -103,6 +106,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -113,6 +117,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -123,6 +128,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -133,6 +139,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -143,16 +150,18 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
   "web-styleguide": {
     title: "Extract a website style guide",
     description:
-      "Extract a website's design system, including colors, typography, spacing, shadows, and interface cues. Use this to reproduce a brand accurately in generated UI, design audits, or creative workflows.",
+      "Extract a website's design system. Returns the normalized domain and a styleguide with the color mode, colors, typography, element spacing, shadows, font links, and component styles. Use this to reproduce a brand accurately in generated UI, design audits, or creative workflows.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -163,6 +172,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -173,6 +183,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -183,26 +194,29 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
   "people-enrich": {
     title: "Enrich a person",
     description:
-      "Enrich one person from combined identity clues and return a profile with an identity match score. Provide a person email, a person-profile social URL, or both first and last name with company, education, or location. Use people-search to find people from a description, or brand-retrieve-unified for company data.",
+      "Enrich one person from combined identity clues. Returns the best match with an identity score and the person's profile (name, email, location, bio, current role, experience, education, skills, and social and website URLs), or status not_found when no usable candidate exists. Provide a person email, a person-profile social URL, or both first and last name with company, education, or location. Use people-search to find people from a description, or brand-retrieve-unified for company data.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
   "list-logs": {
     title: "List API request logs",
     description:
-      "List recent API requests from the authenticated Context account, newest first. Filter by time, endpoint path, API key ID, HTTP status, error code, tags, or request content. Use errors_only to investigate failures, then pass the request_id from a data entry to get-log for the retained request and response. Defaults to the last 24 hours and does not create another usage-log entry.",
+      "List recent API requests from the authenticated Context account, newest first. Each entry has the request_id, time, method, path, HTTP status, error code, latency, credits used, API key ID, tags, and whether zero data retention applied. Filter by time, endpoint path, API key ID, HTTP status, error code, tags, or request content. Use errors_only to investigate failures, then pass the request_id from a data entry to get-log for the retained request and response. Defaults to the last 24 hours and does not create another usage-log entry.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -213,6 +227,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -223,6 +238,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -233,6 +249,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -243,6 +260,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -252,6 +270,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
+      idempotentHint: false,
       openWorldHint: false,
     },
   },
@@ -262,6 +281,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -272,6 +292,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
+      idempotentHint: false,
       openWorldHint: true,
     },
   },
@@ -282,6 +303,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -292,6 +314,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: true,
       openWorldHint: true,
     },
   },
@@ -313,6 +336,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -323,6 +347,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -333,6 +358,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -343,26 +369,29 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
   "list-monitor-credit-usage": {
     title: "Get monitor credit usage",
     description:
-      "Report credits charged by monitor over a time window, ordered by the monitors using the most credits. Use this for spend analysis and optimization, not for run or change details.",
+      "Report credits charged per monitor over a time window, highest first: each entry has the monitor ID, name, credits, and run count, plus the window's total credits. Counts up to the 10,000 most recent runs in the window. Use this for spend analysis and optimization, not for run or change details.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
   "get-monitor-limits": {
     title: "Get monitor limits",
     description:
-      "Retrieve the authenticated account's current monitor count and maximum allowed monitors. Use before create-monitor when checking available capacity.",
+      "Retrieve how many monitors the authenticated account has (monitors_used), the most it can have (monitors_limit), and its plan. Use before create-monitor when checking available capacity.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -373,36 +402,40 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: false,
       openWorldHint: false,
     },
   },
   "list-webhook-deliveries": {
     title: "List webhook deliveries",
     description:
-      "List the authenticated account's batch or monitor webhook deliveries, newest first. Select the source type and filter by batch, monitor, run, status, or creation time. Use get-webhook-delivery or list-webhook-delivery-attempts for delivery details.",
+      "List the authenticated account's batch or monitor webhook deliveries, newest first. Each delivery has its ID, event, source, destination URL, status, creation, delivery, next-attempt, and retry-deadline times, and last error. Select the source type and filter by batch, monitor, run, status, or creation time. Use get-webhook-delivery or list-webhook-delivery-attempts for delivery details.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
   "get-webhook-delivery": {
     title: "Get a webhook delivery",
     description:
-      "Retrieve one webhook delivery from the authenticated account, including its status and latest attempt. Use list-webhook-deliveries to find its delivery_id.",
+      "Retrieve one webhook delivery from the authenticated account: its event and event_id, source batch or monitor run, destination URL, status, creation, delivery, next-attempt, and retry-deadline times, last error, and latest attempt. Use list-webhook-deliveries to find its delivery_id.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
   "list-webhook-delivery-attempts": {
     title: "List webhook delivery attempts",
     description:
-      "List attempts for one webhook delivery, newest first, with delivery outcomes for troubleshooting. Use retry-webhook-delivery when another delivery attempt is needed.",
+      "List attempts for one webhook delivery, newest first, for troubleshooting. Each attempt has its number, trigger, destination URL, start and completion times, HTTP status, and error. Use retry-webhook-delivery when another delivery attempt is needed.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -413,16 +446,18 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
+      idempotentHint: false,
       openWorldHint: true,
     },
   },
   "list-changes": {
     title: "List all detected changes",
     description:
-      "List detected changes across all monitors in the authenticated account, with monitor, type, time, and tag filters. Use this for an account-wide change feed; use list-monitor-changes for one monitor.",
+      "List detected changes across all monitors in the authenticated account, with monitor, type, time, and tag filters. Each change has its ID, monitor and run IDs, target and detection types, title, summary, URL, detection time, importance, confidence, and the diff, evidence, or URL lists when available. Use this for an account-wide change feed; use list-monitor-changes for one monitor.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -433,6 +468,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -443,16 +479,18 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
+      idempotentHint: false,
       openWorldHint: true,
     },
   },
   "submit-batch": {
-    title: "Submit a large scraping batch",
+    title: "Submit a scraping batch",
     description:
-      "Start an asynchronous job to scrape up to 25,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhookUrl is supplied, Context sends a completion request to that external endpoint. The call returns a batch ID, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
+      "Start an asynchronous job to scrape up to 25,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhook.url is supplied, Context sends batch completion, failure, or cancellation events to that external endpoint. The call returns a batch ID and credit reservation, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
+      idempotentHint: false,
       openWorldHint: true,
     },
   },
@@ -463,6 +501,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -473,6 +512,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },
@@ -483,6 +523,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
   },

@@ -45,6 +45,8 @@ import {
 } from "./src/dcr";
 import { resolveObjectSchema, schemaToZod } from "./src/openapi-schema";
 import { compactPublishedSchema } from "./src/published-schema";
+import { replaceDescription } from "./src/schema-descriptions";
+import { OUTPUT_SCHEMAS } from "./src/output-schemas";
 import { repairToolArguments, restoreUndeclaredKeys } from "./src/argument-repair";
 import {
   completeValidArguments,
@@ -133,6 +135,7 @@ function withMcpSchemaDescriptions(
   schema: JsonSchema,
   path = "",
 ): JsonSchema {
+  const description = replaceDescription(schema.description);
   const properties = schema.properties
     ? Object.fromEntries(
         Object.entries(schema.properties).map(([name, property]) => {
@@ -169,7 +172,44 @@ function withMcpSchemaDescriptions(
       : schema.additionalProperties;
   return {
     ...schema,
+    ...(description ? { description } : {}),
     ...(properties ? { properties } : {}),
+    ...(items ? { items } : {}),
+    ...(oneOf ? { oneOf } : {}),
+    ...(anyOf ? { anyOf } : {}),
+    ...(allOf ? { allOf } : {}),
+    ...(additionalProperties !== undefined ? { additionalProperties } : {}),
+  };
+}
+
+// Components shared with responses mark response-only fields readOnly, such
+// as a monitor webhook's generated secret, and the API rejects them in requests.
+function withoutReadOnlyProperties(schema: JsonSchema): JsonSchema {
+  const readOnlyNames = new Set(
+    Object.entries(schema.properties ?? {})
+      .filter(([, property]) => property.readOnly === true)
+      .map(([name]) => name),
+  );
+  const properties = schema.properties
+    ? Object.fromEntries(
+        Object.entries(schema.properties)
+          .filter(([name]) => !readOnlyNames.has(name))
+          .map(([name, property]) => [name, withoutReadOnlyProperties(property)]),
+      )
+    : undefined;
+  const required = schema.required?.filter((name) => !readOnlyNames.has(name));
+  const items = schema.items ? withoutReadOnlyProperties(schema.items) : undefined;
+  const oneOf = schema.oneOf?.map(withoutReadOnlyProperties);
+  const anyOf = schema.anyOf?.map(withoutReadOnlyProperties);
+  const allOf = schema.allOf?.map(withoutReadOnlyProperties);
+  const additionalProperties =
+    schema.additionalProperties && typeof schema.additionalProperties === "object"
+      ? withoutReadOnlyProperties(schema.additionalProperties)
+      : schema.additionalProperties;
+  return {
+    ...schema,
+    ...(properties ? { properties } : {}),
+    ...(required ? { required } : {}),
     ...(items ? { items } : {}),
     ...(oneOf ? { oneOf } : {}),
     ...(anyOf ? { anyOf } : {}),
@@ -181,7 +221,7 @@ function withMcpSchemaDescriptions(
 const describedComponentSchemas = Object.fromEntries(
   Object.entries(COMPONENT_SCHEMAS).map(([name, schema]) => [
     name,
-    withMcpSchemaDescriptions(schema, name),
+    withMcpSchemaDescriptions(withoutReadOnlyProperties(schema), name),
   ]),
 );
 const monitorIntervalSchedule =
@@ -478,6 +518,7 @@ const LEGACY_TOOL_NAMES = new Set(Object.keys(LEGACY_TOOL_ANNOTATIONS));
 type ListedTool = {
   name: string;
   inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
   execution?: { taskSupport?: string };
 };
 
@@ -509,10 +550,10 @@ function shouldServeCoreProfile(request: HonoRequest | undefined): boolean {
   return CORE_PROFILE_USER_AGENT.test(request?.header("user-agent") ?? "");
 }
 
-function compactInputSchema(value: unknown, path: string[] = []): unknown {
+function compactCoreSchema(value: unknown, path: string[] = []): unknown {
   if (Array.isArray(value)) {
     return value.map((entry, index) =>
-      compactInputSchema(entry, [...path, String(index)]),
+      compactCoreSchema(entry, [...path, String(index)]),
     );
   }
   if (!value || typeof value !== "object") return value;
@@ -521,7 +562,7 @@ function compactInputSchema(value: unknown, path: string[] = []): unknown {
       const isTopLevelParameterDescription =
         name === "description" && path.length === 2 && path[0] === "properties";
       if (name === "description" && !isTopLevelParameterDescription) return [];
-      return [[name, compactInputSchema(entry, [...path, name])]];
+      return [[name, compactCoreSchema(entry, [...path, name])]];
     }),
   );
 }
@@ -532,25 +573,40 @@ function compactInputSchema(value: unknown, path: string[] = []): unknown {
 function buildPublishedToolLists(tools: ListedTool[]) {
   const fullTools = tools
     .filter((tool) => !LEGACY_TOOL_NAMES.has(tool.name))
-    .map<ListedTool>(({ inputSchema, execution, ...tool }) => {
+    .map<ListedTool>(({ inputSchema, outputSchema, execution, ...tool }) => {
       const isDefaultExecution =
         !execution ||
         (Object.keys(execution).length === 1 &&
           execution.taskSupport === "forbidden");
-      const publishedTool = isDefaultExecution ? tool : { ...tool, execution };
+      const publishedTool = {
+        ...(isDefaultExecution ? tool : { ...tool, execution }),
+        ...(outputSchema ? { outputSchema: withoutDialect(outputSchema) } : {}),
+      };
       if (!inputSchema) return publishedTool;
-      const { $schema: _dialect, ...schema } = inputSchema;
-      return { ...publishedTool, inputSchema: compactPublishedSchema(schema) };
+      return {
+        ...publishedTool,
+        inputSchema: compactPublishedSchema(withoutDialect(inputSchema)),
+      };
     });
   const coreTools = fullTools
     .filter((tool) => CORE_TOOL_NAMES.has(tool.name))
-    .map(({ inputSchema, ...tool }) => ({
+    .map(({ inputSchema, outputSchema, ...tool }) => ({
       ...tool,
       ...(inputSchema
-        ? { inputSchema: compactInputSchema(inputSchema) as Record<string, unknown> }
+        ? { inputSchema: compactCoreSchema(inputSchema) as Record<string, unknown> }
+        : {}),
+      ...(outputSchema
+        ? { outputSchema: compactCoreSchema(outputSchema) as Record<string, unknown> }
         : {}),
     }));
   return { fullTools, coreTools };
+}
+
+function withoutDialect({
+  $schema: _dialect,
+  ...schema
+}: Record<string, unknown>): Record<string, unknown> {
+  return schema;
 }
 
 // The server is stateless and never sends unsolicited messages, so a GET event
@@ -1056,7 +1112,13 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "list-webhook-deliveries.body":
     "Webhook delivery filters. Choose batch or monitor as the source type, then optionally filter by source ID, status, creation time, and pagination cursor.",
   "web-answers.json_format":
-    'Example output object, not JSON Schema. Use placeholder values to declare types, for example {"answer":"","sources":[""]}. Unknown values may be null.',
+    'Example output object, not JSON Schema. Use placeholder values to declare types, for example {"answer":"","sources":[""]}. Up to 8 levels, 500 values, and 16,000 characters. Unknown values may be null.',
+  "list-batches.cursor":
+    "`next_cursor` from the previous list-batches response.",
+  "list-logs.key_id":
+    "ID of the API key that made the request, as returned in `key_id` on list-logs entries or as a get-usage-history group value with group_by=key_id.",
+  "get-log.request_id":
+    "`request_id` of the API call, from a list-logs entry, an API response body, or the `X-Request-Id` response header.",
 };
 
 function mcpParameterDescription(
@@ -1074,6 +1136,9 @@ function mcpParameterDescription(
   }
   if (parameterName === "run_id") {
     return "Unique monitor run ID returned by run-monitor-now or list-monitor-runs, for example `run_123`.";
+  }
+  if (parameterName === "batch_id") {
+    return "Batch ID returned by submit-batch or list-batches; it starts with `batch_`.";
   }
   return undefined;
 }
@@ -1114,9 +1179,15 @@ function registerBrandTool(): void {
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
+        idempotentHint: true,
         openWorldHint: true,
       },
-      outputSchema: z.object({ brand: brandSchema.optional(), ...accountErrorShape }),
+      outputSchema: z.object({
+        brand: brandSchema
+          .optional()
+          .describe("Brand shown on the card; absent when the lookup failed."),
+        ...accountErrorShape,
+      }),
       widget: {
         name: "context-brand",
         invoking: "Querying Context...",
@@ -1240,6 +1311,15 @@ function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
   );
 }
 
+const RESPONSE_MODE_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  "web-search":
+    "Prefer compact for research: one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 1,200 characters per field for each result. Clipping is marked. Omit or use full for the complete response, up to the server response limit. For query-relevant excerpts, enable highlightsOptions instead of reading clipped page text.",
+  "web-scrape":
+    "Prefer compact for research: one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 4,000 characters per format. Clipping is marked; JSON, parsed data, product data, and images are kept. Omit or use full for the complete response, up to the server response limit. For query-relevant excerpts, request formats.highlights with highlightsParams.query instead of reading clipped page text.",
+  "web-crawl":
+    "Prefer compact for research: one JSON text response without verbose page metadata, with each page's Markdown and HTML clipped to 4,000 characters. Clipping is marked. Omit or use full for the complete response, up to the server response limit.",
+};
+
 function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
   if (endpoint.name === "get-news-search") {
     return createNewsSearchSchema(endpoint);
@@ -1259,7 +1339,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
     );
     const parameterDescription =
       mcpParameterDescription(endpoint.name, parameter.name) ??
-      parameter.description;
+      replaceDescription(parameter.description);
     if (parameterDescription) {
       parameterSchema = parameterSchema.describe(parameterDescription);
     }
@@ -1271,7 +1351,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
     shape.fileBase64 = z
       .string()
       .min(1)
-      .describe("Base64-encoded file bytes. Maximum decoded size: 25 MiB.");
+      .describe("Base64-encoded file bytes. Maximum decoded size: 50 MiB.");
   } else if (endpoint.requestBody) {
     const bodyObject = resolveObjectSchema(
       withMcpSchemaDescriptions(endpoint.requestBody.schema),
@@ -1311,14 +1391,12 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
         : bodySchema.optional();
     }
   }
-  if (
-    endpoint.name === "web-search" ||
-    endpoint.name === "web-scrape" ||
-    endpoint.name === "web-crawl"
-  ) {
-    shape.responseMode = z.enum(["full", "compact"]).optional().describe(
-      "Prefer compact for research: one JSON text response, no unused formats or verbose page metadata; HTML/Markdown/Highlights capped at 1,200 characters per field per search result or 4,000 per scrape or crawl field. Clipping is marked. JSON, parsed data and images are retained. Full (default) keeps the existing response shape and server limit. Use Highlights for query-relevant excerpts instead of clipped page prefixes.",
-    );
+  const responseModeDescription = RESPONSE_MODE_DESCRIPTIONS[endpoint.name];
+  if (responseModeDescription) {
+    shape.responseMode = z
+      .enum(["full", "compact"])
+      .optional()
+      .describe(responseModeDescription);
   }
   return z.object(shape);
 }
@@ -1326,6 +1404,7 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
 function registerEndpointTool(ep: Endpoint): void {
   const schema = createEndpointSchema(ep);
   registerToolInput(ep.name, schema);
+  const outputSchema = OUTPUT_SCHEMAS[ep.name];
   server.tool(
     {
       name: ep.name,
@@ -1333,6 +1412,9 @@ function registerEndpointTool(ep: Endpoint): void {
       description: ep.description,
       schema,
       annotations: ep.annotations,
+      ...(outputSchema
+        ? { outputSchema: schemaToZod(outputSchema, {}) as z.ZodObject }
+        : {}),
     },
     async (args, context: EnhancedToolContext) => {
       let endpointArgs = args;

@@ -1043,6 +1043,33 @@ test("keeps misnamed optional keys and wrapped arguments that would validate as 
   assert.equal(logsUrl.searchParams.get("limit"), "10");
 });
 
+test("keeps the API-generated webhook secret out of monitor requests", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const { tools } = await client.listTools();
+  for (const name of ["create-monitor", "update-monitor"]) {
+    const properties = tools.find((tool) => tool.name === name)?.inputSchema
+      .properties as Record<string, { anyOf?: Array<{ properties?: Record<string, unknown> }> }>;
+    const webhook = properties.webhook?.anyOf?.find((variant) => variant.properties);
+    assert.ok(webhook?.properties?.url, name);
+    assert.equal(webhook?.properties?.secret, undefined, name);
+  }
+  const result = await client.callTool({
+    name: "create-monitor",
+    arguments: {
+      name: "Pricing monitor",
+      target: { type: "page", url: "https://example.test/pricing" },
+      webhook: { url: "https://example.test/hook", secret: "whsec_guess" },
+    },
+  });
+  await client.close();
+
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(JSON.parse(captured.at(-1)!.body.toString()).webhook, {
+    url: "https://example.test/hook",
+  });
+});
+
 test("adds the hint once on the SSE path", async () => {
   const response = await fetch(`${mcpBase}/sse`, {
     method: "POST",
@@ -1215,6 +1242,7 @@ test("lists the public Context API with safety annotations", async () => {
     for (const key of [
       "readOnlyHint",
       "destructiveHint",
+      "idempotentHint",
       "openWorldHint",
     ] as const) {
       assert.equal(
@@ -1225,6 +1253,40 @@ test("lists the public Context API with safety annotations", async () => {
     }
   }
   assert.deepEqual(missingPropertyDescriptions, []);
+
+  // Compact mode returns these results as text without structuredContent.
+  const textResultTools = new Set(["web-search", "web-scrape", "web-crawl"]);
+  const accountError = {
+    message: "Insufficient credits.",
+    error_code: "USAGE_EXCEEDED",
+    error_data: { is_authenticated: true, should_retry: false },
+    key_metadata: { credits_remaining: 0 },
+    request_id: "req_credit_limit",
+  };
+  const shortenedResult = { _context_mcp: { truncated: true } };
+  for (const tool of tools) {
+    if (textResultTools.has(tool.name)) {
+      assert.equal(tool.outputSchema, undefined, tool.name);
+      continue;
+    }
+    assert.ok(tool.outputSchema, `${tool.name} is missing an output schema`);
+    assert.equal("$schema" in tool.outputSchema, false, tool.name);
+    const outputProperties = (tool.outputSchema.properties ?? {}) as Record<
+      string,
+      { description?: unknown }
+    >;
+    for (const [name, property] of Object.entries(outputProperties)) {
+      assert.equal(typeof property.description, "string", `${tool.name} output ${name}`);
+    }
+    const validateOutput = new AjvJsonSchemaValidator().getValidator(tool.outputSchema);
+    // get-brand builds its own result, which the response limit never shortens.
+    const results = tool.name === "get-brand"
+      ? [{}, accountError]
+      : [{}, accountError, shortenedResult];
+    for (const result of results) {
+      assert.equal(validateOutput(result).valid, true, `${tool.name}: ${JSON.stringify(result)}`);
+    }
+  }
   const names = new Set(tools.map((tool) => tool.name));
   assert.deepEqual(tools.map((tool) => tool.name), [
     "web-scrape",
@@ -1307,6 +1369,13 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(parseDocument?.annotations?.readOnlyHint, false);
   assert.equal(parseDocument?.annotations?.destructiveHint, false);
   assert.equal(parseDocument?.annotations?.openWorldHint, false);
+  assert.match(
+    String(
+      (parseDocument?.inputSchema.properties?.fileBase64 as { description?: string })
+        ?.description,
+    ),
+    /Maximum decoded size: 50 MiB/,
+  );
   const webSearch = tools.find((tool) => tool.name === "web-search");
   assert.equal(webSearch?.annotations?.readOnlyHint, true);
   assert.equal(webSearch?.annotations?.destructiveHint, false);

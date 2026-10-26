@@ -4,7 +4,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Returns page outputs and can run browser instructions that interact with controls on the target site.",
@@ -16,7 +17,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Maps website URLs and available page metadata using the Context index without modifying source sites.",
@@ -28,7 +30,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Follows links from a start URL and returns Markdown content for multiple pages without modifying any source site or account data.",
@@ -40,7 +43,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Issues a live web search and returns ranked results without modifying any search index or account data.",
@@ -52,7 +56,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Researches the live web and returns a sourced JSON answer without modifying source sites or account records.",
@@ -64,7 +69,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Retrieves raw brand intelligence data by domain, name, email, ticker, ISIN, or transaction descriptor without modifying any records.",
@@ -76,7 +82,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Fetches live brand intelligence for a domain from the Context API and returns it without modifying any stored data.",
@@ -88,7 +95,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Searches indexed brand names and domains without modifying brand records.",
@@ -100,7 +108,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Extracts a website's design system data including colors, typography, and spacing without writing to the site or account data.",
@@ -112,7 +121,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Searches indexed company records from a plain-language description and returns matching companies without modifying any records.",
@@ -124,7 +134,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Searches indexed public professional profiles from a plain-language description and returns matching people without modifying any records.",
@@ -136,7 +147,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Resolves supplied identity clues and returns a person profile and match score without modifying source records.",
@@ -148,7 +160,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Searches live and historical public company news and returns matching articles without modifying source sites or account records.",
@@ -160,7 +173,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Sends user-supplied file bytes to the Context API and transforms their content into new Markdown, so it is not classified as read-only for OpenAI review.",
@@ -172,7 +186,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Creates a new asynchronous scraping job in the authenticated account that will fetch up to 25,000 URLs.",
@@ -184,7 +199,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists asynchronous scraping batches in the authenticated account with status and filter parameters without modifying any records.",
@@ -196,7 +212,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Retrieves one batch's status, progress, timing, and download links without modifying any records.",
@@ -208,7 +225,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Pages through the URL-level results of a completed batch as JSON without modifying any stored records.",
@@ -246,7 +264,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Creates a new recurring monitor record in the authenticated account and immediately triggers a baseline network request to the target URL.",
@@ -258,7 +277,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists recurring monitors in the authenticated account with search and filter parameters without modifying any monitor configuration.",
@@ -270,7 +290,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Retrieves a single monitor's configuration, schedule, and baseline data by ID without modifying any settings.",
@@ -282,7 +303,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Modifies an existing monitor's configuration, replacing its stored definition in the authenticated account.",
@@ -307,7 +329,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Reads the current monitor count and maximum allowed by the account.",
@@ -319,7 +342,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Reports credits charged by monitor over a configurable time window without modifying any account data.",
@@ -331,7 +355,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Queues an immediate out-of-schedule network check for a monitor in the authenticated account, creating a new run record.",
@@ -343,7 +368,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists the execution history of one monitor including run status, timing, and credits without modifying any records.",
@@ -355,7 +381,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Retrieves the full outcome, lifecycle status, timing, credits, and detected change for one monitor run without modifying any records.",
@@ -367,7 +394,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists monitor runs across the entire authenticated account without modifying any records.",
@@ -379,7 +407,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists changes detected by one monitor within a time and tag filter range without modifying any records.",
@@ -391,7 +420,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Retrieves one detected change with full text diffs, semantic evidence, confidence, and snapshot data without modifying any records.",
@@ -403,7 +433,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists detected changes across all monitors in the authenticated account with filter parameters without modifying any records.",
@@ -415,7 +446,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": false,
-        "destructiveHint": true
+        "destructiveHint": true,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Replaces the stored signing secret for one monitor.",
@@ -427,7 +459,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists stored batch or monitor webhook delivery records with filters and pagination.",
@@ -439,7 +472,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Reads one stored webhook delivery including its status and latest attempt.",
@@ -451,7 +485,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Reads the attempt history for one stored webhook delivery.",
@@ -463,7 +498,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Queues another delivery attempt and updates delivery status.",
@@ -475,7 +511,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists API request metadata from the authenticated Context account with filters and pagination without modifying any records.",
@@ -487,7 +524,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Retrieves one retained API request and its redacted input and response from the authenticated Context account without modifying any records.",
@@ -499,7 +537,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Lists the IDs, descriptions, and creation times of browser profiles saved in the authenticated Context account without modifying them.",
@@ -511,7 +550,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Reads the authenticated Context account's credit balance, current-period usage, and next refill without modifying any records.",
@@ -523,7 +563,8 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": true
       },
       "justifications": {
         "read_only_justification": "Reads aggregated credit and request counts over time for the authenticated Context account without modifying any records.",
@@ -535,7 +576,8 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": false,
-        "destructiveHint": false
+        "destructiveHint": false,
+        "idempotentHint": false
       },
       "justifications": {
         "read_only_justification": "Records a feedback report about Context itself for the authenticated account.",
