@@ -655,6 +655,21 @@ test("signing in with a new browser profile needs the write scope", async () => 
   });
   assert.equal(signIn.isError, true);
   assert.match(JSON.stringify(signIn), /api\.write/);
+  const wrappedSignIn = await callContextApi({
+    apiBase,
+    endpoint: scrape,
+    args: {
+      body: {
+        url: "https://a.test/account",
+        sharedParams: {
+          profile: { type: "new", identifier: "user@a.test", password: "secret" },
+        },
+      },
+    },
+    credential: readOnlyCredential,
+  });
+  assert.equal(wrappedSignIn.isError, true);
+  assert.match(JSON.stringify(wrappedSignIn), /api\.write/);
   const reuse = await callContextApi({
     apiBase,
     endpoint: scrape,
