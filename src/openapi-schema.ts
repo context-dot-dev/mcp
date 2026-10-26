@@ -204,10 +204,23 @@ function unionSchemaToZod(
   );
 }
 
+// The default is published so clients know what an omitted value means; it is
+// metadata only, so validation and the forwarded arguments are unchanged.
 export function schemaToZod(
   input: JsonSchema,
   components: SchemaComponents,
   resolving: Set<string> = new Set()
+): z.ZodTypeAny {
+  const schema = convertSchemaToZod(input, components, resolving);
+  return input.default === undefined
+    ? schema
+    : schema.meta({ default: input.default });
+}
+
+function convertSchemaToZod(
+  input: JsonSchema,
+  components: SchemaComponents,
+  resolving: Set<string>
 ): z.ZodTypeAny {
   if (input.$ref) {
     if (resolving.has(input.$ref)) {

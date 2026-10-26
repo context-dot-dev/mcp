@@ -154,6 +154,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
     destructiveHint: false,
+    idempotentHint: false,
     openWorldHint: true,
   });
   assert.deepEqual(tools.get("delete-batch")?.annotations, {
@@ -165,11 +166,13 @@ test("tool descriptions route agents between overlapping workflows", () => {
   assert.deepEqual(tools.get("list-batches")?.annotations, {
     readOnlyHint: true,
     destructiveHint: false,
+    idempotentHint: true,
     openWorldHint: false,
   });
   assert.deepEqual(tools.get("list-logs")?.annotations, {
     readOnlyHint: true,
     destructiveHint: false,
+    idempotentHint: true,
     openWorldHint: false,
   });
 });
@@ -205,14 +208,20 @@ test("every public tool has annotations that match its most privileged behavior"
     "delete-batch",
     "rotate-monitor-webhook-secret",
   ]);
-  const idempotentTools = new Set([
-    "delete-monitor",
-    "cancel-batch",
-    "delete-batch",
+  // Each call can create a batch, monitor, run, secret, webhook attempt, or
+  // feedback record, or repeat browser actions on a target site.
+  const nonIdempotentTools = new Set([
+    "web-scrape",
+    "submit-batch",
+    "create-monitor",
+    "run-monitor-now",
+    "rotate-monitor-webhook-secret",
+    "retry-webhook-delivery",
+    "submit-feedback",
   ]);
 
   for (const tool of selectEndpoints(ENDPOINTS)) {
-    const expected = readOnlyExternalTools.has(tool.name)
+    const behavior = readOnlyExternalTools.has(tool.name)
       ? {
           readOnlyHint: true,
           destructiveHint: false,
@@ -240,9 +249,6 @@ test("every public tool has annotations that match its most privileged behavior"
           ? {
               readOnlyHint: false,
               destructiveHint: true,
-              ...(idempotentTools.has(tool.name)
-                ? { idempotentHint: true }
-                : {}),
               openWorldHint: false,
             }
           : {
@@ -250,6 +256,10 @@ test("every public tool has annotations that match its most privileged behavior"
               destructiveHint: false,
               openWorldHint: false,
             };
+    const expected = {
+      ...behavior,
+      idempotentHint: !nonIdempotentTools.has(tool.name),
+    };
     assert.deepEqual(tool.annotations, expected, tool.name);
   }
 });
@@ -286,6 +296,7 @@ test("submission annotations and justifications match the published tools", () =
   publishedAnnotations.set("get-brand", {
     readOnlyHint: true,
     destructiveHint: false,
+    idempotentHint: true,
     openWorldHint: true,
   });
 

@@ -4,11 +4,14 @@ import { contextRequestId } from "./feedback";
 const BILLING_INFORMATION_URL = "https://context.dev/dashboard/subscription";
 
 export const accountErrorShape = {
-  message: z.string().optional(),
-  error_code: z.string().optional(),
-  error_data: z.record(z.string(), z.unknown()).optional(),
-  key_metadata: z.record(z.string(), z.unknown()).optional(),
-  request_id: z.string().optional(),
+  message: z.string().optional().describe("Account-limit error and next step."),
+  error_code: z.string().optional().describe("Error code, such as USAGE_EXCEEDED."),
+  error_data: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("Error details, including should_retry and retry_condition."),
+  key_metadata: z.record(z.string(), z.unknown()).optional().describe("API key credit details."),
+  request_id: z.string().optional().describe("Request ID."),
 };
 
 export function getAccountToolError(payload: unknown, headers: Headers) {

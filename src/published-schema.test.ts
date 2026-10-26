@@ -90,7 +90,7 @@ test("merged discriminators describe every value", () => {
       variant("domain", "Use `domain`.", "domain"),
       variant("name", "Use `name`.", "name"),
     ),
-    "Use `domain`.",
+    "Use `domain`. Use `name`.",
   );
 });
 
@@ -125,17 +125,67 @@ test("nested object unions keep the variant summary when their parents merge", (
   );
 });
 
-test("drops default sentences and validator-only string limits", () => {
+test("drops default sentences the default keyword repeats and validator-only string limits", () => {
   const published = compactPublishedSchema({
     type: "string",
     minLength: 1,
     maxLength: 2048,
     pattern: "^[\\s\\S]*\\S[\\s\\S]*$",
+    default: "25",
     description: "Page size. Defaults to 25. Must be positive.",
   });
   assert.deepEqual(published, {
     type: "string",
+    default: "25",
     description: "Page size. Must be positive.",
+  });
+});
+
+test("keeps default sentences that no default keyword expresses", () => {
+  for (const schema of [
+    {
+      type: "string",
+      description: "Start of the range. Defaults to 24 hours before `to`.",
+    },
+    {
+      type: "integer",
+      default: 86400000,
+      description: "Maximum cache age. Defaults to 1 day; `0` fetches fresh.",
+    },
+  ]) {
+    assert.equal(compactPublishedSchema(schema).description, schema.description);
+  }
+});
+
+test("merged union properties describe every variant", () => {
+  const published = compactPublishedSchema({
+    anyOf: [
+      {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["page"], description: "Use `page` to watch one page." },
+          url: { type: "string", description: "Page URL." },
+        },
+        required: ["type", "url"],
+      },
+      {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["sitemap"], description: "Use `sitemap` to watch a sitemap." },
+          url: { type: "string", description: "Sitemap URL." },
+        },
+        required: ["type", "url"],
+      },
+    ],
+  });
+  assert.deepEqual(published.properties?.type, {
+    type: "string",
+    enum: ["page", "sitemap"],
+    description: "Use `page` to watch one page. Use `sitemap` to watch a sitemap.",
+  });
+  assert.deepEqual(published.properties?.url, {
+    type: "string",
+    description: "`page`: Page URL. `sitemap`: Sitemap URL.",
   });
 });
 
