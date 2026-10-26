@@ -46,6 +46,28 @@ test("web-scrape requests the formats whose options were sent", () => {
   );
 });
 
+test("web-scrape turns selector clicks into perform instructions", () => {
+  const actions = (action: Record<string, unknown>) =>
+    (
+      repairToolSpecificArguments("web-scrape", {
+        url: "https://a.test",
+        sharedParams: { actions: [action, { type: "wait", milliseconds: 1000 }] },
+      }).sharedParams as { actions: unknown[] }
+    ).actions;
+  const selector = 'category-card [aria-label="Breakfast"]';
+  const click = [
+    { type: "perform", action: `Click the element matching the CSS selector \`${selector}\`` },
+    { type: "wait", milliseconds: 1000 },
+  ];
+
+  assert.deepEqual(actions({ type: "perform", action: "click", selector }), click);
+  assert.deepEqual(actions({ type: "click", selector }), click);
+  assert.deepEqual(actions({ type: "scroll", selector: ".feed" }), [
+    { type: "scroll", selector: ".feed" },
+    { type: "wait", milliseconds: 1000 },
+  ]);
+});
+
 test("web-answers accepts query and a JSON Schema for the answer shape", () => {
   assert.deepEqual(
     repairToolSpecificArguments("web-answers", {

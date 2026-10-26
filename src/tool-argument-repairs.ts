@@ -221,12 +221,29 @@ function repairScrapeFormats(input: Arguments): Arguments {
       args.parseParams = { ...args.parseParams, rules: Object.fromEntries(entries) };
     }
   }
+  if (Array.isArray(shared.actions)) {
+    shared.actions = shared.actions.map(repairClickAction);
+  }
   if (Object.keys(shared).length > 0 || isPlainObject(input.sharedParams)) {
     args.sharedParams = shared;
   } else {
     delete args.sharedParams;
   }
   return repairScrapeParseParams(args);
+}
+
+// Other scraping APIs click by CSS selector ({ type: "click", selector }), and
+// models copy that into perform; perform takes one plain-language instruction.
+function repairClickAction(action: unknown): unknown {
+  if (!isPlainObject(action) || typeof action.selector !== "string") return action;
+  const isBareClick =
+    action.type === "click" ||
+    (action.type === "perform" &&
+      typeof action.action === "string" &&
+      action.action.trim().toLowerCase() === "click");
+  return isBareClick
+    ? { type: "perform", action: `Click the element matching the CSS selector \`${action.selector}\`` }
+    : action;
 }
 
 function repairParseRuleAttributes(rule: unknown): unknown {

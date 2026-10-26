@@ -240,7 +240,7 @@ test("repairs a union member chosen by its discriminator", () => {
   );
 });
 
-test("keeps a key another union member declares so the conflict is reported", () => {
+test("keeps a key another union member declares so the conflict is reported, but not its placeholder", () => {
   const schema: JsonSchema = {
     type: "object",
     properties: {
@@ -263,6 +263,10 @@ test("keeps a key another union member declares so the conflict is reported", ()
   assert.deepEqual(
     repairToolArguments({ body: { type: "batch", monitor_id: "mon_1", extra: 1 } }, schema),
     { body: { type: "batch", monitor_id: "mon_1" } },
+  );
+  assert.deepEqual(
+    repairToolArguments({ body: { type: "batch", batch_id: "b_1", monitor_id: null } }, schema),
+    { body: { type: "batch", batch_id: "b_1" } },
   );
 });
 
