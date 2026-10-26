@@ -1258,6 +1258,9 @@ function registerBrandTool(): void {
   );
 }
 
+// News pages above 30 articles regularly exceed the MCP response cap; the API itself allows 100.
+const NEWS_SEARCH_MCP_MAX_LIMIT = 30;
+
 function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
   const components: Record<string, JsonSchema> = MCP_COMPONENT_SCHEMAS;
   const body = resolveObjectSchema(
@@ -1295,7 +1298,12 @@ function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
     sortBy: z.enum(["newest", "relevance"]).optional().describe(
       "Result ordering for company searches. Defaults to newest. query searches are always ordered by relevance.",
     ),
-    limit: schemaToZod(properties.limit!, components).optional(),
+    limit: schemaToZod(
+      { ...properties.limit!, maximum: NEWS_SEARCH_MCP_MAX_LIMIT },
+      components,
+    ).optional().describe(
+      `Articles per page, up to ${NEWS_SEARCH_MCP_MAX_LIMIT}. Defaults to 10. Follow next_cursor for more articles.`,
+    ),
     cursor: schemaToZod(properties.cursor!, components).optional(),
     tags: schemaToZod(properties.tags!, components).optional(),
   }).refine(

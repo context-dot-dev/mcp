@@ -60,7 +60,7 @@ Tool arguments are repaired against the published input schema before validation
 
 Requests rejected with `429` are retried up to five times with backoff while the `Retry-After` delay fits within 30 seconds; they did no work, so the retry is safe. A Context API call that has not answered within 115 seconds is stopped with an actionable error before hosting proxies time out. Tools removed when scraping was consolidated (`web-scrape-markdown`, `web-scrape-html`, `web-scrape-images`, `web-scrape-sitemap`, `web-extract`, `web-screenshot`) remain callable for clients with cached tool lists but are not listed.
 
-Tool responses are capped at 40,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
+Tool responses are capped at 80,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true`. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
 
 For focused research, pass `responseMode: "compact"` to `web-search` or `web-scrape`. Compact mode returns one JSON text block instead of duplicating it in `structuredContent`, omits unused formats, cache metadata and verbose page metadata, and unwraps successful format data. URLs, titles, request IDs and extraction failures remain available. Empty successful Highlights remain an empty array. Other tools and the REST API are unchanged; omitting the parameter or using `"full"` preserves the existing response.
 

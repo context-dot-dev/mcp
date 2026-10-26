@@ -109,6 +109,10 @@ for (const endpointName of ["get-batch-results", "list-monitors"]) {
       });
       assert.equal(result.isError, true);
       assert.equal(result.structuredContent, undefined);
+      if (endpointName === "list-monitors") {
+        const message = result.content[0]?.type === "text" ? result.content[0].text : "";
+        assert.match(message, /exceeds MCP client limits[\s\S]*Retry: no, not with the same arguments/);
+      }
     } finally {
       globalThis.fetch = originalFetch;
       if (originalLimit === undefined)

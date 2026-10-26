@@ -1413,6 +1413,8 @@ test("lists the public Context API with safety annotations", async () => {
   assert.equal(newsProperties.filterBy?.type, "object");
   assert.equal(newsProperties.sortBy?.type, "string");
   assert.deepEqual(newsProperties.sortBy?.enum, ["newest", "relevance"]);
+  assert.equal(newsProperties.limit?.maximum, 30);
+  assert.match(String(newsProperties.limit?.description), /up to 30/);
   const toolsWithRootCombinators = tools
     .filter((tool) =>
       ["oneOf", "anyOf", "allOf"].some((keyword) => keyword in tool.inputSchema),
@@ -2163,6 +2165,20 @@ test("translates the flat company-news contract to the public API request", asyn
     has_more: false,
     next_cursor: null,
   });
+});
+
+test("caps news pages at the MCP page size", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "get-news-search",
+    arguments: { query: "chip makers", limit: 50 },
+  });
+  await client.close();
+
+  assert.notEqual(result.isError, true);
+  assert.equal(captured.length, 1);
+  assert.equal(JSON.parse(captured[0]!.body.toString()).limit, 30);
 });
 
 test("translates a natural-language news query and rejects mixing it with a company or newest sort", async () => {
