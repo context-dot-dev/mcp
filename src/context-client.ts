@@ -375,6 +375,14 @@ function getScreenshot(value: Record<string, unknown>) {
 // Hosting proxies end MCP requests after about 125 seconds; stop waiting on the
 // API first so the client gets an actionable error instead of a gateway 524.
 const UPSTREAM_TIMEOUT_MS = 115_000;
+// A pooled keep-alive socket can close just as a call reuses it. fetch rejects
+// only before response headers, so retrying never repeats an answered call.
+const DROPPED_CONNECTION_CODES = new Set([
+  "ECONNRESET",
+  "EPIPE",
+  "UND_ERR_CLOSED",
+  "UND_ERR_SOCKET",
+]);
 // Plans with a concurrency limit of 1 reject parallel tool calls with 429.
 // Those requests did no work, so waiting briefly and retrying is safe and
 // turns most of them into successes instead of agent retry loops.
@@ -408,12 +416,21 @@ function retryAfterMs(headers: Headers, attempt: number): number {
   return Math.max(backoff, requested);
 }
 
-export function contextFetchFailure(cause: unknown): string {
+export function contextFetchError(toolName: string, cause: unknown) {
   if (cause instanceof Error && cause.name === "TimeoutError") {
-    return `Context API did not respond within ${UPSTREAM_TIMEOUT_MS / 1000} seconds, so the request was stopped before the MCP client timed out. Retry with a smaller request (fewer pages, results, or formats), or use submit-batch for long jobs.`;
+    return contextApiError(
+      toolName,
+      `Context API did not respond within ${UPSTREAM_TIMEOUT_MS / 1000} seconds, so the request was stopped before the MCP client timed out. Retry with a smaller request (fewer pages, results, or formats), or use submit-batch for long jobs.`,
+    );
   }
   const message = cause instanceof Error ? cause.message : String(cause);
-  return `Failed to reach Context API: ${message}`;
+  const code = fetchFailureCode(cause);
+  const detail = code ? `${message} (${code})` : message;
+  return contextApiError(
+    toolName,
+    `Failed to reach Context API: ${detail}`,
+    "CONNECTION_FAILED",
+  );
 }
 
 export async function fetchContextApi(
@@ -446,11 +463,15 @@ async function fetchInApiKeySlot(
     ? await acquireApiKeySlot(keyId, started + QUEUE_WAIT_LIMIT_MS)
     : undefined;
   try {
-    const elapsed = Date.now() - started;
-    const response = await fetch(url, {
-      ...init,
-      signal: AbortSignal.timeout(Math.max(1, UPSTREAM_TIMEOUT_MS - elapsed)),
-    });
+    const response = await fetchWithinTimeout(url, init, started).catch(
+      (cause: unknown) => {
+        const isDroppedConnection = DROPPED_CONNECTION_CODES.has(
+          fetchFailureCode(cause) ?? "",
+        );
+        if (!isDroppedConnection) throw cause;
+        return fetchWithinTimeout(url, init, started);
+      },
+    );
     if (keyId) rememberConcurrencyLimit(keyId, response.headers);
     const body = await response.arrayBuffer();
     return new Response(body.byteLength > 0 ? body : null, {
@@ -463,6 +484,24 @@ async function fetchInApiKeySlot(
   }
 }
 
+function fetchWithinTimeout(
+  url: URL | string,
+  init: RequestInit,
+  started: number,
+): Promise<Response> {
+  const elapsed = Date.now() - started;
+  return fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(Math.max(1, UPSTREAM_TIMEOUT_MS - elapsed)),
+  });
+}
+
+function fetchFailureCode(cause: unknown): string | undefined {
+  const code = cause instanceof Error
+    ? (cause.cause as { code?: unknown } | null | undefined)?.code
+    : undefined;
+  return typeof code === "string" ? code : undefined;
+}
 
 export async function callContextApi({
   apiBase,
@@ -545,14 +584,14 @@ export async function callContextApi({
   try {
     response = await fetchContextApi(url, request);
   } catch (cause) {
-    return contextApiError(endpoint.name, contextFetchFailure(cause));
+    return contextFetchError(endpoint.name, cause);
   }
 
   let raw: string;
   try {
     raw = await response.text();
   } catch (cause) {
-    return contextApiError(endpoint.name, contextFetchFailure(cause));
+    return contextFetchError(endpoint.name, cause);
   }
   let parsed: unknown;
   try {
