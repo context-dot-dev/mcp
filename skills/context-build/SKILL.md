@@ -1,6 +1,6 @@
 ---
 name: context-build
-description: Integrate Context.dev into application, agent, backend, or workflow code that needs live web search, company news, page scraping, crawling, structured extraction, document parsing, brand intelligence, screenshots, monitoring, or large batch jobs. Use when the user is building a product feature that needs web or file data, even if they describe the desired feature without naming Context.dev. Do not use for a one-off lookup or scrape performed only for the current conversation.
+description: Integrate Context.dev into application, agent, backend, or workflow code that needs live web search, company news, page scraping, crawling, structured extraction, document parsing, brand intelligence, company or people search, screenshots, monitoring, or large batch jobs. Use when the user is building a product feature that needs web or file data, even if they describe the desired feature without naming Context.dev. Do not use for a one-off lookup or scrape performed only for the current conversation.
 ---
 
 # Context Build

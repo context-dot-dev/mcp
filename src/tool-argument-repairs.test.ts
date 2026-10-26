@@ -212,6 +212,54 @@ test("submit-batch moves mode into input and wraps URL strings", () => {
   );
 });
 
+test("company-search and people-search move flat filters under filters", () => {
+  assert.deepEqual(
+    repairToolSpecificArguments("company-search", {
+      q: "solar startups",
+      country: "United States",
+      min_employees: 50,
+      cursor: "next",
+    }),
+    {
+      query: "solar startups",
+      cursor: "next",
+      filters: { countries: ["US"], employees_min: 50 },
+    },
+  );
+  assert.deepEqual(
+    repairToolSpecificArguments("people-search", {
+      query: "VPs of sales",
+      yearsOfExperienceMin: 10,
+      filters: { countries: ["uk", "Germany", "Côte d'Ivoire"] },
+    }),
+    {
+      query: "VPs of sales",
+      filters: {
+        countries: ["GB", "DE", "CI"],
+        years_of_experience_min: 10,
+      },
+    },
+  );
+  assert.deepEqual(
+    repairToolSpecificArguments("people-search", {
+      query: "founders",
+      filters: { countries: "US, ca" },
+    }),
+    { query: "founders", filters: { countries: ["US", "CA"] } },
+  );
+});
+
+test("company-search and people-search leave valid or unknown filters alone", () => {
+  const valid = { query: "robotics", filters: { countries: ["DE"], employees_max: 200 } };
+  assert.equal(completeValidArguments("company-search", valid), valid);
+  const unknownCountry = { query: "engineers", filters: { countries: ["Atlantis"] } };
+  assert.equal(repairToolSpecificArguments("people-search", unknownCountry), unknownCountry);
+  assert.deepEqual(
+    completeValidArguments("company-search", { query: "robotics", countries: ["DE"] }),
+    { query: "robotics", filters: { countries: ["DE"] } },
+  );
+});
+
 test("web-scrape scopes selector-less nested parse rules to the page", () => {
   assert.deepEqual(
     repairToolSpecificArguments("web-scrape", {

@@ -108,6 +108,30 @@
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },
+    "company-search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches indexed company records from a plain-language description and returns matching companies without modifying any records.",
+        "open_world_justification": "Queries public information about arbitrary companies outside the private Context account.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "people-search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches indexed public professional profiles from a plain-language description and returns matching people without modifying any records.",
+        "open_world_justification": "Queries public professional information about people outside the private Context account.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
     "people-enrich": {
       "annotations": {
         "readOnlyHint": true,
@@ -468,6 +492,18 @@
       "justifications": {
         "read_only_justification": "Retrieves one retained API request and its redacted input and response from the authenticated Context account without modifying any records.",
         "open_world_justification": "Reads only one retained request from the authenticated user's private Context account and does not access or alter external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "list-browser-profiles": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists the IDs, descriptions, and creation times of browser profiles saved in the authenticated Context account without modifying them.",
+        "open_world_justification": "Reads only profile metadata from the authenticated user's private Context account and does not access or alter external internet state.",
         "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
       }
     },

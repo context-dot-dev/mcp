@@ -130,12 +130,22 @@ function requestsBrowserActions(args: ToolArguments): boolean {
   );
 }
 
+// A new browser profile signs in to the target site with the supplied
+// credentials and saves the session to the account.
+function createsBrowserProfile(args: ToolArguments): boolean {
+  const sharedParams = args.sharedParams as Record<string, unknown> | undefined;
+  const profile = sharedParams?.profile as Record<string, unknown> | undefined;
+  return profile?.type === "new";
+}
+
 function isReadOnlyRequest(endpoint: Endpoint, args: ToolArguments): boolean {
-  // web-scrape is annotated for its browser actions but only needs write
-  // access when a request uses them.
+  // web-scrape is annotated for its browser actions and sign-ins but only
+  // needs write access when a request uses them.
   const readOnly =
     endpoint.name === "web-scrape" || endpoint.annotations.readOnlyHint;
-  return readOnly && !requestsBrowserActions(args);
+  return (
+    readOnly && !requestsBrowserActions(args) && !createsBrowserProfile(args)
+  );
 }
 
 export function contextErrorMessage(

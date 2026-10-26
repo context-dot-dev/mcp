@@ -19,7 +19,9 @@ Use the API reference linked for each capability before implementing request or 
 | Research a question into sourced JSON | Answers | `POST /web/answers` | Supply a task and optional output shape. |
 | Convert an uploaded file to Markdown | Parse | `POST /parse` | Send file bytes server-side and enforce the documented size limit. |
 | Retrieve company and brand data | Brand Retrieve | `POST /brand/retrieve` | Supports domain, name, work email, ticker, ISIN, transaction descriptor, or direct URL lookups. |
+| Find companies from a description | Company Search | `POST /company/search` | Plain-language `query` plus optional `filters` (countries, headcount). Up to 10 per page; pass `next_cursor` as `cursor`. |
 | Find a brand by name or domain | Brand Search | `GET /brand/search` | Lightweight matches for autocomplete. |
+| Find people from a description | People Search | `POST /people/search` | Plain-language `query` plus optional `filters` (countries, years of experience). Up to 10 per page; pass `next_cursor` as `cursor`. |
 | Enrich a person | Person Enrichment | `POST /people/enrich` | Combine identity clues and inspect the returned match score. |
 | Reproduce a site's design system | Styleguide | `GET /web/styleguide` | Returns colors, typography, spacing, shadows, and related design cues. |
 | Identify website typography | Styleguide | `GET /web/styleguide` | Includes typography and font assets. |
@@ -98,5 +100,7 @@ For monitoring:
 - Agent quickstart: https://docs.context.dev/agent-quickstart
 - API reference: https://docs.context.dev/api-reference
 - News search: https://docs.context.dev/api-reference/news/search
+- Company search: https://docs.context.dev/api-reference/company/search
+- People search: https://docs.context.dev/api-reference/people/search
 - Batch submission: https://docs.context.dev/api-reference/batches/submit
 - Terms: https://www.context.dev/term

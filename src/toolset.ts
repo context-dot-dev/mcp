@@ -10,6 +10,8 @@ const API_REFERENCE_TOOL_ORDER = [
   "brand-retrieve-unified",
   "brand-search",
   "web-styleguide",
+  "company-search",
+  "people-search",
   "people-enrich",
   "get-news-search",
   "parse-document",
@@ -40,6 +42,7 @@ const API_REFERENCE_TOOL_ORDER = [
   "retry-webhook-delivery",
   "list-logs",
   "get-log",
+  "list-browser-profiles",
   "get-usage",
   "get-usage-history",
   "submit-feedback",
@@ -156,7 +159,27 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "brand-search": {
     title: "Search brands",
     description:
-      "Search indexed brands by company name or domain and return up to 10 lightweight matches. Supports prefix autocomplete, field selection, and typo tolerance. Use brand-retrieve-unified for a full profile or get-brand for a visual domain card.",
+      "Search indexed brands by company name or domain and return up to 10 lightweight matches, optionally filtered by country and language. Supports prefix autocomplete, field selection, and typo tolerance. Use this to resolve a company you can already name; use company-search to discover companies from a description. Use brand-retrieve-unified for a full profile or get-brand for a visual domain card.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+  },
+  "company-search": {
+    title: "Search companies",
+    description:
+      "Find companies that match a plain-language description of their industry, location, headcount, founding year, technology, web traffic, or funding, such as {\"query\":\"solar startups in California that raised a Series B\"}, or lookalikes such as {\"query\":\"companies like stripe.com\"}. Optional filters every result must match: filters.countries (headquarters, two-letter codes such as US), filters.employees_min, and filters.employees_max. Returns up to 10 companies, most relevant first, with domain, description, industries, headquarters, headcount, revenue range, funding, and stock symbols. For more, pass next_cursor as cursor with the same query and filters; stop when it is null. Costs 2 credits; searches with no matches are free. Use brand-search to resolve a company you can already name, brand-retrieve-unified for one company's full brand profile, or people-search for people at matching companies.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    },
+  },
+  "people-search": {
+    title: "Search people",
+    description:
+      "Find people who match a plain-language description of their role, employer, industry, location, skills, or experience, such as {\"query\":\"VPs of sales at solar companies in California\"}. Optional filters every result must match: filters.countries (where they live, two-letter codes such as US), filters.years_of_experience_min, and filters.years_of_experience_max. Returns up to 10 people, most relevant first, with name, current title, seniority, employer name and domain, location, profile URLs, skills, and schools. For more, pass next_cursor as cursor with the same query and filters; stop when it is null. Costs 10 credits per nonempty page; searches with no matches are free. Use people-enrich to look up one specific person from an email, profile URL, or name, or company-search to find companies.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -166,7 +189,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "people-enrich": {
     title: "Enrich a person",
     description:
-      "Enrich one person from combined identity clues and return a profile with an identity match score. Provide a person email, a person-profile social URL, or both first and last name with company, education, or location. Use brand-retrieve-unified for company data.",
+      "Enrich one person from combined identity clues and return a profile with an identity match score. Provide a person email, a person-profile social URL, or both first and last name with company, education, or location. Use people-search to find people from a description, or brand-retrieve-unified for company data.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -187,6 +210,16 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
     title: "Get an API request log",
     description:
       "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  "list-browser-profiles": {
+    title: "List browser profiles",
+    description:
+      "List the authenticated Context account's saved browser profiles, newest first, with each profile ID, optional description, and creation time. Reuse a profile in web-scrape with sharedParams.profile {\"type\":\"existing\",\"profileId\":\"prof_...\"} to scrape behind the same sign-in. Costs no credits.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
