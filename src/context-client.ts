@@ -10,7 +10,7 @@ import { contextApiError, contextRequestId } from "./feedback";
 import { compactWebResponse } from "./compact-response";
 
 type ToolArguments = Record<string, unknown>;
-const DEFAULT_MAX_RESPONSE_CHARS = 40_000;
+const DEFAULT_MAX_RESPONSE_CHARS = 80_000;
 const OMITTED_RESPONSE_FIELDS = new Set([
   "key_metadata",
   "trace_id",
@@ -633,6 +633,7 @@ export async function callContextApi({
       return contextApiError(
         endpoint.name,
         "This page exceeds MCP client limits. Restart pagination with a smaller limit, or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
+        "CONTENT_TOO_LARGE",
       );
     }
     const recordCount = Array.isArray(value.data) ? value.data.length : 0;

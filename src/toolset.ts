@@ -135,7 +135,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-news-search": {
     title: "Search news",
     description:
-      "Search live and historical news. Provide exactly one of: query, a plain-language description of the news you want (ordered by relevance, up to 100 matches); or one company identifier: companyName, domain, ticker with an optional exchange, or isin (set sortBy to newest or relevance). Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Use web-search for general web pages rather than news.",
+      "Search live and historical news. Provide exactly one of: query, a plain-language description of the news you want (ordered by relevance, up to 100 matches); or one company identifier: companyName, domain, ticker with an optional exchange, or isin (set sortBy to newest or relevance). Choose at most one filter category: publisher domain, publisher country, article language, or article type; optionally add a publication date range. Pages hold up to 30 articles; follow next_cursor for more. Use web-search for general web pages rather than news.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
