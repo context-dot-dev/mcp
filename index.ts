@@ -28,7 +28,7 @@ import {
   callContextApi,
   contextErrorCode,
   contextErrorMessage,
-  contextFetchFailure,
+  contextFetchError,
   fetchContextApi,
 } from "./src/context-client";
 import {
@@ -1216,14 +1216,14 @@ function registerBrandTool(): void {
           }),
         });
       } catch (cause) {
-        return contextApiError("get-brand", contextFetchFailure(cause));
+        return contextFetchError("get-brand", cause);
       }
       let payload: any;
       try {
         payload = await res.json();
       } catch (cause) {
         if (cause instanceof Error && cause.name === "TimeoutError") {
-          return contextApiError("get-brand", contextFetchFailure(cause));
+          return contextFetchError("get-brand", cause);
         }
         payload = {};
       }

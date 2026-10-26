@@ -17,6 +17,7 @@ type CapturedRequest = {
 
 const captured: CapturedRequest[] = [];
 let apiBase = "";
+let connectionsToDrop = 0;
 const upstream = createServer((request, response) => {
   const chunks: Buffer[] = [];
   request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
@@ -31,6 +32,18 @@ const upstream = createServer((request, response) => {
       contextAgent: request.headers["x-context-agent"] as string | undefined,
       body,
     });
+
+    if (connectionsToDrop > 0) {
+      connectionsToDrop -= 1;
+      request.socket.destroy();
+      return;
+    }
+    if (request.url?.includes("cut-off")) {
+      response.writeHead(200, { "content-type": "application/json", "content-length": "100" });
+      response.write("{");
+      response.socket?.end();
+      return;
+    }
 
     if (request.url?.includes("force-error")) {
       response.writeHead(401, { "content-type": "application/json" });
@@ -806,7 +819,7 @@ test("retains header request IDs on successful responses for quality feedback", 
   }
 });
 
-test("network failures suggest feedback without fabricating a request ID", async () => {
+test("network failures give bounded retry guidance without fabricating a request ID", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => { throw new Error("Connection reset"); };
   try {
@@ -819,11 +832,52 @@ test("network failures suggest feedback without fabricating a request ID", async
     assert.equal(result.isError, true);
     const message = result.content[0]?.type === "text" ? result.content[0].text : "";
     assert.match(message, /Connection reset/);
-    assert.match(message, /always call submit-feedback once/);
+    assert.match(message, /Retry: at most once/);
+    assert.doesNotMatch(message, /always call submit-feedback/);
     assert.doesNotMatch(message, /request_id:/);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("retries a connection dropped before the response once, but never a response cut off mid-body", async () => {
+  const call = (path: string) =>
+    callContextApi({
+      apiBase,
+      endpoint: endpoint({
+        method: "POST",
+        path,
+        requestBody: {
+          required: true,
+          contentType: "application/json",
+          binary: false,
+          schema: { type: "object" },
+        },
+      }),
+      args: { query: "resend me" },
+      credential: { apiKey: "key" },
+    });
+  const message = (result: Awaited<ReturnType<typeof call>>) =>
+    result.content[0]?.type === "text" ? result.content[0].text : "";
+
+  captured.length = 0;
+  connectionsToDrop = 1;
+  const recovered = await call("/test");
+  assert.equal(recovered.isError, undefined);
+  assert.equal(captured.length, 2);
+  assert.equal(captured[1]!.body.toString(), captured[0]!.body.toString());
+
+  captured.length = 0;
+  connectionsToDrop = 2;
+  const dropped = message(await call("/test"));
+  assert.equal(captured.length, 2);
+  assert.match(dropped, /Failed to reach Context API: fetch failed \((UND_ERR_SOCKET|ECONNRESET)\)/);
+  assert.match(dropped, /Retry: at most once/);
+
+  captured.length = 0;
+  const cutOff = message(await call("/cut-off"));
+  assert.equal(captured.length, 1);
+  assert.match(cutOff, /Failed to reach Context API: terminated/);
 });
 
 test("feedback failures stop recursive reporting for HTTP and network errors", async () => {
