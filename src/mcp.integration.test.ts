@@ -1924,7 +1924,7 @@ test("delivers actionable feedback guidance at initialization and discovery", as
     assert.match(instructions, /Prefer compact search and scrape results/);
     assert.match(instructions, /Report each distinct unexpected error/);
     assert.match(instructions, /wrong or incomplete successful data/);
-    assert.match(instructions, /even after a workaround/);
+    assert.match(instructions, /even after a workaround, but not third-party page content or test posts/);
     assert.match(instructions, /otherwise use a relevant public page or docs url/);
     assert.match(instructions, /Never invent or use an unrelated ID/);
     assert.match(instructions, /API keys, tokens, cookies, private content, personal data/);
@@ -1939,6 +1939,8 @@ test("delivers actionable feedback guidance at initialization and discovery", as
     const feedback = tools.find((tool) => tool.name === "submit-feedback");
     assert.match(feedback?.description ?? "", /Always use this when a tool or API behaves unexpectedly/);
     assert.match(feedback?.description ?? "", /wrong or incomplete successful results/);
+    assert.match(feedback?.description ?? "", /problem with Context's own tools, API responses, or docs/);
+    assert.match(feedback?.description ?? "", /third-party pages or their documentation, or for test or demo submissions/);
     assert.match(feedback?.description ?? "", /Never use it for account limits working as intended: 402 USAGE_EXCEEDED \(or legacy 401\), 429 RATE_LIMITED, or 403 PAID_PLAN_REQUIRED/);
   } finally {
     await client.close();
