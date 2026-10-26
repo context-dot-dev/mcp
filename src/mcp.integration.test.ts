@@ -1632,6 +1632,41 @@ test("forwards all scrape formats, browser actions, CSS rules, and request contr
   assert.deepEqual(resultObject(result), { ok: true });
 });
 
+test("repairs selector clicks and placeholder-filled browser actions", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const result = await client.callTool({
+    name: "web-scrape",
+    arguments: {
+      url: "https://example.test/actions",
+      formats: { markdown: true },
+      sharedParams: {
+        actions: [
+          { type: "perform", action: "click", selector: ".burger" },
+          { type: "click", selector: "#more" },
+          {
+            type: "scroll",
+            direction: "down",
+            amount: "viewport",
+            selector: null,
+            maxScrolls: null,
+            action: null,
+            milliseconds: null,
+          },
+        ],
+      },
+    },
+  });
+  await client.close();
+
+  assert.deepEqual(resultObject(result), { ok: true });
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()).sharedParams.actions, [
+    { type: "perform", action: "Click the element matching the CSS selector `.burger`" },
+    { type: "perform", action: "Click the element matching the CSS selector `#more`" },
+    { type: "scroll", direction: "down", amount: "viewport" },
+  ]);
+});
+
 test("repairs object and array arguments sent as JSON strings", async () => {
   captured.length = 0;
   const client = await connectClient();

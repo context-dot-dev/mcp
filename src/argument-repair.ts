@@ -303,7 +303,10 @@ export function repairToolArgument(
       }),
     );
     if (!propertySchema) {
-      entries.push([name, property]);
+      // Strict function calling also fills the other union members' fields.
+      const isOtherMemberPlaceholder =
+        declaredByAnyMember.has(name) && (property === null || property === "");
+      if (!isOtherMemberPlaceholder) entries.push([name, property]);
       continue;
     }
     const propertyCandidates = alternatives(propertySchema);
