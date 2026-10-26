@@ -892,11 +892,11 @@ test("compresses MCP responses for clients that accept gzip", async () => {
 
   const compressed = await listTools("gzip, deflate, br");
   assert.equal(compressed.headers.get("content-encoding"), "gzip");
-  assert.equal((await compressed.json()).result.tools.length, 42);
+  assert.equal((await compressed.json()).result.tools.length, 45);
 
   const uncompressed = await listTools("identity");
   assert.equal(uncompressed.headers.get("content-encoding"), null);
-  assert.equal((await uncompressed.json()).result.tools.length, 42);
+  assert.equal((await uncompressed.json()).result.tools.length, 45);
 
   const notification = await fetch(`${mcpBase}/mcp`, {
     method: "POST",
@@ -1172,7 +1172,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 42);
+  assert.equal(tools.length, 45);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -1236,6 +1236,8 @@ test("lists the public Context API with safety annotations", async () => {
     "get-brand",
     "brand-search",
     "web-styleguide",
+    "company-search",
+    "people-search",
     "people-enrich",
     "get-news-search",
     "parse-document",
@@ -1266,6 +1268,7 @@ test("lists the public Context API with safety annotations", async () => {
     "retry-webhook-delivery",
     "list-logs",
     "get-log",
+    "list-browser-profiles",
     "get-usage",
     "get-usage-history",
     "submit-feedback",
@@ -1290,6 +1293,9 @@ test("lists the public Context API with safety annotations", async () => {
     "web-scrape-markdown",
     "web-scrape-images",
     "web-screenshot",
+    "post-jobs-search",
+    "post-company-funding",
+    "post-admin-web-search",
   ]) {
     assert.equal(names.has(privateName), false, `exposed ${privateName}`);
   }
@@ -2084,6 +2090,56 @@ test("translates a natural-language news query and rejects mixing it with a comp
   assert.match(errorText(withCompany), /exactly one of query, companyName, domain, ticker, or isin/);
   assert.equal(withNewest.isError, true);
   assert.match(errorText(withNewest), /ordered by relevance/);
+});
+
+test("searches companies, people, and browser profiles through the public API", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const companies = await client.callTool({
+    name: "company-search",
+    arguments: {
+      query: "Robotics companies",
+      filters: { countries: ["DE"], employees_min: 50 },
+    },
+  });
+  const people = await client.callTool({
+    name: "people-search",
+    arguments: { query: "VPs of sales", country: "United States", cursor: "page-2" },
+  });
+  const profiles = await client.callTool({
+    name: "list-browser-profiles",
+    arguments: { limit: 5 },
+  });
+  const missingQuery = await client.callTool({
+    name: "company-search",
+    arguments: { filters: { countries: ["DE"] } },
+  });
+  await client.close();
+
+  assert.notEqual(companies.isError, true);
+  assert.notEqual(people.isError, true);
+  assert.notEqual(profiles.isError, true);
+  assert.equal(missingQuery.isError, true);
+  assert.match(
+    (missingQuery.content as Array<{ type: string; text?: string }>)
+      .map((block) => block.text ?? "")
+      .join("\n"),
+    /company-search needs `query`/,
+  );
+  assert.deepEqual(
+    captured.map((request) => `${request.method} ${new URL(request.url, upstreamBase).pathname}`),
+    ["POST /company/search", "POST /people/search", "GET /org/browser/profiles"],
+  );
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    query: "Robotics companies",
+    filters: { countries: ["DE"], employees_min: 50 },
+  });
+  assert.deepEqual(JSON.parse(captured[1]!.body.toString()), {
+    query: "VPs of sales",
+    cursor: "page-2",
+    filters: { countries: ["US"] },
+  });
+  assert.equal(new URL(captured[2]!.url, upstreamBase).searchParams.get("limit"), "5");
 });
 
 test("accepts every company identifier and legacy news-search calls", async () => {

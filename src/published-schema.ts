@@ -155,7 +155,11 @@ function mergeDefinitions(definitions: JsonSchema[]): JsonSchema {
   const isDiscriminator = constants.every((value) => value !== undefined);
   if (isDiscriminator) {
     const values = [...new Set(constants)];
-    return { type: typeof values[0], enum: values, description } as JsonSchema;
+    return {
+      type: typeof values[0],
+      enum: values,
+      description: describeDiscriminator(distinct, constants) ?? description,
+    } as JsonSchema;
   }
   const merged = mergeObjectUnion({ anyOf: distinct });
   if (!merged.anyOf) {
@@ -165,6 +169,25 @@ function mergeDefinitions(definitions: JsonSchema[]): JsonSchema {
     ({ description: _description, ...variant }) => variant,
   );
   return { anyOf: undescribedVariants, description };
+}
+
+// The merged enum would otherwise carry only the first variant's description,
+// such as "Reuse a saved profile." for a type that also accepts `new`.
+// Placeholder descriptions ("Use `new`.") say nothing the enum doesn't.
+function describeDiscriminator(
+  definitions: JsonSchema[],
+  constants: unknown[],
+): string | undefined {
+  const described = definitions.flatMap((definition, index) =>
+    definition.description && !/^Use `[^`]*`\.$/.test(definition.description)
+      ? [{ value: constants[index], description: definition.description }]
+      : [],
+  );
+  const descriptions = new Set(described.map(({ description }) => description));
+  if (descriptions.size < 2) return undefined;
+  return described
+    .map(({ value, description }) => `\`${String(value)}\`: ${description}`)
+    .join(" ");
 }
 
 function readConstant(schema: JsonSchema): unknown {

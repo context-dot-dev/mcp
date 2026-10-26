@@ -35,8 +35,6 @@ const KNOWN_REPAIR_GAPS: Readonly<Record<string, string>> = {
   "people-enrich arguments wrapper": ARGUMENTS_WRAPPER_GAP,
   "people-enrich zdr as Zdr": MISNAMED_KEY_GAP,
   "list-batches arguments wrapper": ARGUMENTS_WRAPPER_GAP,
-  "list-batches search_type as searchType": MISNAMED_KEY_GAP,
-  "list-batches limit as Limit": MISNAMED_KEY_GAP,
   "parse-document includeLinks as include_links": MISNAMED_KEY_GAP,
   "parse-document includeLinks as IncludeLinks": MISNAMED_KEY_GAP,
   "create-monitor mode as Mode": MISNAMED_KEY_GAP,

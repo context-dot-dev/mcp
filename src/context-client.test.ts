@@ -628,6 +628,63 @@ test("browser actions need the write scope on every tool that accepts them", asy
   assert.equal(captured.length, 1);
 });
 
+test("signing in with a new browser profile needs the write scope", async () => {
+  captured.length = 0;
+  const readOnlyCredential = { apiKey: "key", scopes: ["api.read"] };
+  const scrape = endpoint({
+    name: "web-scrape",
+    method: "POST",
+    path: "/web/scrape",
+    requestBody: {
+      required: true,
+      schema: { type: "object" },
+      contentType: "application/json",
+      binary: false,
+    },
+  });
+  const signIn = await callContextApi({
+    apiBase,
+    endpoint: scrape,
+    args: {
+      url: "https://a.test/account",
+      sharedParams: {
+        profile: { type: "new", identifier: "user@a.test", password: "secret" },
+      },
+    },
+    credential: readOnlyCredential,
+  });
+  assert.equal(signIn.isError, true);
+  assert.match(JSON.stringify(signIn), /api\.write/);
+  const wrappedSignIn = await callContextApi({
+    apiBase,
+    endpoint: scrape,
+    args: {
+      body: {
+        url: "https://a.test/account",
+        sharedParams: {
+          profile: { type: "new", identifier: "user@a.test", password: "secret" },
+        },
+      },
+    },
+    credential: readOnlyCredential,
+  });
+  assert.equal(wrappedSignIn.isError, true);
+  assert.match(JSON.stringify(wrappedSignIn), /api\.write/);
+  const reuse = await callContextApi({
+    apiBase,
+    endpoint: scrape,
+    args: {
+      url: "https://a.test/account",
+      sharedParams: {
+        profile: { type: "existing", profileId: `prof_${"0".repeat(32)}` },
+      },
+    },
+    credential: readOnlyCredential,
+  });
+  assert.notEqual(reuse.isError, true);
+  assert.equal(captured.length, 1);
+});
+
 test("API errors give bounded retry guidance and show rate-limit counters only on 429", async () => {
   const originalFetch = globalThis.fetch;
   try {

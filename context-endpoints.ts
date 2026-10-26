@@ -295,6 +295,44 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "list-browser-profiles",
+    "title": "List browser profiles",
+    "method": "GET",
+    "path": "/org/browser/profiles",
+    "description": "List browser profiles — List the browser profiles your organization created with `/web/scrape`, newest first.",
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Number of profiles per page.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25,
+          "description": "Number of profiles per page."
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "The `next_cursor` from the previous page.",
+        "schema": {
+          "type": "string",
+          "pattern": "^prof_[a-f0-9]{32}$",
+          "description": "The `next_cursor` from the previous page."
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "get-usage",
     "title": "Retrieve credit usage",
     "method": "GET",
@@ -1666,33 +1704,33 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "includeLinks",
         "in": "query",
         "required": false,
-        "description": "Preserve hyperlinks in Markdown output",
+        "description": "Preserve hyperlinks in Markdown output (`html-conversion` only).",
         "schema": {
           "type": "boolean",
           "default": true,
-          "description": "Preserve hyperlinks in Markdown output"
+          "description": "Preserve hyperlinks in Markdown output (`html-conversion` only)."
         }
       },
       {
         "name": "includeImages",
         "in": "query",
         "required": false,
-        "description": "Include image references in Markdown output",
+        "description": "Include image references in Markdown output (`html-conversion` only).",
         "schema": {
           "type": "boolean",
           "default": false,
-          "description": "Include image references in Markdown output"
+          "description": "Include image references in Markdown output (`html-conversion` only)."
         }
       },
       {
         "name": "shortenBase64Images",
         "in": "query",
         "required": false,
-        "description": "Shorten base64-encoded image data in the Markdown output",
+        "description": "Shorten base64-encoded image data in the Markdown output (`html-conversion` only).",
         "schema": {
           "type": "boolean",
           "default": true,
-          "description": "Shorten base64-encoded image data in the Markdown output"
+          "description": "Shorten base64-encoded image data in the Markdown output (`html-conversion` only)."
         }
       },
       {
@@ -1715,6 +1753,29 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "boolean",
           "default": false,
           "description": "When true, the response also includes an `html` field with the page HTML the Markdown was converted from — the same body the Scrape HTML endpoint returns for the equivalent request."
+        }
+      },
+      {
+        "name": "sourcePreference",
+        "in": "query",
+        "required": false,
+        "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "html-conversion",
+              "markdown-direct"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            "html-conversion",
+            "markdown-direct"
+          ],
+          "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
         }
       },
       {
@@ -2163,12 +2224,24 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "urlRegex",
         "in": "query",
         "required": false,
-        "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
+        "description": "Regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
         "schema": {
           "type": "string",
           "maxLength": 256,
-          "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
+          "description": "Regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
           "example": "^https?://[^/]+/blog/"
+        }
+      },
+      {
+        "name": "excludeUrlRegex",
+        "in": "query",
+        "required": false,
+        "description": "Regex pattern. URLs matching this pattern are not returned, even when they match urlRegex.",
+        "schema": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "Regex pattern. URLs matching this pattern are not returned, even when they match urlRegex.",
+          "example": "/tag/|/author/"
         }
       },
       {
@@ -2297,12 +2370,24 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "urlRegex",
         "in": "query",
         "required": false,
-        "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
+        "description": "Regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
         "schema": {
           "type": "string",
           "maxLength": 256,
-          "description": "Optional RE2-compatible regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
+          "description": "Regex pattern. Only URLs matching this pattern are returned and counted against maxLinks.",
           "example": "^https?://[^/]+/blog/"
+        }
+      },
+      {
+        "name": "excludeUrlRegex",
+        "in": "query",
+        "required": false,
+        "description": "Regex pattern. URLs matching this pattern are not returned, even when they match urlRegex.",
+        "schema": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "Regex pattern. URLs matching this pattern are not returned, even when they match urlRegex.",
+          "example": "/tag/|/author/"
         }
       },
       {
@@ -2409,25 +2494,47 @@ export const ENDPOINTS: Endpoint[] = [
             "description": "Regex pattern. Only URLs matching this pattern will be followed and scraped. An automatic prefix scope in the form ^<starting URL> follows a redirect of the starting page.",
             "example": "^https?://[^/]+/blog/"
           },
+          "excludeUrlRegex": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Regex pattern. URLs matching this pattern are never followed or scraped, even when they match urlRegex. The starting URL is always scraped.",
+            "example": "/tag/|/author/"
+          },
           "includeLinks": {
             "type": "boolean",
             "default": true,
-            "description": "Preserve hyperlinks in the Markdown output"
+            "description": "Preserve hyperlinks in the Markdown output (`html-conversion` only)."
           },
           "includeImages": {
             "type": "boolean",
             "default": false,
-            "description": "Include image references in the Markdown output"
+            "description": "Include image references in the Markdown output (`html-conversion` only)."
           },
           "shortenBase64Images": {
             "type": "boolean",
             "default": true,
-            "description": "Truncate base64-encoded image data in the Markdown output"
+            "description": "Truncate base64-encoded image data in the Markdown output (`html-conversion` only)."
           },
           "useMainContentOnly": {
             "type": "boolean",
             "default": false,
             "description": "Extract only the main content, stripping headers, footers, sidebars, and navigation"
+          },
+          "sourcePreference": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "html-conversion",
+                "markdown-direct"
+              ]
+            },
+            "minItems": 1,
+            "default": [
+              "html-conversion",
+              "markdown-direct"
+            ],
+            "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
           },
           "followSubdomains": {
             "type": "boolean",
@@ -2766,10 +2873,10 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "numResults": {
             "type": "integer",
-            "minimum": 10,
+            "minimum": 1,
             "maximum": 100,
             "default": 10,
-            "description": "Number of results to request and return (10–100). Defaults to 10."
+            "description": "Number of results to request and return (1–100). Defaults to 10."
           },
           "includeDomains": {
             "type": "array",
@@ -3044,6 +3151,101 @@ export const ENDPOINTS: Endpoint[] = [
             ],
             "description": "Two-letter ISO 3166-1 alpha-2 country code to localize results to a specific country (maps to Google's `gl` parameter). Example: \"us\", \"gb\", \"de\"."
           },
+          "languages": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all"
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "am",
+                    "ar",
+                    "az",
+                    "be",
+                    "bg",
+                    "bn",
+                    "ca",
+                    "ceb",
+                    "cs",
+                    "cy",
+                    "da",
+                    "de",
+                    "el",
+                    "en",
+                    "es",
+                    "et",
+                    "eu",
+                    "fa",
+                    "fi",
+                    "fr",
+                    "gu",
+                    "ha",
+                    "haw",
+                    "he",
+                    "hi",
+                    "hr",
+                    "hu",
+                    "hy",
+                    "id",
+                    "is",
+                    "it",
+                    "ja",
+                    "ka",
+                    "kk",
+                    "kn",
+                    "ko",
+                    "ku",
+                    "ky",
+                    "lo",
+                    "lt",
+                    "lv",
+                    "mk",
+                    "ml",
+                    "mn",
+                    "mr",
+                    "ms",
+                    "ne",
+                    "nl",
+                    "no",
+                    "or",
+                    "pa",
+                    "pl",
+                    "ps",
+                    "pt",
+                    "ro",
+                    "ru",
+                    "sk",
+                    "sl",
+                    "so",
+                    "sq",
+                    "sr",
+                    "sv",
+                    "sw",
+                    "ta",
+                    "te",
+                    "th",
+                    "tl",
+                    "tr",
+                    "uk",
+                    "ur",
+                    "uz",
+                    "vi",
+                    "yo",
+                    "zh"
+                  ]
+                },
+                "minItems": 1
+              }
+            ],
+            "default": "all",
+            "description": "Languages to return results in, as BCP 47 language codes such as `en` or `de`, or \"all\" for any language. Defaults to \"all\". Example: [\"en\", \"de\"]."
+          },
           "queryFanout": {
             "type": "boolean",
             "description": "Currently has no effect."
@@ -3057,7 +3259,7 @@ export const ENDPOINTS: Endpoint[] = [
               "enabled": {
                 "type": "boolean",
                 "default": false,
-                "description": "Scrape each result to Markdown. Adds 1 credit per 10 results."
+                "description": "Scrape each result to Markdown. Adds 1 credit per result with Markdown."
               },
               "includeLinks": {
                 "type": "boolean",
@@ -3156,6 +3358,15 @@ export const ENDPOINTS: Endpoint[] = [
             "additionalProperties": false,
             "description": "Passages from each result page that are relevant to the query. Pages are read with the `markdownOptions` settings."
           },
+          "descriptionMaxCharacters": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null,
+            "description": "Maximum length of each result's `description`, in characters."
+          },
           "timeoutOpts": {
             "$ref": "#/components/schemas/PartialTimeout"
           },
@@ -3183,6 +3394,559 @@ export const ENDPOINTS: Endpoint[] = [
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "post-admin-web-search",
+    "title": "Search the web from selected indexes (admin)",
+    "method": "POST",
+    "path": "/admin/web/search",
+    "description": "Search the web from selected indexes (admin) — Same as /web/search, but `sources` restricts which indexes are queried. Requires the master key.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Search query. Accepts natural language as well as Google-style search operators such as `site:`, `-site:`, `inurl:`, `intitle:`, quoted phrases, and `OR`."
+          },
+          "numResults": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10,
+            "description": "Number of results to request and return (1–100). Defaults to 10."
+          },
+          "includeDomains": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 3
+            },
+            "maxItems": 100,
+            "description": "Allowlist — only return results from these domains. Up to 100 domains. Example: [\"arxiv.org\", \"github.com\"]."
+          },
+          "excludeDomains": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 3
+            },
+            "maxItems": 100,
+            "description": "Blocklist — drop results from these domains. Up to 100 domains. Example: [\"pinterest.com\", \"reddit.com\"]."
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "last_24_hours",
+              "last_week",
+              "last_month",
+              "last_year"
+            ],
+            "description": "Restrict results to content published within this window."
+          },
+          "country": {
+            "type": "string",
+            "enum": [
+              "af",
+              "al",
+              "dz",
+              "as",
+              "ad",
+              "ao",
+              "ai",
+              "aq",
+              "ag",
+              "ar",
+              "am",
+              "aw",
+              "au",
+              "at",
+              "az",
+              "bs",
+              "bh",
+              "bd",
+              "bb",
+              "by",
+              "be",
+              "bz",
+              "bj",
+              "bm",
+              "bt",
+              "bo",
+              "ba",
+              "bw",
+              "bv",
+              "br",
+              "io",
+              "bn",
+              "bg",
+              "bf",
+              "bi",
+              "kh",
+              "cm",
+              "ca",
+              "cv",
+              "ky",
+              "cf",
+              "td",
+              "cl",
+              "cn",
+              "cx",
+              "cc",
+              "co",
+              "km",
+              "cg",
+              "cd",
+              "ck",
+              "cr",
+              "ci",
+              "hr",
+              "cu",
+              "cy",
+              "cz",
+              "dk",
+              "dj",
+              "dm",
+              "do",
+              "ec",
+              "eg",
+              "sv",
+              "gq",
+              "er",
+              "ee",
+              "et",
+              "fk",
+              "fo",
+              "fj",
+              "fi",
+              "fr",
+              "gf",
+              "pf",
+              "tf",
+              "ga",
+              "gm",
+              "ge",
+              "de",
+              "gh",
+              "gi",
+              "gr",
+              "gl",
+              "gd",
+              "gp",
+              "gu",
+              "gt",
+              "gn",
+              "gw",
+              "gy",
+              "ht",
+              "hm",
+              "va",
+              "hn",
+              "hk",
+              "hu",
+              "is",
+              "in",
+              "id",
+              "ir",
+              "iq",
+              "ie",
+              "il",
+              "it",
+              "jm",
+              "jp",
+              "jo",
+              "kz",
+              "ke",
+              "ki",
+              "kp",
+              "kr",
+              "kw",
+              "kg",
+              "la",
+              "lv",
+              "lb",
+              "ls",
+              "lr",
+              "ly",
+              "li",
+              "lt",
+              "lu",
+              "mo",
+              "mk",
+              "mg",
+              "mw",
+              "my",
+              "mv",
+              "ml",
+              "mt",
+              "mh",
+              "mq",
+              "mr",
+              "mu",
+              "yt",
+              "mx",
+              "fm",
+              "md",
+              "mc",
+              "mn",
+              "ms",
+              "ma",
+              "mz",
+              "mm",
+              "na",
+              "nr",
+              "np",
+              "nl",
+              "an",
+              "nc",
+              "nz",
+              "ni",
+              "ne",
+              "ng",
+              "nu",
+              "nf",
+              "mp",
+              "no",
+              "om",
+              "pk",
+              "pw",
+              "ps",
+              "pa",
+              "pg",
+              "py",
+              "pe",
+              "ph",
+              "pn",
+              "pl",
+              "pt",
+              "pr",
+              "qa",
+              "re",
+              "ro",
+              "ru",
+              "rw",
+              "sh",
+              "kn",
+              "lc",
+              "pm",
+              "vc",
+              "ws",
+              "sm",
+              "st",
+              "sa",
+              "sn",
+              "rs",
+              "sc",
+              "sl",
+              "sg",
+              "sk",
+              "si",
+              "sb",
+              "so",
+              "za",
+              "gs",
+              "es",
+              "lk",
+              "sd",
+              "sr",
+              "sj",
+              "sz",
+              "se",
+              "ch",
+              "sy",
+              "tw",
+              "tj",
+              "tz",
+              "th",
+              "tl",
+              "tg",
+              "tk",
+              "to",
+              "tt",
+              "tn",
+              "tr",
+              "tm",
+              "tc",
+              "tv",
+              "ug",
+              "ua",
+              "ae",
+              "gb",
+              "us",
+              "um",
+              "uy",
+              "uz",
+              "vu",
+              "ve",
+              "vn",
+              "vg",
+              "vi",
+              "wf",
+              "eh",
+              "ye",
+              "zm",
+              "zw"
+            ],
+            "description": "Two-letter ISO 3166-1 alpha-2 country code to localize results to a specific country (maps to Google's `gl` parameter). Example: \"us\", \"gb\", \"de\"."
+          },
+          "languages": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all"
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "am",
+                    "ar",
+                    "az",
+                    "be",
+                    "bg",
+                    "bn",
+                    "ca",
+                    "ceb",
+                    "cs",
+                    "cy",
+                    "da",
+                    "de",
+                    "el",
+                    "en",
+                    "es",
+                    "et",
+                    "eu",
+                    "fa",
+                    "fi",
+                    "fr",
+                    "gu",
+                    "ha",
+                    "haw",
+                    "he",
+                    "hi",
+                    "hr",
+                    "hu",
+                    "hy",
+                    "id",
+                    "is",
+                    "it",
+                    "ja",
+                    "ka",
+                    "kk",
+                    "kn",
+                    "ko",
+                    "ku",
+                    "ky",
+                    "lo",
+                    "lt",
+                    "lv",
+                    "mk",
+                    "ml",
+                    "mn",
+                    "mr",
+                    "ms",
+                    "ne",
+                    "nl",
+                    "no",
+                    "or",
+                    "pa",
+                    "pl",
+                    "ps",
+                    "pt",
+                    "ro",
+                    "ru",
+                    "sk",
+                    "sl",
+                    "so",
+                    "sq",
+                    "sr",
+                    "sv",
+                    "sw",
+                    "ta",
+                    "te",
+                    "th",
+                    "tl",
+                    "tr",
+                    "uk",
+                    "ur",
+                    "uz",
+                    "vi",
+                    "yo",
+                    "zh"
+                  ]
+                },
+                "minItems": 1
+              }
+            ],
+            "default": "all",
+            "description": "Languages to return results in, as BCP 47 language codes such as `en` or `de`, or \"all\" for any language. Defaults to \"all\". Example: [\"en\", \"de\"]."
+          },
+          "queryFanout": {
+            "type": "boolean",
+            "description": "Currently has no effect."
+          },
+          "markdownOptions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "default": false,
+                "description": "Scrape each result to Markdown. Adds 1 credit per result with Markdown."
+              },
+              "includeLinks": {
+                "type": "boolean",
+                "default": true,
+                "description": "Keep hyperlinks in the Markdown."
+              },
+              "includeImages": {
+                "type": "boolean",
+                "default": false,
+                "description": "Emit image references in the Markdown."
+              },
+              "shortenBase64Images": {
+                "type": "boolean",
+                "default": true,
+                "description": "Truncate inline base64 image payloads to keep responses small."
+              },
+              "useMainContentOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "Strip nav, header, footer, and sidebar — keep only the primary article content."
+              },
+              "pdf": {
+                "type": "object",
+                "properties": {
+                  "shouldParse": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Parse PDF URLs. When false, PDF results are skipped with WEBSITE_ACCESS_ERROR."
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "First 1-based PDF page to parse."
+                  },
+                  "end": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
+                  }
+                },
+                "default": {
+                  "shouldParse": true
+                },
+                "additionalProperties": false,
+                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
+              },
+              "includeFrames": {
+                "type": "boolean",
+                "default": false,
+                "description": "Render iframe contents into the Markdown."
+              },
+              "maxAgeMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 31536000000,
+                "description": "Maximum cache age in milliseconds for result page content. Defaults to 180 days (15552000000 ms) when Markdown is requested, or 365 days (31536000000 ms) when only highlights are requested. Explicit values override either default. Maximum: 365 days. Set to 0 to force a fresh scrape."
+              },
+              "waitForMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 30000,
+                "description": "Extra wait after page load before rendering, in ms (0–30000). Useful for JS-heavy pages."
+              },
+              "timeoutOpts": {
+                "$ref": "#/components/schemas/ScrapeTimeout"
+              }
+            },
+            "additionalProperties": false,
+            "description": "Inline Markdown scraping for each result. Set `enabled: true` to activate."
+          },
+          "highlightsOptions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return relevant passages for each result. Adds 1 credit per 10 results."
+              },
+              "maxCharacters": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 20000,
+                "default": 4000,
+                "description": "Maximum combined length of passages per result."
+              }
+            },
+            "additionalProperties": false,
+            "description": "Passages from each result page that are relevant to the query. Pages are read with the `markdownOptions` settings."
+          },
+          "descriptionMaxCharacters": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "default": null,
+            "description": "Maximum length of each result's `description`, in characters."
+          },
+          "timeoutOpts": {
+            "$ref": "#/components/schemas/PartialTimeout"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "serper",
+                "news-index",
+                "scholar-index"
+              ]
+            },
+            "minItems": 1,
+            "default": [
+              "serper",
+              "news-index",
+              "scholar-index"
+            ],
+            "description": "Search indexes to query. Defaults to all of them. The news and scholar indexes are skipped when domain filters are set, and the scholar index also when freshness is set."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
       "openWorldHint": true
     }
   },
@@ -3262,7 +4026,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Enrich a person",
     "method": "POST",
     "path": "/people/enrich",
-    "description": "Enrich a person — Find a person from identity clues and return their profile with a match score. Requires a paid plan; free or disposable email addresses return 422.",
+    "description": "Enrich a person — Find a person from identity clues and return their profile with a match score. Available on all plans; free or disposable email addresses return 422.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -3540,10 +4304,10 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     "name": "brand-search",
-    "title": "Search brands",
+    "title": "Auto-complete Brand",
     "method": "GET",
     "path": "/brand/search",
-    "description": "Search brands — Find up to 10 brands by name or domain, ordered by popularity. Use the returned domain to retrieve a full brand profile.",
+    "description": "Auto-complete Brand — Find up to 10 brands by name or domain, ordered by popularity. Optionally filter by country and primary language; both filters must match when provided together. Results include description, country, and language when available. Use the returned domain to retrieve a full brand profile.",
     "parameters": [
       {
         "name": "query",
@@ -3555,6 +4319,400 @@ export const ENDPOINTS: Endpoint[] = [
           "minLength": 1,
           "maxLength": 100,
           "description": "Search term, matched against the fields selected by queryBy (e.g. 'nike', 'nike.com', 'nik')."
+        }
+      },
+      {
+        "name": "country",
+        "in": "query",
+        "required": false,
+        "description": "Only return brands in this country, as an uppercase ISO 3166-1 alpha-2 code such as US or GB.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "AD",
+            "AE",
+            "AF",
+            "AG",
+            "AI",
+            "AL",
+            "AM",
+            "AO",
+            "AQ",
+            "AR",
+            "AS",
+            "AT",
+            "AU",
+            "AW",
+            "AX",
+            "AZ",
+            "BA",
+            "BB",
+            "BD",
+            "BE",
+            "BF",
+            "BG",
+            "BH",
+            "BI",
+            "BJ",
+            "BL",
+            "BM",
+            "BN",
+            "BO",
+            "BQ",
+            "BR",
+            "BS",
+            "BT",
+            "BV",
+            "BW",
+            "BY",
+            "BZ",
+            "CA",
+            "CC",
+            "CD",
+            "CF",
+            "CG",
+            "CH",
+            "CI",
+            "CK",
+            "CL",
+            "CM",
+            "CN",
+            "CO",
+            "CR",
+            "CU",
+            "CV",
+            "CW",
+            "CX",
+            "CY",
+            "CZ",
+            "DE",
+            "DJ",
+            "DK",
+            "DM",
+            "DO",
+            "DZ",
+            "EC",
+            "EE",
+            "EG",
+            "EH",
+            "ER",
+            "ES",
+            "ET",
+            "FI",
+            "FJ",
+            "FK",
+            "FM",
+            "FO",
+            "FR",
+            "GA",
+            "GB",
+            "GD",
+            "GE",
+            "GF",
+            "GG",
+            "GH",
+            "GI",
+            "GL",
+            "GM",
+            "GN",
+            "GP",
+            "GQ",
+            "GR",
+            "GS",
+            "GT",
+            "GU",
+            "GW",
+            "GY",
+            "HK",
+            "HM",
+            "HN",
+            "HR",
+            "HT",
+            "HU",
+            "ID",
+            "IE",
+            "IL",
+            "IM",
+            "IN",
+            "IO",
+            "IQ",
+            "IR",
+            "IS",
+            "IT",
+            "JE",
+            "JM",
+            "JO",
+            "JP",
+            "KE",
+            "KG",
+            "KH",
+            "KI",
+            "KM",
+            "KN",
+            "KP",
+            "KR",
+            "KW",
+            "KY",
+            "KZ",
+            "LA",
+            "LB",
+            "LC",
+            "LI",
+            "LK",
+            "LR",
+            "LS",
+            "LT",
+            "LU",
+            "LV",
+            "LY",
+            "MA",
+            "MC",
+            "MD",
+            "ME",
+            "MF",
+            "MG",
+            "MH",
+            "MK",
+            "ML",
+            "MM",
+            "MN",
+            "MO",
+            "MP",
+            "MQ",
+            "MR",
+            "MS",
+            "MT",
+            "MU",
+            "MV",
+            "MW",
+            "MX",
+            "MY",
+            "MZ",
+            "NA",
+            "NC",
+            "NE",
+            "NF",
+            "NG",
+            "NI",
+            "NL",
+            "NO",
+            "NP",
+            "NR",
+            "NU",
+            "NZ",
+            "OM",
+            "PA",
+            "PE",
+            "PF",
+            "PG",
+            "PH",
+            "PK",
+            "PL",
+            "PM",
+            "PN",
+            "PR",
+            "PS",
+            "PT",
+            "PW",
+            "PY",
+            "QA",
+            "RE",
+            "RO",
+            "RS",
+            "RU",
+            "RW",
+            "SA",
+            "SB",
+            "SC",
+            "SD",
+            "SE",
+            "SG",
+            "SH",
+            "SI",
+            "SJ",
+            "SK",
+            "SL",
+            "SM",
+            "SN",
+            "SO",
+            "SR",
+            "SS",
+            "ST",
+            "SV",
+            "SX",
+            "SY",
+            "SZ",
+            "TC",
+            "TD",
+            "TF",
+            "TG",
+            "TH",
+            "TJ",
+            "TK",
+            "TL",
+            "TM",
+            "TN",
+            "TO",
+            "TR",
+            "TT",
+            "TV",
+            "TW",
+            "TZ",
+            "UA",
+            "UG",
+            "UM",
+            "US",
+            "UY",
+            "UZ",
+            "VA",
+            "VC",
+            "VE",
+            "VG",
+            "VI",
+            "VN",
+            "VU",
+            "WF",
+            "WS",
+            "YE",
+            "YT",
+            "ZA",
+            "ZM",
+            "ZW"
+          ],
+          "description": "Only return brands in this country, as an uppercase ISO 3166-1 alpha-2 code such as US or GB.",
+          "example": "US"
+        }
+      },
+      {
+        "name": "language",
+        "in": "query",
+        "required": false,
+        "description": "Only return brands with this primary language, such as english or french.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "afrikaans",
+            "albanian",
+            "amharic",
+            "arabic",
+            "armenian",
+            "assamese",
+            "aymara",
+            "azeri",
+            "basque",
+            "belarusian",
+            "bengali",
+            "bosnian",
+            "bulgarian",
+            "burmese",
+            "cantonese",
+            "catalan",
+            "cebuano",
+            "chinese",
+            "corsican",
+            "croatian",
+            "czech",
+            "danish",
+            "dutch",
+            "english",
+            "esperanto",
+            "estonian",
+            "farsi",
+            "fijian",
+            "finnish",
+            "french",
+            "galician",
+            "georgian",
+            "german",
+            "greek",
+            "guarani",
+            "gujarati",
+            "haitian-creole",
+            "hausa",
+            "hawaiian",
+            "hebrew",
+            "hindi",
+            "hmong",
+            "hungarian",
+            "icelandic",
+            "igbo",
+            "indonesian",
+            "irish",
+            "italian",
+            "japanese",
+            "javanese",
+            "kannada",
+            "kazakh",
+            "khmer",
+            "kinyarwanda",
+            "korean",
+            "kurdish",
+            "kyrgyz",
+            "lao",
+            "latin",
+            "latvian",
+            "lingala",
+            "lithuanian",
+            "luxembourgish",
+            "macedonian",
+            "malagasy",
+            "malay",
+            "malayalam",
+            "maltese",
+            "maori",
+            "marathi",
+            "mongolian",
+            "nepali",
+            "norwegian",
+            "odia",
+            "oromo",
+            "pashto",
+            "pidgin",
+            "polish",
+            "portuguese",
+            "punjabi",
+            "quechua",
+            "romanian",
+            "russian",
+            "samoan",
+            "scottish-gaelic",
+            "serbian",
+            "sesotho",
+            "shona",
+            "sindhi",
+            "sinhala",
+            "slovak",
+            "slovene",
+            "somali",
+            "spanish",
+            "sundanese",
+            "swahili",
+            "swedish",
+            "tagalog",
+            "tajik",
+            "tamil",
+            "tatar",
+            "telugu",
+            "thai",
+            "tibetan",
+            "tigrinya",
+            "tongan",
+            "tswana",
+            "turkish",
+            "turkmen",
+            "ukrainian",
+            "urdu",
+            "uyghur",
+            "uzbek",
+            "vietnamese",
+            "welsh",
+            "wolof",
+            "xhosa",
+            "yiddish",
+            "yoruba",
+            "zulu"
+          ],
+          "description": "Only return brands with this primary language, such as english or french."
         }
       },
       {
@@ -7000,7 +8158,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Submit a batch",
     "method": "POST",
     "path": "/batch/submit",
-    "description": "Submit a batch — Scrape up to 25,000 URLs, or crawl a site, asynchronously. Poll the batch ID or receive a webhook when it finishes.",
+    "description": "Submit a batch — Scrape up to 100,000 URLs, or crawl a site, asynchronously using the same formats and scrape parameters as POST /web/scrape. Choose Markdown, HTML, screenshots, images, bytes, parsed fields, products, highlights, and JSON. Poll the batch ID or receive a webhook when it finishes.",
     "parameters": [
       {
         "name": "Idempotency-Key",
@@ -7035,6 +8193,17 @@ export const ENDPOINTS: Endpoint[] = [
     "path": "/batch/list",
     "description": "List batches — List your batches, newest first, with optional filters.",
     "parameters": [
+      {
+        "name": "shouldIncludeUnified",
+        "in": "query",
+        "required": false,
+        "description": "Include batches submitted with Scrape Anything formats. Defaults to false.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include batches submitted with Scrape Anything formats. Defaults to false."
+        }
+      },
       {
         "name": "limit",
         "in": "query",
@@ -7135,7 +8304,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Retrieve a batch",
     "method": "GET",
     "path": "/batch/{batch_id}",
-    "description": "Retrieve a batch — Get batch progress and result download links. Result files are deleted 7 days after the batch finishes.",
+    "description": "Retrieve a batch — Get batch progress and result download links. Result files are deleted 180 days after the batch finishes.",
     "parameters": [
       {
         "name": "batch_id",
@@ -7185,7 +8354,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "List batch results",
     "method": "GET",
     "path": "/batch/{batch_id}/results",
-    "description": "List batch results — Page through a finished batch’s results as JSON. Results remain available for 7 days.",
+    "description": "List batch results — Page through a finished batch’s results as JSON. Each record contains result with the same outputs and per-format errors as POST /web/scrape. Results remain available for 180 days.",
     "parameters": [
       {
         "name": "batch_id",
@@ -7293,11 +8462,11 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "post-company-search",
+    "name": "company-search",
     "title": "Search companies",
     "method": "POST",
     "path": "/company/search",
-    "description": "Search companies — Find companies matching a natural-language description, such as \"companies building solar tech in California that raised a Series B\". Constraints in the query, such as location, offices, industry, headcount, founding year, tech stack, website traffic and funding, are applied as exact filters; the response echoes how the query was interpreted. Searches with no matches are not charged.",
+    "description": "Search companies — Find companies with a natural-language query.",
     "parameters": [],
     "requestBody": {
       "required": true,
@@ -7308,14 +8477,16 @@ export const ENDPOINTS: Endpoint[] = [
             "type": "string",
             "minLength": 1,
             "maxLength": 500,
-            "description": "Natural-language description of the companies to find, e.g. \"companies building solar tech in California that raised a Series B\"."
+            "description": "Describe the companies to find.",
+            "example": "Solar startups in California that raised a Series B"
           },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "default": 25,
-            "description": "Maximum number of companies to return."
+          "filters": {
+            "$ref": "#/components/schemas/CompanySearchFilters"
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Use next_cursor with the same query and filters to fetch the next page."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -7324,6 +8495,105 @@ export const ENDPOINTS: Endpoint[] = [
         "required": [
           "query"
         ],
+        "additionalProperties": false,
+        "example": {
+          "query": "Solar startups in California that raised a Series B"
+        }
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "people-search",
+    "title": "Search people",
+    "method": "POST",
+    "path": "/people/search",
+    "description": "Search people — Find people with a natural-language query.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Describe the people to find.",
+            "example": "VPs of sales at solar companies in California"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/PeopleSearchFilters"
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 65536,
+            "description": "Use next_cursor with the same query and filters to fetch the next page."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false,
+        "example": {
+          "query": "VPs of sales at solar companies in California"
+        }
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "post-jobs-search",
+    "title": "Search jobs",
+    "method": "POST",
+    "path": "/jobs/search",
+    "description": "Search jobs — Find job postings matching a natural-language description, such as \"remote senior backend engineer jobs at Series B fintech startups\". Title, seniority, function, employment and workplace type, location, posting date and pay are applied as exact filters, and the hiring company is matched with the same company filters as POST /company/search. Only open postings are returned unless filters.include_closed is true. The response echoes how the query was interpreted as interpreted_as, which can be sent back as filters to refine the search. Results link to the job posting and the company website. Searches with no matches are not charged.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Natural-language description of what to find, e.g. \"remote senior backend engineer jobs at Series B fintech startups\". The response's interpreted_as shows the filters it was turned into."
+          },
+          "filters": {
+            "$ref": "#/components/schemas/JobSearchFilters"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25,
+            "description": "Maximum number of results to return (1-100)."
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "The next_cursor from a previous response, to fetch the following page of the same search."
+          },
+          "tags": {
+            "$ref": "#/components/schemas/RequestTags"
+          }
+        },
         "additionalProperties": false
       },
       "contentType": "application/json",
@@ -7713,184 +8983,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "additionalProperties": false,
     "description": "Find news about a specific company.",
     "title": "By Entity"
-  },
-  "NewsSearchEntityByName": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "name"
-        ],
-        "description": "Use `name` to identify the company by name."
-      },
-      "name": {
-        "type": "string",
-        "minLength": 2,
-        "maxLength": 200,
-        "description": "Company name."
-      }
-    },
-    "required": [
-      "type",
-      "name"
-    ],
-    "additionalProperties": false,
-    "description": "Identify the company by name.",
-    "title": "By Name"
-  },
-  "NewsSearchEntityByDomain": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "domain"
-        ],
-        "description": "Use `domain` to identify the company by website domain."
-      },
-      "domain": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 253,
-        "description": "Company website domain, such as apple.com."
-      }
-    },
-    "required": [
-      "type",
-      "domain"
-    ],
-    "additionalProperties": false,
-    "description": "Identify the company by website domain.",
-    "title": "By Domain"
-  },
-  "NewsSearchEntityByTicker": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "ticker"
-        ],
-        "description": "Use `ticker` to identify a publicly traded company."
-      },
-      "ticker": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 20,
-        "pattern": "^[A-Za-z0-9.-]+$",
-        "description": "Public-company ticker."
-      },
-      "exchange": {
-        "type": "string",
-        "enum": [
-          "AMEX",
-          "AMS",
-          "AQS",
-          "ASX",
-          "ATH",
-          "BER",
-          "BME",
-          "BRU",
-          "BSE",
-          "BUD",
-          "BUE",
-          "BVC",
-          "CBOE",
-          "CNQ",
-          "CPH",
-          "DFM",
-          "DOH",
-          "DUB",
-          "DUS",
-          "DXE",
-          "EGX",
-          "FSX",
-          "HAM",
-          "HEL",
-          "HKSE",
-          "HOSE",
-          "ICE",
-          "IOB",
-          "IST",
-          "JKT",
-          "JNB",
-          "JPX",
-          "KLS",
-          "KOE",
-          "KSC",
-          "KUW",
-          "LIS",
-          "LSE",
-          "MCX",
-          "MEX",
-          "MIL",
-          "MUN",
-          "NASDAQ",
-          "NEO",
-          "NSE",
-          "NYSE",
-          "NZE",
-          "OSL",
-          "OTC",
-          "PAR",
-          "PNK",
-          "PRA",
-          "RIS",
-          "SAO",
-          "SAU",
-          "SES",
-          "SET",
-          "SGO",
-          "SHH",
-          "SHZ",
-          "SIX",
-          "STO",
-          "STU",
-          "TAI",
-          "TAL",
-          "TLV",
-          "TSX",
-          "TSXV",
-          "TWO",
-          "VIE",
-          "WSE",
-          "XETRA"
-        ],
-        "description": "Stock exchange the ticker trades on, used to disambiguate tickers listed on multiple exchanges."
-      }
-    },
-    "required": [
-      "type",
-      "ticker"
-    ],
-    "additionalProperties": false,
-    "description": "Identify the company by stock ticker, optionally scoped to an exchange.",
-    "title": "By Ticker"
-  },
-  "NewsSearchEntityByIsin": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "isin"
-        ],
-        "description": "Use `isin` to identify the company by its securities identifier."
-      },
-      "isin": {
-        "type": "string",
-        "pattern": "^[A-Za-z]{2}[A-Za-z0-9]{9}[0-9]$",
-        "description": "International Securities Identification Number."
-      }
-    },
-    "required": [
-      "type",
-      "isin"
-    ],
-    "additionalProperties": false,
-    "description": "Identify the company by International Securities Identification Number.",
-    "title": "By ISIN"
   },
   "AnswersRequest": {
     "type": "object",
@@ -10587,6 +11679,223 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "title": "Submit batch request",
     "description": "Create an asynchronous scraping job."
   },
+  "CompanySearchFilters": {
+    "type": "object",
+    "properties": {
+      "countries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "description": "Headquarters countries as two-letter codes, such as US or GB."
+      },
+      "employees_min": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Minimum headcount; includes overlapping employee ranges."
+      },
+      "employees_max": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Maximum headcount; includes overlapping employee ranges."
+      }
+    },
+    "additionalProperties": false,
+    "description": "Additional constraints every result must match."
+  },
+  "PeopleSearchFilters": {
+    "type": "object",
+    "properties": {
+      "countries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "description": "Countries people live in as two-letter codes, such as US or GB."
+      },
+      "years_of_experience_min": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Minimum years of professional experience."
+      },
+      "years_of_experience_max": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Maximum years of professional experience."
+      }
+    },
+    "additionalProperties": false,
+    "description": "Additional constraints every result must match."
+  },
+  "JobSearchFilters": {
+    "type": "object",
+    "properties": {
+      "semantic_query": {
+        "type": "string",
+        "description": "What the role involves, ranked by meaning rather than matched exactly (\"backend engineering on payments infrastructure\")."
+      },
+      "titles": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "maxItems": 25,
+        "description": "Job titles; a posting matches when its title contains every word of any one entry (\"data engineer\" matches \"Senior Data Engineer\")."
+      },
+      "seniorities": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "internship",
+            "entry_level",
+            "associate",
+            "mid_senior_level",
+            "director",
+            "executive"
+          ]
+        },
+        "description": "Seniority levels of the role."
+      },
+      "functions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "accounting",
+            "administrative",
+            "advertising",
+            "analyst",
+            "art_creative",
+            "business_development",
+            "consulting",
+            "customer_service",
+            "design",
+            "distribution",
+            "education",
+            "engineering",
+            "finance",
+            "general_business",
+            "health_care_provider",
+            "human_resources",
+            "information_technology",
+            "legal",
+            "management",
+            "manufacturing",
+            "marketing",
+            "other",
+            "product_management",
+            "production",
+            "project_management",
+            "public_relations",
+            "purchasing",
+            "quality_assurance",
+            "research",
+            "sales",
+            "science",
+            "strategy_planning",
+            "supply_chain",
+            "training",
+            "writing_editing"
+          ]
+        },
+        "description": "Job functions of the role."
+      },
+      "employment_types": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "full_time",
+            "part_time",
+            "contract",
+            "internship",
+            "temporary",
+            "volunteer",
+            "other"
+          ]
+        },
+        "description": "Employment types of the role."
+      },
+      "workplace_types": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "on_site",
+            "remote",
+            "hybrid"
+          ]
+        },
+        "description": "Where the work happens."
+      },
+      "countries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "description": "ISO 3166-1 alpha-2 codes of the job location countries."
+      },
+      "regions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "maxItems": 25,
+        "description": "States or provinces of the job location, by full name (\"California\")."
+      },
+      "cities": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "maxItems": 25,
+        "description": "Cities of the job location."
+      },
+      "posted_after": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "description": "Earliest posting date (YYYY-MM-DD)."
+      },
+      "salary_min": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Minimum annual pay, in `salary_currency`. Postings without disclosed pay are excluded when set."
+      },
+      "salary_currency": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^[A-Z]{3}$",
+        "description": "ISO 4217 currency of `salary_min`."
+      },
+      "include_closed": {
+        "type": "boolean",
+        "description": "Also return postings that are no longer open (default false)."
+      },
+      "company": {
+        "$ref": "#/components/schemas/EmployerFilters"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Structured job filters, the same fields as interpreted_as. Every field is optional; set fields override what the query was interpreted as. company filters the hiring company with the same fields as interpreted_as.company; null drops an employer constraint the query implied."
+  },
   "ScrapeFormats": {
     "type": "object",
     "additionalProperties": false,
@@ -10619,7 +11928,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "parse": {
         "type": "boolean",
         "default": false,
-        "description": "Fields extracted with `parseParams.rules`, returned as `parsed`."
+        "description": "Fields extracted with custom rules or a prebuilt parser, returned as `parsed`."
       },
       "highlights": {
         "type": "boolean",
@@ -10757,12 +12066,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "includeLinks": {
         "type": "boolean",
         "default": true,
-        "description": "Keep link URLs in the Markdown. Set false to return link text without URLs."
+        "description": "Keep link URLs in the Markdown (`html-conversion` only)."
       },
       "includeImages": {
         "type": "boolean",
         "default": false,
-        "description": "Include images in the Markdown using image syntax with URLs and alt text."
+        "description": "Include images in the Markdown (`html-conversion` only)."
       },
       "inlineImages": {
         "type": "string",
@@ -10770,7 +12079,24 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "placeholder",
           "preserve"
         ],
-        "description": "How base64 images appear: `placeholder` (default) or `preserve`. Requires `includeImages`."
+        "description": "How base64 images appear when `includeImages` is set (`html-conversion` only)."
+      },
+      "sourcePreference": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "html-conversion",
+            "markdown-direct"
+          ]
+        },
+        "default": [
+          "html-conversion",
+          "markdown-direct"
+        ],
+        "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
       }
     },
     "allOf": [
@@ -10787,6 +12113,37 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "properties": {
             "includeImages": {
               "const": true
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "sourcePreference"
+          ],
+          "properties": {
+            "sourcePreference": {
+              "items": {
+                "not": {
+                  "enum": [
+                    "html-conversion"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "includeLinks": {
+              "not": {}
+            },
+            "includeImages": {
+              "not": {}
+            },
+            "inlineImages": {
+              "not": {}
             }
           }
         }
@@ -10908,15 +12265,87 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     }
   },
   "ScrapeParseParams": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "rules": {
-        "$ref": "#/components/schemas/ScrapeParseRules"
+    "oneOf": [
+      {
+        "type": "object",
+        "title": "Custom parser",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "custom",
+            "default": "custom",
+            "description": "Extract fields using custom CSS rules. This is the default when type is omitted."
+          },
+          "rules": {
+            "$ref": "#/components/schemas/ScrapeParseRules"
+          }
+        },
+        "required": [
+          "rules"
+        ]
+      },
+      {
+        "type": "object",
+        "title": "Prebuilt parser",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prebuilt",
+            "description": "Use a prebuilt parser instead of custom rules."
+          },
+          "parser": {
+            "type": "string",
+            "enum": [
+              "google-maps",
+              "google-maps-reviews",
+              "google-play",
+              "google-play-reviews",
+              "app-store",
+              "app-store-reviews",
+              "g2-reviews",
+              "instagram-profile",
+              "instagram-post",
+              "instagram-feed",
+              "tiktok-profile",
+              "tiktok-video",
+              "tiktok-feed",
+              "tiktok-comments",
+              "tiktok-followers",
+              "tiktok-following",
+              "tiktok-user-search",
+              "emails",
+              "phone-numbers",
+              "links"
+            ],
+            "description": "google-maps parses Google Maps business data into data.results. Accepts Maps place, search, and internal data URLs. Uses a US exit and English labels regardless of hl or Accept-Language. google-maps-reviews returns the reviews of a place in data.reviews, in the same shape as the Serper reviews API (rating, date, isoDate, snippet, translatedSnippet, likes, user, media, response, link, id), plus language, guided ratings in details, and user.isLocalGuide; data also carries the place featureId, cid, and sort. sort and limit pick the order and count, and oldest is exact. It accepts Maps place, search, and ?cid= URLs, plus search.google.com/local/reviews URLs, so the google_maps_url and google_reviews_url fields of google-maps results work as input. An unknown place returns no reviews. google-play parses a Play Store app into data: details, developer contact, ratings, price, permissions, and data safety. google-play-reviews returns the 200 newest reviews of the app, with developer replies, in data.reviews. Both Play parsers accept app details URLs (play.google.com/store/apps/details?id=…); hl and gl set the language and storefront, defaulting to en and us. app-store parses an App Store app into data: details, developer, ratings, price, version, and screenshots. app-store-reviews returns up to the 500 newest reviews in data.reviews. Both App Store parsers accept app URLs (apps.apple.com/us/app/…/id…); the country in the path sets the storefront, defaulting to us. g2-reviews returns the 25 most recently published reviews of a G2 product in data.reviews (rating, title, likes, dislikes, problems_solved, reviewer role, company size, and industry), plus data.product. It accepts G2 product URLs (g2.com/products/…), follows renamed products, and keeps star-rating filters from the URL (filters[nps_score][]=1 to 5); other filters, sort orders, and pages are ignored. instagram-profile parses a public profile (instagram.com/{username}) into data: bio, links, follower and post counts, category, business address, similar_accounts, and latest_posts (the 12 newest). instagram-post parses a post or reel (/p/…, /reel/…) into data: caption, hashtags, mentions, like, comment, and view counts, media URLs, tagged users, collaborators, location, and the top ~14 comments in data.comments. instagram-feed returns the top posts for a hashtag or keyword (/explore/tags/…, /popular/…) or the recent posts at a location (/explore/locations/{id}/…) in data.posts; keyword posts carry only the shortcode, owner, thumbnail, and views, plus the caption when Instagram shows it. All three Instagram parsers read public data without logging in, so private accounts return no posts and follower lists are unavailable. tiktok-profile parses a public profile (tiktok.com/@{username}) into data: nickname, bio, bio link, follower, following, like, and video counts, verified, private, and business flags, and business category; it does not list videos. tiktok-video parses a video or photo post (/@{username}/video/{id} or /@{username}/photo/{id}) into data: caption, hashtags, mentions, author, view, like, comment, share, save, and repost counts, duration, thumbnail, a video_url that downloads without cookies, image_urls for photo posts, music, location, and ad, paid-partnership, and AI-generated flags. tiktok-feed returns videos in the tiktok-video shape as data.videos: the latest 15 from a profile URL, the top 30 from a hashtag URL (/tag/{name}), or the top 12 from a search URL (/search?q={query}). tiktok-comments returns the first 20 comments of a video or photo post as data.comments: text, posted_at, like and reply counts, whether the author liked it, and the commenter. tiktok-followers and tiktok-following return up to 30 accounts of a profile as data.users, in the tiktok-profile shape. tiktok-user-search returns the top 10 accounts for a user search URL (/search/user?q={query}) as data.users: id, username, nickname, biography, avatar_url, sec_uid, follower_count, like_count, and is_verified. The TikTok parsers accept tiktok.com, www.tiktok.com, and m.tiktok.com URLs but not short links (vm.tiktok.com, vt.tiktok.com, tiktok.com/t/…). emails accepts any page and returns its email addresses as data.emails ([{ email }]), read from mailto links, Cloudflare-protected addresses, and visible text. phone-numbers accepts any page and returns its valid phone numbers in E.164 as data.phone_numbers ([{ phone }]), read from tel links and visible text; numbers without a country code are read for the country of the site TLD, defaulting to US. links accepts any page and returns its unique http(s) links as data.links ([{ url, text }]), with absolute URLs; text falls back to aria-label or image alt and is null when a link has none. The emails parser reads the rendered page and respects content filters; the other prebuilt parsers read their data independently of DOM filters."
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "newest",
+              "oldest",
+              "relevant",
+              "highest",
+              "lowest"
+            ],
+            "default": "newest",
+            "description": "google-maps-reviews only. Order of data.reviews. newest, relevant, highest, and lowest follow Google; oldest returns the earliest reviews first, which Google itself does not offer."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "google-maps-reviews only. Maximum number of reviews to return. Defaults to 100; maximum 1000."
+          }
+        },
+        "required": [
+          "type",
+          "parser"
+        ]
       }
-    },
-    "required": [
-      "rules"
     ]
   },
   "ScrapeHighlightsParams": {
@@ -10995,6 +12424,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "type": "object",
     "additionalProperties": false,
     "properties": {
+      "profile": {
+        "$ref": "#/components/schemas/ScrapeProfile",
+        "description": "Create or reuse an authenticated browser profile. Requires a paid plan and an HTTPS target. Profiles persist session state, bypass shared caches, and cannot be combined with ZDR, custom headers, raw bytes, or prebuilt parsers."
+      },
       "country": {
         "type": "string",
         "pattern": "^[A-Za-z]{2}$",
@@ -11142,6 +12575,184 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         }
       }
     }
+  },
+  "NewsSearchEntityByName": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "name"
+        ],
+        "description": "Use `name` to identify the company by name."
+      },
+      "name": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 200,
+        "description": "Company name."
+      }
+    },
+    "required": [
+      "type",
+      "name"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by name.",
+    "title": "By Name"
+  },
+  "NewsSearchEntityByDomain": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "domain"
+        ],
+        "description": "Use `domain` to identify the company by website domain."
+      },
+      "domain": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 253,
+        "description": "Company website domain, such as apple.com."
+      }
+    },
+    "required": [
+      "type",
+      "domain"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by website domain.",
+    "title": "By Domain"
+  },
+  "NewsSearchEntityByTicker": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "ticker"
+        ],
+        "description": "Use `ticker` to identify a publicly traded company."
+      },
+      "ticker": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20,
+        "pattern": "^[A-Za-z0-9.-]+$",
+        "description": "Public-company ticker."
+      },
+      "exchange": {
+        "type": "string",
+        "enum": [
+          "AMEX",
+          "AMS",
+          "AQS",
+          "ASX",
+          "ATH",
+          "BER",
+          "BME",
+          "BRU",
+          "BSE",
+          "BUD",
+          "BUE",
+          "BVC",
+          "CBOE",
+          "CNQ",
+          "CPH",
+          "DFM",
+          "DOH",
+          "DUB",
+          "DUS",
+          "DXE",
+          "EGX",
+          "FSX",
+          "HAM",
+          "HEL",
+          "HKSE",
+          "HOSE",
+          "ICE",
+          "IOB",
+          "IST",
+          "JKT",
+          "JNB",
+          "JPX",
+          "KLS",
+          "KOE",
+          "KSC",
+          "KUW",
+          "LIS",
+          "LSE",
+          "MCX",
+          "MEX",
+          "MIL",
+          "MUN",
+          "NASDAQ",
+          "NEO",
+          "NSE",
+          "NYSE",
+          "NZE",
+          "OSL",
+          "OTC",
+          "PAR",
+          "PNK",
+          "PRA",
+          "RIS",
+          "SAO",
+          "SAU",
+          "SES",
+          "SET",
+          "SGO",
+          "SHH",
+          "SHZ",
+          "SIX",
+          "STO",
+          "STU",
+          "TAI",
+          "TAL",
+          "TLV",
+          "TSX",
+          "TSXV",
+          "TWO",
+          "VIE",
+          "WSE",
+          "XETRA"
+        ],
+        "description": "Stock exchange the ticker trades on, used to disambiguate tickers listed on multiple exchanges."
+      }
+    },
+    "required": [
+      "type",
+      "ticker"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by stock ticker, optionally scoped to an exchange.",
+    "title": "By Ticker"
+  },
+  "NewsSearchEntityByIsin": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "isin"
+        ],
+        "description": "Use `isin` to identify the company by its securities identifier."
+      },
+      "isin": {
+        "type": "string",
+        "pattern": "^[A-Za-z]{2}[A-Za-z0-9]{9}[0-9]$",
+        "description": "International Securities Identification Number."
+      }
+    },
+    "required": [
+      "type",
+      "isin"
+    ],
+    "additionalProperties": false,
+    "description": "Identify the company by International Securities Identification Number.",
+    "title": "By ISIN"
   },
   "WebScrapeWaitAction": {
     "type": "object",
@@ -11974,6 +13585,657 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       ]
     }
   },
+  "EmployerFilters": {
+    "type": [
+      "object",
+      "null"
+    ],
+    "properties": {
+      "semantic_query": {
+        "type": "string",
+        "description": "What the companies do and requested constraints without a structured filter. Results are ranked by how closely they match it; these constraints are not guaranteed exact matches."
+      },
+      "names": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Company names."
+      },
+      "excluded_names": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": [],
+        "description": "Company names to exclude, including the references in a competitor search."
+      },
+      "excluded_countries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "default": [],
+        "description": "Headquarters countries to exclude."
+      },
+      "excluded_domains": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": [],
+        "description": "Company website domains to exclude."
+      },
+      "investors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": [],
+        "description": "Investors that must have backed the company."
+      },
+      "accelerators": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": [],
+        "description": "Accelerator programs or batches the company participated in."
+      },
+      "organization_types": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": [],
+        "description": "Company types, such as public_company or privately_held."
+      },
+      "operating_statuses": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": [],
+        "description": "Operating statuses, such as active, acquired or closed."
+      },
+      "revenue_min_usd": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "default": null,
+        "description": "Minimum estimated annual revenue in US dollars."
+      },
+      "revenue_max_usd": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "default": null,
+        "description": "Maximum estimated annual revenue in US dollars."
+      },
+      "countries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "description": "Headquarters countries, as ISO 3166-1 alpha-2 codes."
+      },
+      "regions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Headquarters states or provinces."
+      },
+      "cities": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Headquarters cities."
+      },
+      "places": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Wider areas around the headquarters, such as continents, counties or metro areas."
+      },
+      "postal_code_prefixes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Headquarters postal codes or their prefixes."
+      },
+      "office_countries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "description": "Countries the company has an office in, as ISO 3166-1 alpha-2 codes."
+      },
+      "office_regions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "States or provinces the company has an office in."
+      },
+      "office_cities": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Cities the company has an office in."
+      },
+      "industries": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "Accounting",
+            "Airlines/Aviation",
+            "Alternative Dispute Resolution",
+            "Alternative Medicine",
+            "Animation",
+            "Apparel & Fashion",
+            "Architecture & Planning",
+            "Arts and Crafts",
+            "Automotive",
+            "Aviation & Aerospace",
+            "Banking",
+            "Biotechnology",
+            "Broadcast Media",
+            "Building Materials",
+            "Business Supplies and Equipment",
+            "Capital Markets",
+            "Chemicals",
+            "Civic & Social Organization",
+            "Civil Engineering",
+            "Commercial Real Estate",
+            "Computer Games",
+            "Computer Hardware",
+            "Computer Networking",
+            "Computer & Network Security",
+            "Computer Software",
+            "Construction",
+            "Consumer Electronics",
+            "Consumer Goods",
+            "Consumer Services",
+            "Cosmetics",
+            "Dairy",
+            "Defense & Space",
+            "Design",
+            "Education Management",
+            "E-Learning",
+            "Electrical/Electronic Manufacturing",
+            "Entertainment",
+            "Environmental Services",
+            "Events Services",
+            "Executive Office",
+            "Facilities Services",
+            "Farming",
+            "Financial Services",
+            "Fine Art",
+            "Fishery",
+            "Food & Beverages",
+            "Food Production",
+            "Fund-Raising",
+            "Furniture",
+            "Gambling & Casinos",
+            "Glass, Ceramics & Concrete",
+            "Government Administration",
+            "Government Relations",
+            "Graphic Design",
+            "Health, Wellness and Fitness",
+            "Higher Education",
+            "Hospital & Health Care",
+            "Hospitality",
+            "Human Resources",
+            "Import and Export",
+            "Individual & Family Services",
+            "Industrial Automation",
+            "Information Services",
+            "Information Technology and Services",
+            "Insurance",
+            "International Affairs",
+            "International Trade and Development",
+            "Internet",
+            "Investment Banking",
+            "Investment Management",
+            "Judiciary",
+            "Law Enforcement",
+            "Law Practice",
+            "Legal Services",
+            "Legislative Office",
+            "Leisure, Travel & Tourism",
+            "Libraries",
+            "Logistics and Supply Chain",
+            "Luxury Goods & Jewelry",
+            "Machinery",
+            "Management Consulting",
+            "Maritime",
+            "Marketing and Advertising",
+            "Market Research",
+            "Mechanical or Industrial Engineering",
+            "Media Production",
+            "Medical Devices",
+            "Medical Practice",
+            "Mental Health Care",
+            "Military",
+            "Mining & Metals",
+            "Mobile Games",
+            "Motion Pictures and Film",
+            "Museums and Institutions",
+            "Music",
+            "Nanotechnology",
+            "Newspapers",
+            "Non-Profit Organization Management",
+            "Oil & Energy",
+            "Online Media",
+            "Outsourcing/Offshoring",
+            "Package/Freight Delivery",
+            "Packaging and Containers",
+            "Paper & Forest Products",
+            "Performing Arts",
+            "Pharmaceuticals",
+            "Philanthropy",
+            "Photography",
+            "Plastics",
+            "Political Organization",
+            "Primary/Secondary Education",
+            "Printing",
+            "Professional Training & Coaching",
+            "Program Development",
+            "Public Policy",
+            "Public Relations and Communications",
+            "Public Safety",
+            "Publishing",
+            "Railroad Manufacture",
+            "Ranching",
+            "Real Estate",
+            "Recreational Facilities and Services",
+            "Religious Institutions",
+            "Renewables & Environment",
+            "Research",
+            "Restaurants",
+            "Retail",
+            "Security and Investigations",
+            "Semiconductors",
+            "Shipbuilding",
+            "Sporting Goods",
+            "Sports",
+            "Staffing and Recruiting",
+            "Supermarkets",
+            "Telecommunications",
+            "Textiles",
+            "Think Tanks",
+            "Tobacco",
+            "Translation and Localization",
+            "Transportation/Trucking/Railroad",
+            "Utilities",
+            "Venture Capital & Private Equity",
+            "Veterinary",
+            "Warehousing",
+            "Wholesale",
+            "Wine and Spirits",
+            "Wireless",
+            "Writing and Editing"
+          ]
+        },
+        "description": "Industries the company operates in."
+      },
+      "primary_industry_only": {
+        "type": "boolean",
+        "description": "Whether industries must be the company's main industry rather than any of its industries."
+      },
+      "keywords": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Tags the company is labeled with."
+      },
+      "technologies": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Products in the company's tech stack."
+      },
+      "technologies_match": {
+        "type": "string",
+        "enum": [
+          "any",
+          "all"
+        ],
+        "description": "\"all\" when the company must use every listed technology, \"any\" when one is enough."
+      },
+      "employees_min": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Minimum headcount."
+      },
+      "employees_max": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Maximum headcount."
+      },
+      "founded_after": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "description": "Earliest founding year, inclusive."
+      },
+      "founded_before": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "description": "Latest founding year, inclusive."
+      },
+      "monthly_visits_min": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Minimum monthly website visits."
+      },
+      "website_rank_max": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Lowest global website popularity rank allowed, where 1 is the most visited site."
+      },
+      "has_linkedin": {
+        "type": [
+          "boolean",
+          "null"
+        ],
+        "description": "true when the company must have a LinkedIn page, false when it must not."
+      },
+      "linkedin_slugs": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "LinkedIn company page slugs, as in linkedin.com/company/<slug>."
+      },
+      "domains": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Website domains."
+      },
+      "tlds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Website domain endings without the dot, such as \"ai\" or \"co.uk\"."
+      },
+      "funding_types": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "pre_seed",
+            "seed",
+            "angel",
+            "series_a",
+            "series_b",
+            "series_c",
+            "series_d",
+            "series_e",
+            "series_f",
+            "series_g",
+            "series_h",
+            "series_i",
+            "series_j",
+            "series_k",
+            "series_l",
+            "series_m",
+            "debt_financing",
+            "growth_debt",
+            "strategic_investment",
+            "safe_convertible",
+            "corporate_round",
+            "private_equity",
+            "grant",
+            "equity_crowdfunding",
+            "product_crowdfunding",
+            "secondary_market",
+            "ipo",
+            "post_ipo_equity",
+            "post_ipo_debt",
+            "post_ipo_secondary",
+            "initial_coin_offering",
+            "non_equity_assistance"
+          ]
+        },
+        "description": "Funding rounds the company has raised, such as seed or series_b."
+      },
+      "current_funding_stages": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "pre_seed",
+            "seed",
+            "angel",
+            "series_a",
+            "series_b",
+            "series_c",
+            "series_d",
+            "series_e",
+            "series_f",
+            "series_g",
+            "series_h",
+            "series_i",
+            "series_j",
+            "series_k",
+            "series_l",
+            "series_m",
+            "debt_financing",
+            "growth_debt",
+            "strategic_investment",
+            "safe_convertible",
+            "corporate_round",
+            "private_equity",
+            "grant",
+            "equity_crowdfunding",
+            "product_crowdfunding",
+            "secondary_market",
+            "ipo",
+            "post_ipo_equity",
+            "post_ipo_debt",
+            "post_ipo_secondary",
+            "initial_coin_offering",
+            "non_equity_assistance"
+          ]
+        },
+        "default": [],
+        "description": "Current funding stages, rather than rounds raised in the past."
+      },
+      "funding_round_phase": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "initial",
+          "extension",
+          null
+        ],
+        "description": "\"initial\" for the first close of a round, \"extension\" for an extension of it."
+      },
+      "funded_after": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}$"
+          },
+          {
+            "type": "string",
+            "format": "date"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Earliest date of a matching funding round, inclusive (YYYY-MM-DD, or YYYY-MM for the whole month)."
+      },
+      "funded_before": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}$"
+          },
+          {
+            "type": "string",
+            "format": "date"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Latest date of a matching funding round, inclusive (YYYY-MM-DD, or YYYY-MM for the whole month)."
+      },
+      "round_amount_min_usd": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Minimum size of a matching funding round, in US dollars."
+      },
+      "round_amount_max_usd": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Maximum size of a matching funding round, in US dollars."
+      },
+      "total_funding_min_usd": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Minimum total funding raised, in US dollars."
+      },
+      "total_funding_max_usd": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Maximum total funding raised, in US dollars."
+      },
+      "funding_rounds_min": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "description": "Minimum number of funding rounds raised."
+      },
+      "funding_rounds_max": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 0,
+        "default": null,
+        "description": "Maximum number of funding rounds raised."
+      },
+      "first_funded_after": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^\\d{4}-\\d{2}$",
+        "description": "Earliest month of the company's first funding round (YYYY-MM)."
+      },
+      "first_funded_before": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^\\d{4}-\\d{2}$",
+        "description": "Latest month of the company's first funding round (YYYY-MM)."
+      },
+      "first_seen_after": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^\\d{4}-\\d{2}$",
+        "description": "Earliest month the company was first discovered (YYYY-MM)."
+      },
+      "sort_by": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "employees",
+          "monthly_visits",
+          "total_funding",
+          "founded_year",
+          null
+        ],
+        "description": "What results are ordered by; null orders them by relevance."
+      },
+      "sort_direction": {
+        "type": "string",
+        "enum": [
+          "desc",
+          "asc"
+        ],
+        "description": "\"desc\" puts the highest values first, \"asc\" the lowest. Only applies with sort_by."
+      }
+    },
+    "additionalProperties": false,
+    "description": "Structured company filters, the same fields as interpreted_as.company. Every field is optional; set fields override what the query was interpreted as."
+  },
   "ScrapeParseRules": {
     "type": "object",
     "additionalProperties": {
@@ -12039,6 +14301,70 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         }
       }
     ]
+  },
+  "ScrapeProfile": {
+    "oneOf": [
+      {
+        "type": "object",
+        "title": "Existing Profile",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "existing",
+            "description": "Reuse a saved browser profile."
+          },
+          "profileId": {
+            "type": "string",
+            "pattern": "^prof_[a-f0-9]{32}$",
+            "description": "The ID returned in profile.id by an earlier scrape."
+          }
+        },
+        "required": [
+          "type",
+          "profileId"
+        ]
+      },
+      {
+        "type": "object",
+        "title": "New Profile",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "new",
+            "description": "Sign in and create a browser profile."
+          },
+          "identifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Username or email for the target website."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "writeOnly": true,
+            "description": "Password used to sign in. It is never stored in the profile."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Optional label shown when listing profiles with `GET /org/browser/profiles`."
+          }
+        },
+        "required": [
+          "type",
+          "identifier",
+          "password"
+        ]
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    }
   },
   "ScrapeAction": {
     "title": "Browser action",

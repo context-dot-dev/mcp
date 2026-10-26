@@ -2,6 +2,8 @@
 // tool calls. Each one maps an unambiguous near-miss onto the published
 // schema; anything else is left for validation to report.
 
+import { COMPONENT_SCHEMAS } from "../context-endpoints";
+
 type Arguments = Record<string, unknown>;
 
 function isPlainObject(value: unknown): value is Arguments {
@@ -589,6 +591,105 @@ function repairBatch(input: Arguments): Arguments {
   return args;
 }
 
+function letters(value: string): string {
+  return value.normalize("NFD").toLowerCase().replace(/[^a-z]/g, "");
+}
+
+let countryCodesByName: Map<string, string> | undefined;
+
+// English country names keyed by their letters, so "United States" and
+// "Cote d'Ivoire" find US and CI. Retired codes such as FX canonicalize to
+// a current one and are skipped.
+function countryCodeForName(name: string): string | undefined {
+  if (!countryCodesByName) {
+    countryCodesByName = new Map([["usa", "US"], ["unitedstatesofamerica", "US"]]);
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    for (let first = 65; first <= 90; first++) {
+      for (let second = 65; second <= 90; second++) {
+        const code = String.fromCharCode(first, second);
+        const countryName = names.of(code);
+        if (countryName && countryName !== code && new Intl.Locale(`und-${code}`).region === code) {
+          countryCodesByName.set(letters(countryName), code);
+        }
+      }
+    }
+  }
+  return countryCodesByName.get(name);
+}
+
+// Two-letter codes are uppercased and canonicalized (UK becomes GB).
+function countryCode(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const name = letters(value);
+  if (name.length === 2) return new Intl.Locale(`und-${name.toUpperCase()}`).region;
+  return countryCodeForName(name);
+}
+
+function countryCodes(value: unknown): unknown {
+  const entries =
+    typeof value === "string" ? value.split(/[,;|]/).filter((entry) => entry.trim()) : value;
+  if (!Array.isArray(entries)) return value;
+  const codes = entries.map(countryCode);
+  if (codes.some((code) => code === undefined)) return value;
+  const isUnchanged =
+    Array.isArray(value) && value.length === codes.length && codes.every((code, i) => code === value[i]);
+  return isUnchanged ? value : codes;
+}
+
+// `country`, `min_employees`, and `yearsOfExperienceMin` name declared filters.
+function searchFilterName(key: string, filterNames: string[]): string | undefined {
+  const name = letters(key);
+  const candidates = [name, `${name}s`, name.replace(/y$/, "ies"), name.replace(/^(min|max)(.+)$/, "$2$1")];
+  return filterNames.find((filterName) => candidates.includes(letters(filterName)));
+}
+
+// company-search and people-search take their constraints under `filters`.
+// Models send them flat ({ query, countries: ["US"] }), which validation would
+// silently strip, and send countries as names, lowercase, or one string.
+function repairEntitySearch(filterSchema: string): (args: Arguments) => Arguments {
+  const filterNames = Object.keys(COMPONENT_SCHEMAS[filterSchema]?.properties ?? {});
+  return (input) => {
+    const args = renameMissing(input, "query", [
+      "q",
+      "search",
+      "search_query",
+      "searchQuery",
+      "description",
+      "prompt",
+      "text",
+    ]);
+    if (args.filters !== undefined && !isPlainObject(args.filters)) return args;
+    let hasChanges = args !== input;
+    const filters: Arguments = {};
+    for (const [key, value] of Object.entries(args.filters ?? {})) {
+      const name = searchFilterName(key, filterNames) ?? key;
+      if (name !== key) hasChanges = true;
+      if (isMissing(filters[name])) filters[name] = value;
+    }
+    const rest: Arguments = {};
+    for (const [key, value] of Object.entries(args)) {
+      if (key === "filters") continue;
+      const name = searchFilterName(key, filterNames);
+      if (!name) {
+        rest[key] = value;
+        continue;
+      }
+      hasChanges = true;
+      if (isMissing(filters[name])) filters[name] = value;
+    }
+    if (filters.countries !== undefined) {
+      const codes = countryCodes(filters.countries);
+      if (codes !== filters.countries) hasChanges = true;
+      filters.countries = codes;
+    }
+    if (!hasChanges) return input;
+    return Object.keys(filters).length > 0 ? { ...rest, filters } : rest;
+  };
+}
+
+const repairCompanySearch = repairEntitySearch("CompanySearchFilters");
+const repairPeopleSearch = repairEntitySearch("PeopleSearchFilters");
+
 // responseMode only selects compact output; any other value means the default.
 function withoutUnknownResponseMode(
   repair: (args: Arguments) => Arguments,
@@ -610,6 +711,8 @@ const TOOL_REPAIRS: Readonly<Record<string, (args: Arguments) => Arguments>> = {
   "web-answers": repairAnswers,
   "web-map": repairMap,
   "get-news-search": repairNewsSearch,
+  "company-search": repairCompanySearch,
+  "people-search": repairPeopleSearch,
   "brand-retrieve-unified": repairBrandRetrieve,
   "submit-batch": repairBatch,
 };
@@ -666,6 +769,10 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
   "web-map": "web-map needs `domain`, the site's host name, such as docs.example.com.",
   "get-news-search":
     'get-news-search takes exactly one of: `query`, a plain-language topic such as {"query":"chip export restrictions to China"}, ordered by relevance; or one company identifier, for example {"companyName":"Acme"}, {"domain":"acme.com"}, {"ticker":"ACME"}, or {"isin":"US0000000000"}, with sortBy "newest" or "relevance".',
+  "company-search":
+    'company-search needs `query`, a plain-language description of the companies to find, for example {"query":"solar startups in California","filters":{"countries":["US"],"employees_min":50}}. Countries are two-letter codes. To resolve a company you can already name, use brand-search.',
+  "people-search":
+    'people-search needs `query`, a plain-language description of the people to find, for example {"query":"VPs of sales at solar companies","filters":{"countries":["US"],"years_of_experience_min":10}}. Countries are two-letter codes. To look up one known person, use people-enrich.',
   "brand-retrieve-unified":
     'Send one lookup in `body`, for example {"body":{"type":"by_domain","domain":"stripe.com"}}. Other lookups: by_name with name, by_email with email, by_ticker with ticker, by_direct_url with direct_url, by_transaction with transaction_info.',
   "submit-batch":
@@ -674,10 +781,13 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
 
 // The API rejects a scrape whose format options arrive without the format
 // (`highlightsParams` without `formats.highlights`) or that requests no format.
-// Complete those even when the arguments already pass validation.
+// Complete those even when the arguments already pass validation, and move
+// flat search filters that validation would otherwise strip.
 export function completeValidArguments(toolName: string, args: unknown): unknown {
   if (!isPlainObject(args)) return args;
   if (toolName === "web-answers") return repairAnswers(args);
+  if (toolName === "company-search") return repairCompanySearch(args);
+  if (toolName === "people-search") return repairPeopleSearch(args);
   if (toolName !== "web-scrape" || !isPlainObject(args.formats)) {
     return args;
   }

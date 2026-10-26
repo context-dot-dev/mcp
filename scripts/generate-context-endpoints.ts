@@ -18,7 +18,9 @@ const CORE_TOOL_NAMES: Record<string, string> = {
   "POST /web/search": "web-search",
   "POST /web/answers": "web-answers",
   "POST /news/search": "get-news-search",
+  "POST /company/search": "company-search",
   "GET /web/competitors": "web-competitors",
+  "POST /people/search": "people-search",
   "POST /people/retrieve": "people-retrieve",
   "POST /people/enrich": "people-enrich",
   "GET /brand/search": "brand-search",
@@ -41,6 +43,7 @@ const CORE_TOOL_NAMES: Record<string, string> = {
   "POST /brand/prefetch": "brand-prefetch",
   "POST /brand/prefetch-by-email": "brand-prefetch-by-email",
   "POST /utility/prefetch": "utility-prefetch",
+  "GET /org/browser/profiles": "list-browser-profiles",
 };
 
 const READ_ONLY_POST_PATHS = new Set([
@@ -50,6 +53,8 @@ const READ_ONLY_POST_PATHS = new Set([
   "/web/search",
   "/web/answers",
   "/news/search",
+  "/company/search",
+  "/people/search",
   "/people/retrieve",
   "/people/enrich",
   "/webhooks/deliveries",

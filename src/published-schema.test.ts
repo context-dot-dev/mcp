@@ -59,6 +59,41 @@ test("object unions are published as one object with a variant summary", () => {
   });
 });
 
+test("merged discriminators describe every value", () => {
+  const variant = (type: string, description: string, field: string) => ({
+    type: "object",
+    properties: {
+      type: { type: "string", const: type, description },
+      [field]: { type: "string" },
+    },
+    required: ["type", field],
+  });
+  const typeDescription = (...variants: JsonSchema[]) =>
+    compactPublishedSchema({ anyOf: variants }).properties?.type?.description;
+
+  assert.equal(
+    typeDescription(
+      variant("existing", "Reuse a saved profile.", "profileId"),
+      variant("new", "Sign in and save a profile.", "password"),
+    ),
+    "`existing`: Reuse a saved profile. `new`: Sign in and save a profile.",
+  );
+  assert.equal(
+    typeDescription(
+      variant("batch", "Delivery source.", "batch_id"),
+      variant("monitor", "Delivery source.", "monitor_id"),
+    ),
+    "Delivery source.",
+  );
+  assert.equal(
+    typeDescription(
+      variant("domain", "Use `domain`.", "domain"),
+      variant("name", "Use `name`.", "name"),
+    ),
+    "Use `domain`.",
+  );
+});
+
 test("nested object unions keep the variant summary when their parents merge", () => {
   const published = compactPublishedSchema({
     anyOf: [

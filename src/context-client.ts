@@ -104,15 +104,19 @@ function buildRequestBody(
 
 const READ_ONLY_BROWSER_STEPS = new Set(["scroll", "wait", "waitFor"]);
 
+// Request fields arrive flat or, when a body can't be flattened, under `body`.
+function requestContainers(args: ToolArguments): Record<string, unknown>[] {
+  return [args, args.body].filter(
+    (value): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null,
+  );
+}
+
 // Browser actions other than scrolling or waiting can change third-party state
 // and need api.write. web-scrape nests them under sharedParams with `type`;
 // older scraping tools take a top-level `actions` list with `do`.
 function requestsBrowserActions(args: ToolArguments): boolean {
-  const containers = [args, args.body].filter(
-    (value): value is Record<string, unknown> =>
-      typeof value === "object" && value !== null,
-  );
-  const lists = containers.flatMap((container) => [
+  const lists = requestContainers(args).flatMap((container) => [
     container.actions,
     (container.sharedParams as Record<string, unknown> | undefined)?.actions,
   ]);
@@ -130,12 +134,24 @@ function requestsBrowserActions(args: ToolArguments): boolean {
   );
 }
 
+// A new browser profile signs in to the target site with the supplied
+// credentials and saves the session to the account.
+function createsBrowserProfile(args: ToolArguments): boolean {
+  return requestContainers(args).some((container) => {
+    const sharedParams = container.sharedParams as Record<string, unknown> | undefined;
+    const profile = sharedParams?.profile as Record<string, unknown> | undefined;
+    return profile?.type === "new";
+  });
+}
+
 function isReadOnlyRequest(endpoint: Endpoint, args: ToolArguments): boolean {
-  // web-scrape is annotated for its browser actions but only needs write
-  // access when a request uses them.
+  // web-scrape is annotated for its browser actions and sign-ins but only
+  // needs write access when a request uses them.
   const readOnly =
     endpoint.name === "web-scrape" || endpoint.annotations.readOnlyHint;
-  return readOnly && !requestsBrowserActions(args);
+  return (
+    readOnly && !requestsBrowserActions(args) && !createsBrowserProfile(args)
+  );
 }
 
 export function contextErrorMessage(

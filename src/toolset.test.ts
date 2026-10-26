@@ -8,7 +8,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
   const selected = selectEndpoints([...ENDPOINTS].reverse());
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 41);
+  assert.equal(selected.length, 44);
   assert.equal(names.size, selected.length);
   assert.deepEqual(
     selected.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
@@ -21,6 +21,8 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "POST /brand/retrieve",
       "GET /brand/search",
       "GET /web/styleguide",
+      "POST /company/search",
+      "POST /people/search",
       "POST /people/enrich",
       "POST /news/search",
       "POST /parse",
@@ -51,6 +53,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "POST /webhooks/deliveries/{delivery_id}/retry",
       "GET /org/logs",
       "GET /org/logs/{request_id}",
+      "GET /org/browser/profiles",
       "GET /org/usage",
       "GET /org/usage/history",
       "POST /feedback",
@@ -102,6 +105,26 @@ test("tool descriptions route agents between overlapping workflows", () => {
   assert.match(
     tools.get("get-news-search")?.description ?? "",
     /exactly one of: query.*companyName.*web-search/i,
+  );
+  assert.match(
+    tools.get("company-search")?.description ?? "",
+    /plain-language.*filters\.countries.*next_cursor.*brand-search.*people-search/i,
+  );
+  assert.match(
+    tools.get("people-search")?.description ?? "",
+    /plain-language.*filters\.countries.*next_cursor.*people-enrich.*company-search/i,
+  );
+  assert.match(
+    tools.get("brand-search")?.description ?? "",
+    /company-search/,
+  );
+  assert.match(
+    tools.get("people-enrich")?.description ?? "",
+    /people-search/,
+  );
+  assert.match(
+    tools.get("list-browser-profiles")?.description ?? "",
+    /web-scrape.*sharedParams\.profile.*existing/i,
   );
   assert.match(
     tools.get("list-logs")?.description ?? "",
@@ -161,6 +184,8 @@ test("every public tool has annotations that match its most privileged behavior"
     "brand-retrieve-unified",
     "brand-search",
     "web-styleguide",
+    "company-search",
+    "people-search",
     "people-enrich",
   ]);
   const additiveExternalTools = new Set([
