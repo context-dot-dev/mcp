@@ -27,7 +27,7 @@ Use the API reference linked for each capability before implementing request or 
 | Identify website typography | Styleguide | `GET /web/styleguide` | Includes typography and font assets. |
 | Capture a rendered page | Scrape | `POST /web/scrape` | Enable `formats.screenshot` for visual QA and previews. |
 | Detect changes repeatedly | Monitors | `/monitors` routes | Creation starts an initial baseline and consumes credits. Webhooks can notify external systems. |
-| Process many URLs asynchronously | Batches | `POST /batch/submit` | Supports up to 25,000 URLs. Follow with status and results routes. |
+| Process many URLs asynchronously | Batches | `POST /batch/submit` | Supports up to 100,000 URLs. Follow with status and results routes. |
 | Inspect or retry webhook notifications | Webhook Deliveries | `/webhooks/deliveries` routes | List, retrieve, inspect attempts, or retry a delivery. |
 | Report a Context problem you hit | Agent Feedback | `POST /feedback` | Send a category, a note, and the affected `request_id` or a `url`. Costs 0 credits. |
 

@@ -10736,6 +10736,414 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     "title": "WebDB preview request",
     "description": "Tests extraction without creating a collection."
   },
+  "BatchUnifiedScrapeData": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "urls": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Page URL to scrape.",
+              "example": "https://example.com/products/anvil"
+            },
+            "itemId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
+              "example": "sku-1"
+            },
+            "meta": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Custom JSON returned unchanged with this page result."
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "additionalProperties": false,
+          "description": "A page to scrape, with optional data for matching results."
+        },
+        "minItems": 1,
+        "maxItems": 100000,
+        "description": "Pages to scrape. Maximum 100000."
+      },
+      "formats": {
+        "$ref": "#/components/schemas/ScrapeFormats",
+        "description": "Outputs to return. Set at least one to `true`."
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams",
+        "description": "Markdown options. Requires `formats.markdown`."
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams",
+        "description": "Screenshot options. Requires formats.screenshot: true."
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams",
+        "description": "Image options. Requires formats.images: true."
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams",
+        "description": "Requires `formats.parse: true`; required when it is set."
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams",
+        "description": "Requires `formats.highlights: true`; required when it is set."
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams",
+        "description": "Requires `formats.json: true`; required when it is set."
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams",
+        "description": "Product options. Requires formats.product: true."
+      },
+      "sharedParams": {
+        "$ref": "#/components/schemas/ScrapeSharedParams",
+        "description": "Browser and content settings shared by all outputs."
+      },
+      "maxAgeMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 31536000000,
+        "default": 259200000,
+        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "disabled"
+        ],
+        "default": "disabled",
+        "description": "Batches persist their results. Only disabled is supported; enabled returns ZDR_NOT_SUPPORTED."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/ScrapeTimeout",
+        "default": {
+          "milliseconds": 90000,
+          "behavior": "fail"
+        },
+        "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags",
+        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+      }
+    },
+    "required": [
+      "urls",
+      "formats"
+    ],
+    "title": "Scrape Anything",
+    "description": "Use the same formats and parameters as POST /web/scrape, replacing url with urls. Options apply to every page."
+  },
+  "BatchUnifiedCrawlData": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "source": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "start_url"
+                ],
+                "description": "Start from one page."
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Page where crawling begins. A URL without a scheme is read as https://.",
+                "example": "https://example.com/docs"
+              },
+              "controls": {
+                "type": "object",
+                "properties": {
+                  "maxUrls": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000,
+                    "default": 100,
+                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                  },
+                  "maxDepth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50,
+                    "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
+                  },
+                  "followSubdomains": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Follow links to subdomains."
+                  },
+                  "regex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern for URLs to include. The `start_url` itself is always included.",
+                    "example": "^https://example\\.com/docs/"
+                  },
+                  "excludeRegex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern for URLs to exclude, even when they match `regex`. The `start_url` itself is always included.",
+                    "example": "/tag/|/author/"
+                  },
+                  "languages": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "same_as_start_url"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "am",
+                            "ar",
+                            "az",
+                            "be",
+                            "bg",
+                            "bn",
+                            "ca",
+                            "ceb",
+                            "cs",
+                            "cy",
+                            "da",
+                            "de",
+                            "el",
+                            "en",
+                            "es",
+                            "et",
+                            "eu",
+                            "fa",
+                            "fi",
+                            "fr",
+                            "gu",
+                            "ha",
+                            "haw",
+                            "he",
+                            "hi",
+                            "hr",
+                            "hu",
+                            "hy",
+                            "id",
+                            "is",
+                            "it",
+                            "ja",
+                            "ka",
+                            "kk",
+                            "kn",
+                            "ko",
+                            "ku",
+                            "ky",
+                            "lo",
+                            "lt",
+                            "lv",
+                            "mk",
+                            "ml",
+                            "mn",
+                            "mr",
+                            "ms",
+                            "ne",
+                            "nl",
+                            "no",
+                            "or",
+                            "pa",
+                            "pl",
+                            "ps",
+                            "pt",
+                            "ro",
+                            "ru",
+                            "sk",
+                            "sl",
+                            "so",
+                            "sq",
+                            "sr",
+                            "sv",
+                            "sw",
+                            "ta",
+                            "te",
+                            "th",
+                            "tl",
+                            "tr",
+                            "uk",
+                            "ur",
+                            "uz",
+                            "vi",
+                            "yo",
+                            "zh"
+                          ]
+                        },
+                        "minItems": 1
+                      }
+                    ],
+                    "description": "Only follow pages in these languages, or `same_as_start_url`; all languages when omitted.",
+                    "example": "same_as_start_url"
+                  }
+                },
+                "default": {
+                  "maxUrls": 100,
+                  "followSubdomains": false
+                },
+                "additionalProperties": false,
+                "description": "Limits and filters for page discovery."
+              }
+            },
+            "required": [
+              "type",
+              "url"
+            ],
+            "additionalProperties": false,
+            "description": "Discover pages by following links from one URL.",
+            "title": "Start URL"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sitemap"
+                ],
+                "description": "Scrape the URLs in the domain's sitemap."
+              },
+              "domain": {
+                "type": "string",
+                "minLength": 3,
+                "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
+                "example": "example.com"
+              },
+              "controls": {
+                "type": "object",
+                "properties": {
+                  "maxUrls": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000,
+                    "default": 100,
+                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                  },
+                  "regex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern; only sitemap URLs matching it are scraped.",
+                    "example": "^https://example\\.com/docs/"
+                  },
+                  "excludeRegex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern; sitemap URLs matching it are not scraped, even when they match `regex`.",
+                    "example": "/tag/|/author/"
+                  }
+                },
+                "default": {
+                  "maxUrls": 100
+                },
+                "additionalProperties": false,
+                "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
+              }
+            },
+            "required": [
+              "type",
+              "domain"
+            ],
+            "additionalProperties": false,
+            "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
+            "title": "Sitemap"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        },
+        "title": "Crawl source",
+        "description": "How to find pages to crawl."
+      },
+      "formats": {
+        "$ref": "#/components/schemas/ScrapeFormats",
+        "description": "Outputs to return. Set at least one to `true`."
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams",
+        "description": "Markdown options. Requires `formats.markdown`."
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams",
+        "description": "Screenshot options. Requires formats.screenshot: true."
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams",
+        "description": "Image options. Requires formats.images: true."
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams",
+        "description": "Requires `formats.parse: true`; required when it is set."
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams",
+        "description": "Requires `formats.highlights: true`; required when it is set."
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams",
+        "description": "Requires `formats.json: true`; required when it is set."
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams",
+        "description": "Product options. Requires formats.product: true."
+      },
+      "sharedParams": {
+        "$ref": "#/components/schemas/ScrapeSharedParams",
+        "description": "Browser and content settings shared by all outputs."
+      },
+      "maxAgeMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 31536000000,
+        "default": 259200000,
+        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "disabled"
+        ],
+        "default": "disabled",
+        "description": "Batches persist their results. Only disabled is supported; enabled returns ZDR_NOT_SUPPORTED."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/ScrapeTimeout",
+        "default": {
+          "milliseconds": 90000,
+          "behavior": "fail"
+        },
+        "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags",
+        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+      }
+    },
+    "required": [
+      "source",
+      "formats"
+    ],
+    "title": "Crawl with Scrape Anything",
+    "description": "Use the same formats and parameters as POST /web/scrape, replacing url with source. Options apply to every page."
+  },
   "BatchSubmitRequest": {
     "type": "object",
     "properties": {
@@ -10794,8 +11202,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "description": "A page to scrape, with optional data for matching results."
                         },
                         "minItems": 1,
-                        "maxItems": 25000,
-                        "description": "Pages to scrape. Maximum 25000."
+                        "maxItems": 100000,
+                        "description": "Pages to scrape. Maximum 100000."
                       },
                       "options": {
                         "type": "object",
@@ -10972,8 +11380,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "description": "A page to scrape, with optional data for matching results."
                         },
                         "minItems": 1,
-                        "maxItems": 25000,
-                        "description": "Pages to scrape. Maximum 25000."
+                        "maxItems": 100000,
+                        "description": "Pages to scrape. Maximum 100000."
                       },
                       "options": {
                         "type": "object",
@@ -11084,13 +11492,13 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                     "additionalProperties": false,
                     "description": "Scrape the listed pages as HTML.",
                     "title": "HTML"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BatchUnifiedScrapeData"
                   }
                 ],
-                "discriminator": {
-                  "propertyName": "format"
-                },
                 "title": "Scrape data",
-                "description": "Pages to scrape and their output format."
+                "description": "Pages to scrape with legacy format options or Scrape Anything formats."
               }
             },
             "required": [
@@ -11099,7 +11507,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             ],
             "additionalProperties": false,
             "title": "Scrape",
-            "description": "Scrape a list of up to 25,000 URLs."
+            "description": "Scrape a list of up to 100,000 URLs."
           },
           {
             "type": "object",
@@ -11147,9 +11555,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "maxDepth": {
                                     "type": "integer",
@@ -11207,9 +11615,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "regex": {
                                     "type": "string",
@@ -11408,9 +11816,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "maxDepth": {
                                     "type": "integer",
@@ -11468,9 +11876,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "regex": {
                                     "type": "string",
@@ -11610,13 +12018,13 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                     "additionalProperties": false,
                     "title": "HTML",
                     "description": "Crawl pages and return HTML."
+                  },
+                  {
+                    "$ref": "#/components/schemas/BatchUnifiedCrawlData"
                   }
                 ],
-                "discriminator": {
-                  "propertyName": "format"
-                },
                 "title": "Crawl data",
-                "description": "Crawl source and output format."
+                "description": "Crawl pages with legacy format options or Scrape Anything formats."
               }
             },
             "required": [
