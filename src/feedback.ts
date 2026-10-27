@@ -26,6 +26,10 @@ const ACCOUNT_LIMIT_NEXT_STEPS = new Map([
     "Wait for the Retry-After window before retrying, and make fewer parallel calls.",
   ],
   [
+    "CONCURRENCY_LIMITED",
+    "Retry with fewer calls in parallel, or use submit-batch for many pages or long jobs.",
+  ],
+  [
     "PAID_PLAN_REQUIRED",
     "Retry without `sharedParams.actions`; use `sharedParams.waitFor` to wait for content instead.",
   ],

@@ -200,6 +200,52 @@ test("concurrency 429s from another server instance keep retrying past the per-m
   assert.equal(calls, 7);
 });
 
+test("a timeout after a long wait for a concurrency slot blames the wait instead of the API", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  const concurrencyHeaders = { "X-RateLimit-Mode": "concurrency", "X-RateLimit-Limit": "1" };
+  const timeOut = () =>
+    Promise.reject(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+  const message = (result: Awaited<ReturnType<typeof callContextApi>> | undefined) =>
+    result?.content[0]?.type === "text" ? result.content[0].text : "";
+
+  globalThis.fetch = timeOut;
+  const [apiTimeout] = await callInParallel("slow-api-key", 1);
+  assert.match(message(apiTimeout), /^Context API did not respond within 115 seconds/);
+
+  let finishRunningCall!: (response: Response) => void;
+  const runningCall = new Promise<Response>((resolve) => { finishRunningCall = resolve; });
+  const upstream = [
+    async () => new Response("{}", { headers: concurrencyHeaders }),
+    () => runningCall,
+    async () => {
+      now += 20_000;
+      return new Response(
+        JSON.stringify({ message: "Organization concurrency limit exceeded", error_code: "RATE_LIMITED" }),
+        { status: 429, headers: { ...concurrencyHeaders, "Retry-After": "0" } },
+      );
+    },
+    timeOut,
+  ];
+  globalThis.fetch = () => upstream.shift()!();
+  await callInParallel("slot-wait-key", 1);
+  const running = callInParallel("slot-wait-key", 1);
+  const queued = callInParallel("slot-wait-key", 1);
+  now += 30_000;
+  finishRunningCall(new Response("{}", { headers: concurrencyHeaders }));
+  const [[ranResult], [queuedResult]] = await Promise.all([running, queued]);
+  assert.equal(ranResult!.isError, undefined);
+  const slotWaitTimeout = message(queuedResult);
+  assert.match(
+    slotWaitTimeout,
+    /^Waited 50 seconds for one of this account's concurrent request slots, then Context API did not respond within the remaining 65 seconds/,
+  );
+  assert.match(slotWaitTimeout, /account limit working as intended; do not call submit-feedback/);
+  assert.doesNotMatch(slotWaitTimeout, /always call submit-feedback/);
+});
+
 test("a failed request frees its slot for the next call", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });

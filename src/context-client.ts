@@ -396,6 +396,8 @@ const QUEUE_WAIT_LIMIT_MS = 60_000;
 // Its 429s did no work, so polling it every couple of seconds until the queue
 // deadline picks up a freed slot soon after another instance's call finishes.
 const CONCURRENCY_RETRY_MAX_WAIT_MS = 2_000;
+// After a shorter wait the API still had most of the budget, so the timeout is its own.
+const MEANINGFUL_SLOT_WAIT_MS = UPSTREAM_TIMEOUT_MS / 4;
 
 // Waits at least 0.5s, 1s, 2s, 4s, 8s, so a `Retry-After: 0` from the
 // concurrency limit cannot turn one call into a burst of requests.
@@ -418,6 +420,18 @@ function retryAfterMs(headers: Headers, attempt: number): number {
 
 export function contextFetchError(toolName: string, cause: unknown) {
   if (cause instanceof Error && cause.name === "TimeoutError") {
+    const slotWaitMs = (cause as { slotWaitMs?: unknown }).slotWaitMs;
+    const hasWaitedForSlot =
+      typeof slotWaitMs === "number" && slotWaitMs >= MEANINGFUL_SLOT_WAIT_MS;
+    if (hasWaitedForSlot) {
+      const waitedSeconds = Math.round(slotWaitMs / 1000);
+      const remainingSeconds = UPSTREAM_TIMEOUT_MS / 1000 - waitedSeconds;
+      return contextApiError(
+        toolName,
+        `Waited ${waitedSeconds} seconds for one of this account's concurrent request slots, then Context API did not respond within the remaining ${remainingSeconds} seconds, so the request was stopped before the MCP client timed out.`,
+        "CONCURRENCY_LIMITED",
+      );
+    }
     return contextApiError(
       toolName,
       `Context API did not respond within ${UPSTREAM_TIMEOUT_MS / 1000} seconds, so the request was stopped before the MCP client timed out. Retry with a smaller request (fewer pages, results, or formats), or use submit-batch for long jobs.`,
@@ -439,8 +453,10 @@ export async function fetchContextApi(
 ): Promise<Response> {
   const started = Date.now();
   const keyId = getApiKeyId(init.headers);
+  let slotWaitMs = 0;
   for (let attempt = 0; ; attempt += 1) {
-    const response = await fetchInApiKeySlot(url, init, started, keyId);
+    const attemptStarted = Date.now();
+    const response = await fetchInApiKeySlot(url, init, started, keyId, slotWaitMs);
     if (response.status !== 429) return response;
     const isConcurrencyLimit = response.headers.get("X-RateLimit-Mode") === "concurrency";
     const retryBudgetMs = isConcurrencyLimit ? QUEUE_WAIT_LIMIT_MS : RATE_LIMIT_RETRY_BUDGET_MS;
@@ -448,6 +464,7 @@ export async function fetchContextApi(
     const wait = retryAfterMs(response.headers, attempt) + Math.random() * 250;
     if (isOutOfRetries || Date.now() - started + wait > retryBudgetMs) return response;
     await new Promise((resolve) => setTimeout(resolve, wait));
+    if (isConcurrencyLimit) slotWaitMs += Date.now() - attemptStarted;
   }
 }
 
@@ -458,10 +475,13 @@ async function fetchInApiKeySlot(
   init: RequestInit,
   started: number,
   keyId: string | undefined,
+  earlierSlotWaitMs: number,
 ): Promise<Response> {
+  const queued = Date.now();
   const release = keyId
     ? await acquireApiKeySlot(keyId, started + QUEUE_WAIT_LIMIT_MS)
     : undefined;
+  const slotWaitMs = earlierSlotWaitMs + Date.now() - queued;
   try {
     const response = await fetchWithinTimeout(url, init, started).catch(
       (cause: unknown) => {
@@ -479,6 +499,10 @@ async function fetchInApiKeySlot(
       statusText: response.statusText,
       headers: response.headers,
     });
+  } catch (cause) {
+    const isTimeout = cause instanceof Error && cause.name === "TimeoutError";
+    if (!isTimeout) throw cause;
+    throw Object.assign(new DOMException(cause.message, "TimeoutError"), { slotWaitMs });
   } finally {
     release?.();
   }
