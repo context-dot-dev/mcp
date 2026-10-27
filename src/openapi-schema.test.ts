@@ -25,6 +25,24 @@ test("keeps object fields and their validation alongside allOf constraints", () 
   assert.equal(filters.safeParse({ sourceCountry: ["invalid-country"] }).success, false);
 });
 
+test("legacy batch inputs keep their format and current 100,000-page limit", () => {
+  const input = COMPONENT_SCHEMAS.BatchSubmitRequest.properties?.input;
+  const scrapeVariants = input?.oneOf?.[0]?.properties?.data?.oneOf;
+  const crawlVariants = input?.oneOf?.[1]?.properties?.data?.oneOf;
+
+  assert.deepEqual(scrapeVariants?.[0]?.properties?.format?.enum, ["markdown"]);
+  assert.equal(scrapeVariants?.length, 2);
+  assert.equal(crawlVariants?.length, 2);
+  for (const variant of scrapeVariants ?? []) {
+    assert.equal(variant.properties?.urls?.maxItems, 100_000);
+  }
+  for (const variant of crawlVariants ?? []) {
+    for (const source of variant.properties?.source?.oneOf ?? []) {
+      assert.equal(source.properties?.controls?.properties?.maxUrls?.maximum, 100_000);
+    }
+  }
+});
+
 test("validates both sibling fields and structural allOf branches", () => {
   const schema = schemaToZod({
     type: "object",

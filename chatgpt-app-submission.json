@@ -190,7 +190,7 @@
         "idempotentHint": false
       },
       "justifications": {
-        "read_only_justification": "Creates a new asynchronous scraping job in the authenticated account that will fetch up to 25,000 URLs.",
+        "read_only_justification": "Creates a new asynchronous scraping job in the authenticated account that will fetch up to 100,000 URLs.",
         "open_world_justification": "When webhookUrl is supplied, the batch sends a completion request to a user-selected external endpoint; without a webhook it only writes private Context batch state and reads public pages.",
         "destructive_justification": "Creates new batch state and results without deleting or overwriting existing user data, so its updates are additive rather than destructive."
       }

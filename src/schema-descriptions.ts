@@ -25,8 +25,8 @@ export const MCP_DESCRIPTION_REPLACEMENTS: Readonly<Record<string, string>> = {
     "Extra wait after page load before rendering, in milliseconds. Useful for JS-heavy pages.",
   "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh.":
     "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). `0` fetches fresh.",
-  "Pages to scrape. Maximum 25000.": "Pages to scrape.",
-  "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000.":
+  "Pages to scrape. Maximum 100000.": "Pages to scrape.",
+  "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000.":
     "Maximum pages to fetch. Unused reserved credits are refunded.",
   "Discriminator for domain-based brand retrieval.": "Use `by_domain` with `domain`.",
   "Discriminator for name-based brand retrieval.": "Use `by_name` with `name`.",

@@ -486,7 +486,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "submit-batch": {
     title: "Submit a scraping batch",
     description:
-      "Start an asynchronous job to scrape up to 25,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhook.url is supplied, Context sends batch completion, failure, or cancellation events to that external endpoint. The call returns a batch ID and credit reservation, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
+      "Start an asynchronous job to scrape up to 100,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhook.url is supplied, Context sends batch completion, failure, or cancellation events to that external endpoint. The call returns a batch ID and credit reservation, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,

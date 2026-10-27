@@ -84,7 +84,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
   );
   assert.match(
     tools.get("submit-batch")?.description ?? "",
-    /25,000.*get-batch.*get-batch-results/i,
+    /100,000.*get-batch.*get-batch-results/i,
   );
   assert.match(
     tools.get("create-monitor")?.description ?? "",

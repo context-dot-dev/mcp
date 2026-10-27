@@ -10794,8 +10794,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "description": "A page to scrape, with optional data for matching results."
                         },
                         "minItems": 1,
-                        "maxItems": 25000,
-                        "description": "Pages to scrape. Maximum 25000."
+                        "maxItems": 100000,
+                        "description": "Pages to scrape. Maximum 100000."
                       },
                       "options": {
                         "type": "object",
@@ -10972,8 +10972,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                           "description": "A page to scrape, with optional data for matching results."
                         },
                         "minItems": 1,
-                        "maxItems": 25000,
-                        "description": "Pages to scrape. Maximum 25000."
+                        "maxItems": 100000,
+                        "description": "Pages to scrape. Maximum 100000."
                       },
                       "options": {
                         "type": "object",
@@ -11099,7 +11099,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             ],
             "additionalProperties": false,
             "title": "Scrape",
-            "description": "Scrape a list of up to 25,000 URLs."
+            "description": "Scrape a list of up to 100,000 URLs."
           },
           {
             "type": "object",
@@ -11147,9 +11147,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "maxDepth": {
                                     "type": "integer",
@@ -11207,9 +11207,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "regex": {
                                     "type": "string",
@@ -11408,9 +11408,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "maxDepth": {
                                     "type": "integer",
@@ -11468,9 +11468,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                   "maxUrls": {
                                     "type": "integer",
                                     "minimum": 1,
-                                    "maximum": 25000,
+                                    "maximum": 100000,
                                     "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 25000."
+                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
                                   },
                                   "regex": {
                                     "type": "string",
