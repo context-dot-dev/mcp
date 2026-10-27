@@ -793,7 +793,7 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
   "brand-retrieve-unified":
     'Send one lookup in `body`, for example {"body":{"type":"by_domain","domain":"stripe.com"}}. Other lookups: by_name with name, by_email with email, by_ticker with ticker, by_direct_url with direct_url, by_transaction with transaction_info.',
   "submit-batch":
-    'submit-batch takes {"input":{"mode":"scrape","data":{"format":"markdown","urls":[{"url":"https://example.com"}]}}}. Options must belong to the chosen format.',
+    'submit-batch takes {"input":{"mode":"scrape","data":{"urls":[{"url":"https://example.com"}],"formats":{"markdown":true}}}}}. Use data.source for crawl; legacy data.format "markdown" or "html" also works.',
 };
 
 // The API rejects a scrape whose format options arrive without the format

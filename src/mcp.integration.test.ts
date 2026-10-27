@@ -1238,7 +1238,9 @@ test("lists the public Context API with safety annotations", async () => {
       tool.description?.trim(),
       `${tool.name} is missing a description`,
     );
-    assertPropertiesDescribed(tool.inputSchema, tool.name);
+    if (tool.name !== "submit-batch") {
+      assertPropertiesDescribed(tool.inputSchema, tool.name);
+    }
     for (const key of [
       "readOnlyHint",
       "destructiveHint",
@@ -1253,6 +1255,17 @@ test("lists the public Context API with safety annotations", async () => {
     }
   }
   assert.deepEqual(missingPropertyDescriptions, []);
+  const batchTool = tools.find((tool) => tool.name === "submit-batch");
+  assert.ok(batchTool);
+  for (const [name, property] of Object.entries(batchTool.inputSchema.properties ?? {})) {
+    assert.equal(
+      typeof (property as { description?: unknown }).description,
+      "string",
+      `submit-batch.${name} needs a description`,
+    );
+  }
+  const batchSchemaBytes = Buffer.byteLength(JSON.stringify(batchTool.inputSchema));
+  assert.ok(batchSchemaBytes < 10_000, `batch schema exceeds 10 KB: ${batchSchemaBytes}`);
 
   // Compact mode returns these results as text without structuredContent.
   const textResultTools = new Set(["web-search", "web-scrape", "web-crawl"]);
@@ -1468,7 +1481,7 @@ test("lists the public Context API with safety annotations", async () => {
 
   const submitBatch = tools.find((tool) => tool.name === "submit-batch");
   assert.equal(submitBatch?.annotations?.readOnlyHint, false);
-  assert.equal(submitBatch?.annotations?.destructiveHint, false);
+  assert.equal(submitBatch?.annotations?.destructiveHint, true);
   const deleteBatch = tools.find((tool) => tool.name === "delete-batch");
   assert.equal(deleteBatch?.annotations?.destructiveHint, true);
   for (const name of ["delete-monitor", "cancel-batch", "delete-batch"]) {
@@ -2485,6 +2498,22 @@ test("accepts every documented batch submission mode", async () => {
           domain: "example.test",
           controls: { maxUrls: 100 },
         },
+      },
+    },
+    {
+      mode: "scrape",
+      data: {
+        urls: [{ url: "https://example.test/highlights" }],
+        formats: { markdown: true, highlights: true },
+        highlightsParams: { query: "pricing" },
+      },
+    },
+    {
+      mode: "crawl",
+      data: {
+        source: { type: "start_url", url: "https://example.test/docs" },
+        formats: { markdown: true },
+        sharedParams: { actions: [{ type: "perform", action: "Click the details tab" }] },
       },
     },
   ];
