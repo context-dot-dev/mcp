@@ -254,11 +254,9 @@ const server = new MCPServer({
   description:
     "Turn the live web, company news, and files into reliable, agent-ready context. Connect with OAuth or a Context API key through the Authorization header, X-API-Key header, or api_key URL parameter.",
   instructions:
-    "Use Context for live web or news, URLs, files, companies, people, batches, and monitoring. Route: `get-news-search` for news on a topic or company; `web-search` for broad web research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `submit-batch` for large jobs; `parse-document` for file bytes. Prefer compact search and scrape results. Browser actions affect sites; use only requested actions.\n\n" +
-    "Find companies or people from a description with `company-search` or `people-search`; use `brand-search` for a named company, `people-enrich` for one known person, `get-brand` for visual domain data, `brand-retrieve-unified` for raw or non-domain data, and `web-styleguide` for design systems. Monitors are recurring only; check `get-monitor-limits`. For batches call `get-batch`, then `get-batch-results`.\n\n" +
-    "For account failures only, use `list-logs`, then `get-log` with its request ID.\n\n" +
+    "Use Context for live web, news, URLs, files, and visual brand data. Route: `get-news-search` for news on a topic or company; `web-search` for broad web research; `web-answers` for researched JSON; `web-scrape` for one page; `web-map` for site URLs; `web-crawl` for linked pages; `parse-document` for file bytes; `get-brand` for a visual domain card. Prefer compact search and scrape results. Browser actions affect sites; use only requested actions.\n\n" +
     FEEDBACK_INSTRUCTIONS + "\n\n" +
-    "Auth: OAuth or an API key (`Authorization: Bearer <key>`, `X-API-Key`, or URL `api_key`). Prefer headers; URLs may be logged. On `USAGE_EXCEEDED` (402 or legacy 401), do not retry or reconnect; call `get-usage` once, explain the known balance and refill, and continue independent work. Use idempotency keys for batch retries.",
+    "Auth: OAuth or an API key (`Authorization: Bearer <key>`, `X-API-Key`, or URL `api_key`). Prefer headers; URLs may be logged. On `USAGE_EXCEEDED` (402 or legacy 401), do not retry or reconnect; call `get-usage` once, explain the known balance and refill, and continue independent work.",
   baseUrl: process.env.MCP_URL || "http://localhost:3000",
   favicon: "favicon.ico",
   websiteUrl: "https://context.dev",

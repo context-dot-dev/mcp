@@ -1504,6 +1504,13 @@ test("repairs bare answer property maps before forwarding valid calls", async ()
 test("offers a smaller core profile without disabling cached tool calls", async () => {
   const client = await connectClient("/mcp?profile=core");
   const { tools } = await client.listTools();
+  const instructions = client.getInstructions() ?? "";
+  const listedNames = new Set(tools.map((tool) => tool.name));
+  const referencedToolNames = [...instructions.matchAll(/`([a-z]+(?:-[a-z]+)+)`/g)]
+    .map((match) => match[1]!);
+  for (const name of referencedToolNames) {
+    assert.ok(listedNames.has(name), `${name} is not listed in the core profile`);
+  }
   assert.deepEqual(
     tools.map((tool) => tool.name),
     [
