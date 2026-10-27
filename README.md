@@ -28,6 +28,8 @@ https://<your-domain>/mcp?api_key=ctxt_secret_...
 
 Prefer OAuth or headers because URLs can be saved in client configuration, logs, browser history, and analytics. Rotate a key if its URL is exposed.
 
+OpenCode and Kilo receive a 10-tool core catalog by default to keep prompts small. Add `?profile=full` to the MCP URL to list all tools, including company and people search. Use `?profile=core` to request the smaller catalog explicitly.
+
 ## Tools
 
 | Group | Tools |
