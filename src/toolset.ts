@@ -486,10 +486,10 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "submit-batch": {
     title: "Submit a scraping batch",
     description:
-      "Start an asynchronous job to scrape up to 100,000 supplied URLs or crawl a large website as Markdown or HTML. Use this when a synchronous scrape or crawl would be too large. When webhook.url is supplied, Context sends batch completion, failure, or cancellation events to that external endpoint. The call returns a batch ID and credit reservation, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
+      "Start an asynchronous job for up to 100,000 pages. Set input.mode to scrape with data.urls, or crawl with data.source. Use data.formats and the same format parameters as web-scrape for Scrape Anything outputs; legacy data.format markdown/html also works. Browser actions can change the target site's state. When webhook.url is supplied, Context sends batch completion, failure, or cancellation events there. The call returns a batch ID and credit reservation, not page results; use get-batch until it settles, then get-batch-results. Supply an Idempotency-Key when a submission may be retried.",
     annotations: {
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: false,
       openWorldHint: true,
     },

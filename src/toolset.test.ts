@@ -153,7 +153,7 @@ test("tool descriptions route agents between overlapping workflows", () => {
 
   assert.deepEqual(tools.get("submit-batch")?.annotations, {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: false,
     openWorldHint: true,
   });
@@ -193,11 +193,11 @@ test("every public tool has annotations that match its most privileged behavior"
   ]);
   const additiveExternalTools = new Set([
     "create-monitor",
-    "submit-batch",
     "retry-webhook-delivery",
   ]);
   const destructiveExternalTools = new Set([
     "web-scrape",
+    "submit-batch",
     "run-monitor-now",
     "update-monitor",
   ]);

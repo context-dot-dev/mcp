@@ -550,10 +550,10 @@ function shouldServeCoreProfile(request: HonoRequest | undefined): boolean {
   return CORE_PROFILE_USER_AGENT.test(request?.header("user-agent") ?? "");
 }
 
-function compactCoreSchema(value: unknown, path: string[] = []): unknown {
+function removeNestedDescriptions(value: unknown, path: string[] = []): unknown {
   if (Array.isArray(value)) {
     return value.map((entry, index) =>
-      compactCoreSchema(entry, [...path, String(index)]),
+      removeNestedDescriptions(entry, [...path, String(index)]),
     );
   }
   if (!value || typeof value !== "object") return value;
@@ -562,7 +562,7 @@ function compactCoreSchema(value: unknown, path: string[] = []): unknown {
       const isTopLevelParameterDescription =
         name === "description" && path.length === 2 && path[0] === "properties";
       if (name === "description" && !isTopLevelParameterDescription) return [];
-      return [[name, compactCoreSchema(entry, [...path, name])]];
+      return [[name, removeNestedDescriptions(entry, [...path, name])]];
     }),
   );
 }
@@ -583,9 +583,12 @@ function buildPublishedToolLists(tools: ListedTool[]) {
         ...(outputSchema ? { outputSchema: withoutDialect(outputSchema) } : {}),
       };
       if (!inputSchema) return publishedTool;
+      const compactInputSchema = compactPublishedSchema(withoutDialect(inputSchema));
       return {
         ...publishedTool,
-        inputSchema: compactPublishedSchema(withoutDialect(inputSchema)),
+        inputSchema: tool.name === "submit-batch"
+          ? removeNestedDescriptions(compactInputSchema) as Record<string, unknown>
+          : compactInputSchema,
       };
     });
   const coreTools = fullTools
@@ -593,10 +596,10 @@ function buildPublishedToolLists(tools: ListedTool[]) {
     .map(({ inputSchema, outputSchema, ...tool }) => ({
       ...tool,
       ...(inputSchema
-        ? { inputSchema: compactCoreSchema(inputSchema) as Record<string, unknown> }
+        ? { inputSchema: removeNestedDescriptions(inputSchema) as Record<string, unknown> }
         : {}),
       ...(outputSchema
-        ? { outputSchema: compactCoreSchema(outputSchema) as Record<string, unknown> }
+        ? { outputSchema: removeNestedDescriptions(outputSchema) as Record<string, unknown> }
         : {}),
     }));
   return { fullTools, coreTools };
