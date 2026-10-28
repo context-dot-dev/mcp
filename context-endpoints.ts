@@ -57,6 +57,147 @@ export type Endpoint = {
 
 export const ENDPOINTS: Endpoint[] = [
   {
+    "name": "list-access-policies",
+    "title": "List access policies",
+    "method": "GET",
+    "path": "/access-policies",
+    "description": "List access policies — List your access policies, newest first.",
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Number of policies per page.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25,
+          "description": "Number of policies per page."
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "The `next_cursor` from the previous page.",
+        "schema": {
+          "type": "string",
+          "description": "The `next_cursor` from the previous page."
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "create-access-policy",
+    "title": "Create an access policy",
+    "method": "POST",
+    "path": "/access-policies",
+    "description": "Create an access policy — Create a list of domains your requests can or can't access.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/CreateAccessPolicyRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "get-access-policy",
+    "title": "Retrieve an access policy",
+    "method": "GET",
+    "path": "/access-policies/{policy_id}",
+    "description": "Retrieve an access policy — Retrieve an access policy.",
+    "parameters": [
+      {
+        "name": "policy_id",
+        "in": "path",
+        "required": true,
+        "description": "Access policy ID. Pass it in `policies` on any request.",
+        "schema": {
+          "type": "string",
+          "description": "Access policy ID. Pass it in `policies` on any request.",
+          "example": "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "update-access-policy",
+    "title": "Update an access policy",
+    "method": "PATCH",
+    "path": "/access-policies/{policy_id}",
+    "description": "Update an access policy — Update an access policy. Changes apply right away, including to running batches and monitors.",
+    "parameters": [
+      {
+        "name": "policy_id",
+        "in": "path",
+        "required": true,
+        "description": "Access policy ID. Pass it in `policies` on any request.",
+        "schema": {
+          "type": "string",
+          "description": "Access policy ID. Pass it in `policies` on any request.",
+          "example": "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        }
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/UpdateAccessPolicyRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "delete-access-policy",
+    "title": "Delete an access policy",
+    "method": "DELETE",
+    "path": "/access-policies/{policy_id}",
+    "description": "Delete an access policy — Delete an access policy. Requests, batches, and monitors that still list it will fail.",
+    "parameters": [
+      {
+        "name": "policy_id",
+        "in": "path",
+        "required": true,
+        "description": "Access policy ID. Pass it in `policies` on any request.",
+        "schema": {
+          "type": "string",
+          "description": "Access policy ID. Pass it in `policies` on any request.",
+          "example": "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        }
+      }
+    ],
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "submit-feedback",
     "title": "Submit agent feedback",
     "method": "POST",
@@ -1011,6 +1152,16 @@ export const ENDPOINTS: Endpoint[] = [
             ],
             "maxLength": 300,
             "description": "Opaque next_cursor from the previous response, or null for the first page."
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Access policy IDs to apply. A URL must pass every policy.",
+            "example": [
+              "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+            ]
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -2454,6 +2605,18 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
+        "name": "policies",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated access policy IDs to apply. A URL must pass every policy.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      {
         "name": "tags",
         "in": "query",
         "required": false,
@@ -2661,6 +2824,16 @@ export const ENDPOINTS: Endpoint[] = [
             "default": "disabled",
             "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Access policy IDs to apply. A URL must pass every policy.",
+            "example": [
+              "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+            ]
+          },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
@@ -2844,6 +3017,16 @@ export const ENDPOINTS: Endpoint[] = [
             ],
             "default": "disabled",
             "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Access policy IDs to apply. A URL must pass every policy.",
+            "example": [
+              "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+            ]
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -3390,6 +3573,16 @@ export const ENDPOINTS: Endpoint[] = [
             "default": "disabled",
             "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Access policy IDs to apply. A URL must pass every policy.",
+            "example": [
+              "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+            ]
+          },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
@@ -3627,6 +3820,20 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        }
+      },
+      {
         "name": "tags",
         "in": "query",
         "required": false,
@@ -3742,6 +3949,20 @@ export const ENDPOINTS: Endpoint[] = [
         "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/PartialTimeout"
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4308,6 +4529,20 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        }
+      },
+      {
         "name": "tags",
         "in": "query",
         "required": false,
@@ -4406,6 +4641,20 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        }
+      },
+      {
         "name": "tags",
         "in": "query",
         "required": false,
@@ -4495,6 +4744,20 @@ export const ENDPOINTS: Endpoint[] = [
         }
       },
       {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        }
+      },
+      {
         "name": "tags",
         "in": "query",
         "required": false,
@@ -4563,6 +4826,20 @@ export const ENDPOINTS: Endpoint[] = [
             "dark"
           ],
           "description": "Optional theme preference used when selecting brand assets."
+        }
+      },
+      {
+        "name": "zdr",
+        "in": "query",
+        "required": false,
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ],
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4651,15 +4928,26 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "default": "disabled",
-          "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        }
+      },
+      {
+        "name": "policies",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated access policy IDs to apply. A URL must pass every policy.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       {
@@ -4728,6 +5016,18 @@ export const ENDPOINTS: Endpoint[] = [
         "description": "Request deadline and what to return when it passes.",
         "schema": {
           "$ref": "#/components/schemas/ScrapeTimeout"
+        }
+      },
+      {
+        "name": "policies",
+        "in": "query",
+        "required": false,
+        "description": "Comma-separated access policy IDs to apply. A URL must pass every policy.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       {
@@ -5627,6 +5927,16 @@ export const ENDPOINTS: Endpoint[] = [
           },
           "timeoutOpts": {
             "$ref": "#/components/schemas/Timeout"
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Access policy IDs to apply. A URL must pass every policy.",
+            "example": [
+              "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+            ]
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -6758,6 +7068,114 @@ export const ENDPOINTS: Endpoint[] = [
 ];
 
 export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
+  "CreateAccessPolicyRequest": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A name to recognize this policy.",
+        "example": "Research sources"
+      },
+      "allowed_domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Only these domains and their subdomains can be accessed. Send this or `blocked_domains`.",
+        "example": [
+          "arxiv.org",
+          "*.gov"
+        ]
+      },
+      "blocked_domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "These domains and their subdomains can't be accessed. Send this or `allowed_domains`.",
+        "example": [
+          "facebook.com",
+          "tiktok.com"
+        ]
+      },
+      "applies_to": {
+        "type": "string",
+        "enum": [
+          "request",
+          "api_keys",
+          "organization"
+        ],
+        "default": "request",
+        "description": "`request` applies when listed in `policies`. `api_keys` applies to every request made with `api_key_ids`. `organization` applies to every request."
+      },
+      "api_key_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "API key IDs to apply this policy to. Required when `applies_to` is `api_keys`.",
+        "example": [
+          "ctxt_keyid_4b7e2f9a1c8d4e6fa3b5c7d9e1f20a4b"
+        ]
+      }
+    },
+    "required": [
+      "name"
+    ]
+  },
+  "UpdateAccessPolicyRequest": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A name to recognize this policy.",
+        "example": "Research sources"
+      },
+      "allowed_domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Only these domains and their subdomains can be accessed. Send this or `blocked_domains`.",
+        "example": [
+          "arxiv.org",
+          "*.gov"
+        ]
+      },
+      "blocked_domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "These domains and their subdomains can't be accessed. Send this or `allowed_domains`.",
+        "example": [
+          "facebook.com",
+          "tiktok.com"
+        ]
+      },
+      "applies_to": {
+        "type": "string",
+        "enum": [
+          "request",
+          "api_keys",
+          "organization"
+        ],
+        "description": "`request` applies when listed in `policies`. `api_keys` applies to every request made with `api_key_ids`. `organization` applies to every request."
+      },
+      "api_key_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "API key IDs to apply this policy to. Required when `applies_to` is `api_keys`.",
+        "example": [
+          "ctxt_keyid_4b7e2f9a1c8d4e6fa3b5c7d9e1f20a4b"
+        ]
+      }
+    }
+  },
   "RequestTags": {
     "type": "array",
     "items": {
@@ -6845,6 +7263,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "tags": {
         "$ref": "#/components/schemas/RequestTags",
         "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -7169,6 +7597,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "disabled"
         ],
         "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -8292,6 +8730,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "webhook": {
         "$ref": "#/components/schemas/MonitorsNullableWebhookConfig"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply to every run.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -8347,6 +8795,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "webhook": {
         "$ref": "#/components/schemas/MonitorsNullableWebhookConfig",
         "description": "Set to null to remove the webhook. Changing `url` issues a new secret."
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply to every run. Send an empty list to remove them.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "additionalProperties": false,
@@ -9521,6 +9979,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "docs",
           "competitor"
         ]
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply to every page. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -10584,8 +11052,26 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "minLength": 3,
         "description": "Domain name to retrieve brand data for (e.g., 'stripe.com')."
       },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -10646,8 +11132,26 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           }
         ]
       },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -10698,8 +11202,26 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "format": "email",
         "description": "Email address to retrieve brand data for (e.g., 'jane@stripe.com')."
       },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -10761,8 +11283,26 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           }
         ]
       },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -10791,8 +11331,26 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "timeoutOpts": {
         "$ref": "#/components/schemas/PartialTimeout"
       },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
@@ -10879,8 +11437,26 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "boolean",
         "description": "When set to true, the API performs additional verification to ensure the identified brand matches the transaction with high confidence."
       },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "enabled",
+          "disabled"
+        ],
+        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+      },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
+      },
+      "policies": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Access policy IDs to apply. A URL must pass every policy.",
+        "example": [
+          "pol_3f9c2a7e5b8d4c1f9a6e0b2d7c4f8a1e"
+        ]
       }
     },
     "required": [
