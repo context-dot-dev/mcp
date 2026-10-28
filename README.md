@@ -89,6 +89,8 @@ Regenerate tools after the Context OpenAPI document changes:
 npm run generate:endpoints -- /absolute/path/to/openapispec.json context-endpoints.ts
 ```
 
+The generator also adds the Markdown and HTML batch inputs in `scripts/legacy-batch-data.json` to `submit-batch`. The API still accepts them but its spec no longer documents them, so they would otherwise be dropped on every regeneration.
+
 Run the complete local verification suite:
 
 ```bash

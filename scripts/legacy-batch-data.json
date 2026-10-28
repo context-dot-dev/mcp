@@ -1,0 +1,844 @@
+{
+  "scrape": {
+    "title": "Scrape data",
+    "description": "Pages to scrape with legacy format options or Scrape Anything formats.",
+    "variants": [
+      {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown"
+            ],
+            "description": "Return page content as Markdown."
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Page URL to scrape.",
+                  "example": "https://example.com/products/anvil"
+                },
+                "itemId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
+                  "example": "sku-1"
+                },
+                "meta": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "Custom JSON returned unchanged with this page result."
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "additionalProperties": false,
+              "description": "A page to scrape, with optional data for matching results."
+            },
+            "minItems": 1,
+            "maxItems": 100000,
+            "description": "Pages to scrape. Maximum 100000."
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "includeLinks": {
+                "type": "boolean",
+                "default": true,
+                "description": "Include links in the Markdown."
+              },
+              "includeImages": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include image references in the Markdown."
+              },
+              "shortenBase64Images": {
+                "type": "boolean",
+                "default": true,
+                "description": "Shorten inline base64 image data."
+              },
+              "useMainContentOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return the main content without navigation or footers."
+              },
+              "includeHTML": {
+                "type": "boolean",
+                "default": false,
+                "description": "Also return each page's HTML in `html`."
+              },
+              "pdf": {
+                "type": "object",
+                "properties": {
+                  "shouldParse": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "First 1-based PDF page to parse."
+                  },
+                  "end": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
+                  },
+                  "ocr": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
+                  }
+                },
+                "default": {
+                  "shouldParse": true,
+                  "ocr": false
+                },
+                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
+              },
+              "includeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
+              },
+              "excludeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
+              },
+              "waitForMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 15000,
+                "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
+              },
+              "settleAnimations": {
+                "type": "boolean",
+                "default": false,
+                "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
+              },
+              "country": {
+                "$ref": "#/components/schemas/BrowserCountryCode"
+              },
+              "maxAgeMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 31536000000,
+                "default": 259200000,
+                "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
+              }
+            },
+            "default": {
+              "includeLinks": true,
+              "includeImages": false,
+              "shortenBase64Images": true,
+              "useMainContentOnly": false,
+              "includeHTML": false,
+              "pdf": {
+                "shouldParse": true,
+                "ocr": false
+              },
+              "settleAnimations": false,
+              "maxAgeMs": 259200000
+            },
+            "additionalProperties": false,
+            "description": "Options for Markdown output."
+          }
+        },
+        "required": [
+          "format",
+          "urls"
+        ],
+        "additionalProperties": false,
+        "description": "Scrape the listed pages as Markdown.",
+        "title": "Markdown"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "html"
+            ],
+            "description": "Return page content as HTML."
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Page URL to scrape.",
+                  "example": "https://example.com/products/anvil"
+                },
+                "itemId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
+                  "example": "sku-1"
+                },
+                "meta": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "Custom JSON returned unchanged with this page result."
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "additionalProperties": false,
+              "description": "A page to scrape, with optional data for matching results."
+            },
+            "minItems": 1,
+            "maxItems": 100000,
+            "description": "Pages to scrape. Maximum 100000."
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "useMainContentOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return the main content without navigation or footers."
+              },
+              "pdf": {
+                "type": "object",
+                "properties": {
+                  "shouldParse": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "First 1-based PDF page to parse."
+                  },
+                  "end": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
+                  },
+                  "ocr": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
+                  }
+                },
+                "default": {
+                  "shouldParse": true,
+                  "ocr": false
+                },
+                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
+              },
+              "includeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
+              },
+              "excludeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
+              },
+              "waitForMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 15000,
+                "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
+              },
+              "settleAnimations": {
+                "type": "boolean",
+                "default": false,
+                "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
+              },
+              "country": {
+                "$ref": "#/components/schemas/BrowserCountryCode"
+              },
+              "maxAgeMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 31536000000,
+                "default": 259200000,
+                "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
+              }
+            },
+            "default": {
+              "useMainContentOnly": false,
+              "pdf": {
+                "shouldParse": true,
+                "ocr": false
+              },
+              "settleAnimations": false,
+              "maxAgeMs": 259200000
+            },
+            "additionalProperties": false,
+            "description": "Options for HTML output."
+          }
+        },
+        "required": [
+          "format",
+          "urls"
+        ],
+        "additionalProperties": false,
+        "description": "Scrape the listed pages as HTML.",
+        "title": "HTML"
+      }
+    ]
+  },
+  "crawl": {
+    "title": "Crawl data",
+    "description": "Crawl pages with legacy format options or Scrape Anything formats.",
+    "variants": [
+      {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown"
+            ],
+            "description": "Return page content as Markdown."
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "start_url"
+                    ],
+                    "description": "Start from one page."
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Page where crawling begins. A URL without a scheme is read as https://.",
+                    "example": "https://example.com/docs"
+                  },
+                  "controls": {
+                    "type": "object",
+                    "properties": {
+                      "maxUrls": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000,
+                        "default": 100,
+                        "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                      },
+                      "maxDepth": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 50,
+                        "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
+                      },
+                      "followSubdomains": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Follow links to subdomains."
+                      },
+                      "regex": {
+                        "type": "string",
+                        "maxLength": 256,
+                        "description": "RE2 pattern for URLs to include. The `start_url` itself is always included.",
+                        "example": "^https://example\\.com/docs/"
+                      }
+                    },
+                    "default": {
+                      "maxUrls": 100,
+                      "followSubdomains": false
+                    },
+                    "additionalProperties": false,
+                    "description": "Limits and filters for page discovery."
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "additionalProperties": false,
+                "description": "Discover pages by following links from one URL.",
+                "title": "Start URL"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "sitemap"
+                    ],
+                    "description": "Scrape the URLs in the domain's sitemap."
+                  },
+                  "domain": {
+                    "type": "string",
+                    "minLength": 3,
+                    "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
+                    "example": "example.com"
+                  },
+                  "controls": {
+                    "type": "object",
+                    "properties": {
+                      "maxUrls": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000,
+                        "default": 100,
+                        "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                      },
+                      "regex": {
+                        "type": "string",
+                        "maxLength": 256,
+                        "description": "RE2 pattern; only sitemap URLs matching it are scraped.",
+                        "example": "^https://example\\.com/docs/"
+                      }
+                    },
+                    "default": {
+                      "maxUrls": 100
+                    },
+                    "additionalProperties": false,
+                    "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
+                  }
+                },
+                "required": [
+                  "type",
+                  "domain"
+                ],
+                "additionalProperties": false,
+                "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
+                "title": "Sitemap"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Crawl source",
+            "description": "How to find pages to crawl."
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "includeLinks": {
+                "type": "boolean",
+                "default": true,
+                "description": "Include links in the Markdown."
+              },
+              "includeImages": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include image references in the Markdown."
+              },
+              "shortenBase64Images": {
+                "type": "boolean",
+                "default": true,
+                "description": "Shorten inline base64 image data."
+              },
+              "useMainContentOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return the main content without navigation or footers."
+              },
+              "includeHTML": {
+                "type": "boolean",
+                "default": false,
+                "description": "Also return each page's HTML in `html`."
+              },
+              "pdf": {
+                "type": "object",
+                "properties": {
+                  "shouldParse": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "First 1-based PDF page to parse."
+                  },
+                  "end": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
+                  },
+                  "ocr": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
+                  }
+                },
+                "default": {
+                  "shouldParse": true,
+                  "ocr": false
+                },
+                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
+              },
+              "includeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
+              },
+              "excludeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
+              },
+              "waitForMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 15000,
+                "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
+              },
+              "settleAnimations": {
+                "type": "boolean",
+                "default": false,
+                "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
+              },
+              "country": {
+                "$ref": "#/components/schemas/BrowserCountryCode"
+              },
+              "maxAgeMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 31536000000,
+                "default": 259200000,
+                "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
+              }
+            },
+            "default": {
+              "includeLinks": true,
+              "includeImages": false,
+              "shortenBase64Images": true,
+              "useMainContentOnly": false,
+              "includeHTML": false,
+              "pdf": {
+                "shouldParse": true,
+                "ocr": false
+              },
+              "settleAnimations": false,
+              "maxAgeMs": 259200000
+            },
+            "additionalProperties": false,
+            "description": "Options for Markdown output."
+          }
+        },
+        "required": [
+          "format",
+          "source"
+        ],
+        "additionalProperties": false,
+        "title": "Markdown",
+        "description": "Crawl pages and return Markdown."
+      },
+      {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "html"
+            ],
+            "description": "Return page content as HTML."
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "start_url"
+                    ],
+                    "description": "Start from one page."
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Page where crawling begins. A URL without a scheme is read as https://.",
+                    "example": "https://example.com/docs"
+                  },
+                  "controls": {
+                    "type": "object",
+                    "properties": {
+                      "maxUrls": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000,
+                        "default": 100,
+                        "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                      },
+                      "maxDepth": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 50,
+                        "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
+                      },
+                      "followSubdomains": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Follow links to subdomains."
+                      },
+                      "regex": {
+                        "type": "string",
+                        "maxLength": 256,
+                        "description": "RE2 pattern for URLs to include. The `start_url` itself is always included.",
+                        "example": "^https://example\\.com/docs/"
+                      }
+                    },
+                    "default": {
+                      "maxUrls": 100,
+                      "followSubdomains": false
+                    },
+                    "additionalProperties": false,
+                    "description": "Limits and filters for page discovery."
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "additionalProperties": false,
+                "description": "Discover pages by following links from one URL.",
+                "title": "Start URL"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "sitemap"
+                    ],
+                    "description": "Scrape the URLs in the domain's sitemap."
+                  },
+                  "domain": {
+                    "type": "string",
+                    "minLength": 3,
+                    "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
+                    "example": "example.com"
+                  },
+                  "controls": {
+                    "type": "object",
+                    "properties": {
+                      "maxUrls": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000,
+                        "default": 100,
+                        "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                      },
+                      "regex": {
+                        "type": "string",
+                        "maxLength": 256,
+                        "description": "RE2 pattern; only sitemap URLs matching it are scraped.",
+                        "example": "^https://example\\.com/docs/"
+                      }
+                    },
+                    "default": {
+                      "maxUrls": 100
+                    },
+                    "additionalProperties": false,
+                    "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
+                  }
+                },
+                "required": [
+                  "type",
+                  "domain"
+                ],
+                "additionalProperties": false,
+                "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
+                "title": "Sitemap"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Crawl source",
+            "description": "How to find pages to crawl."
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "useMainContentOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return the main content without navigation or footers."
+              },
+              "pdf": {
+                "type": "object",
+                "properties": {
+                  "shouldParse": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "First 1-based PDF page to parse."
+                  },
+                  "end": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
+                  },
+                  "ocr": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
+                  }
+                },
+                "default": {
+                  "shouldParse": true,
+                  "ocr": false
+                },
+                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
+              },
+              "includeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
+              },
+              "excludeSelectors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "maxItems": 50,
+                "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
+              },
+              "waitForMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 15000,
+                "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
+              },
+              "settleAnimations": {
+                "type": "boolean",
+                "default": false,
+                "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
+              },
+              "country": {
+                "$ref": "#/components/schemas/BrowserCountryCode"
+              },
+              "maxAgeMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 31536000000,
+                "default": 259200000,
+                "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
+              }
+            },
+            "default": {
+              "useMainContentOnly": false,
+              "pdf": {
+                "shouldParse": true,
+                "ocr": false
+              },
+              "settleAnimations": false,
+              "maxAgeMs": 259200000
+            },
+            "additionalProperties": false,
+            "description": "Options for HTML output."
+          }
+        },
+        "required": [
+          "format",
+          "source"
+        ],
+        "additionalProperties": false,
+        "title": "HTML",
+        "description": "Crawl pages and return HTML."
+      }
+    ]
+  }
+}
