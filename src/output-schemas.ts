@@ -35,8 +35,8 @@ export const OUTPUT_SCHEMAS: Readonly<Record<string, JsonSchema>> = {
     next_cursor: nullable("Cursor for the next page with the same query and filters, or null."),
   }),
   "people-search": output({
-    results: list("Up to 10 people, most relevant first, each with name, description, profiles, location, role, years_of_experience, is_founder, skills, and schools."),
-    next_cursor: nullable("Cursor for the next page with the same query and filters, or null."),
+    results: list("Up to 10 people, most relevant first, each with name, description, profiles, location, role, years_of_experience, is_founder, skills, and schools, plus match (confidence from 0 to 1) in ultra mode."),
+    next_cursor: nullable("Cursor for the next page with the same query, mode, and filters, or null."),
   }),
   "people-enrich": output({
     match: record("status `candidate` with an identity score and the person's profile, or `not_found`."),

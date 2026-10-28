@@ -333,6 +333,27 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "web-scrape",
+    "title": "Scrape Anything",
+    "method": "POST",
+    "path": "/web/scrape",
+    "description": "Scrape Anything — Scrape anything from a URL on the internet. Returns the outputs you enable in formats. Handles PDFs, DOCX, PPT, XLSX, and 40 other file formats.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/ScrapeRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "get-usage",
     "title": "Retrieve credit usage",
     "method": "GET",
@@ -697,27 +718,6 @@ export const ENDPOINTS: Endpoint[] = [
           }
         },
         "additionalProperties": false
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "web-scrape",
-    "title": "Scrape Anything",
-    "method": "POST",
-    "path": "/web/scrape",
-    "description": "Scrape Anything — Scrape anything from a URL on the internet. Returns the outputs you enable in formats. Handles PDFs, DOCX, PPT, XLSX, and 40 other file formats.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/ScrapeRequest"
       },
       "contentType": "application/json",
       "binary": false
@@ -1193,6 +1193,17 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "boolean",
           "default": false,
           "description": "Read text from images and scanned PDF pages. PDF page ranges still apply."
+        }
+      },
+      {
+        "name": "includeNumberedPages",
+        "in": "query",
+        "required": false,
+        "description": "Start each PDF page in the Markdown with a `<!-- page N -->` line, where N is the original 1-based page number.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start each PDF page in the Markdown with a `<!-- page N -->` line, where N is the original 1-based page number."
         }
       },
       {
@@ -8524,9 +8535,18 @@ export const ENDPOINTS: Endpoint[] = [
           "query": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 500,
-            "description": "Describe the people to find.",
+            "maxLength": 5000,
+            "description": "Describe the people to find. Up to 500 characters in `fast` mode and 5000 in `ultra` mode.",
             "example": "VPs of sales at solar companies in California"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "ultra"
+            ],
+            "default": "fast",
+            "description": "`fast` matches people on basic criteria (e.g. their role, location or background); `ultra` plans a deeper search, judges each candidate against every criterion in the query. Complex `ultra` searches can take up to 30 seconds to complete, so allow for that in your client timeout."
           },
           "filters": {
             "$ref": "#/components/schemas/PeopleSearchFilters"
@@ -8534,7 +8554,7 @@ export const ENDPOINTS: Endpoint[] = [
           "cursor": {
             "type": "string",
             "maxLength": 65536,
-            "description": "Use next_cursor with the same query and filters to fetch the next page."
+            "description": "Use next_cursor with the same query, mode and filters to fetch the next page."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -14938,6 +14958,11 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         ],
         "default": "off",
         "description": "Set `auto` to read scanned pages with OCR."
+      },
+      "includeNumberedPages": {
+        "type": "boolean",
+        "default": false,
+        "description": "Start each page in the Markdown with a `<!-- page N -->` line using its original 1-based page number; these responses are never served from cache."
       }
     }
   },
