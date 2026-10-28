@@ -388,6 +388,30 @@ test("validation hints stay short", () => {
   }
 });
 
+test("validation hints show valid JSON examples", () => {
+  for (const [tool, hint] of Object.entries(VALIDATION_HINTS)) {
+    let depth = 0;
+    let start = 0;
+    for (let index = 0; index < hint.length; index += 1) {
+      if (hint[index] === "{") {
+        if (depth === 0) start = index;
+        depth += 1;
+      } else if (hint[index] === "}") {
+        depth -= 1;
+        assert.ok(depth >= 0, `${tool} hint closes more braces than it opens`);
+        if (depth === 0) {
+          const example = hint.slice(start, index + 1);
+          assert.doesNotThrow(
+            () => JSON.parse(example),
+            `${tool} hint has an invalid JSON example: ${example}`,
+          );
+        }
+      }
+    }
+    assert.equal(depth, 0, `${tool} hint leaves a brace open`);
+  }
+});
+
 test("web-scrape and web-crawl find the page URL under other names", () => {
   assert.equal(repairToolSpecificArguments("web-scrape", { urls: ["https://a.test"] }).url, "https://a.test");
   assert.equal(
