@@ -69,7 +69,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-scrape": {
     title: "Scrape a URL",
     description:
-      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing, deadlines, and zero data retention. Browser clicks can change the target site's state. Prefer responseMode=\"compact\" with formats.highlights and highlightsParams.query for focused research; use full for complete content or metadata. Use web-search when the URL is unknown, web-map for URLs only, web-crawl for linked pages, or submit-batch for large asynchronous jobs.",
+      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing with optional page markers, deadlines, and zero data retention. Browser clicks can change the target site's state. Prefer responseMode=\"compact\" with formats.highlights and highlightsParams.query for focused research; use full for complete content or metadata. Use web-search when the URL is unknown, web-map for URLs only, web-crawl for linked pages, or submit-batch for large asynchronous jobs.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
@@ -80,7 +80,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "parse-document": {
     title: "Parse a file to Markdown",
     description:
-      "Send PDF, Office, spreadsheet, presentation, image, code, data, or text file bytes to Context and convert them into clean Markdown for agents, analysis, and RAG. Use this when the source is a file rather than a URL. This transformation consumes Context credits but does not alter the original file.",
+      "Send PDF, Office, spreadsheet, presentation, image, code, data, or text file bytes to Context and convert them into clean Markdown for agents, analysis, and RAG. For PDFs, includeNumberedPages starts each page with a `<!-- page N -->` line. Use this when the source is a file rather than a URL. This transformation consumes Context credits but does not alter the original file.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -190,7 +190,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "people-search": {
     title: "Search people",
     description:
-      "Find people who match a plain-language description of their role, employer, industry, location, skills, or experience, such as {\"query\":\"VPs of sales at solar companies in California\"}. Optional filters every result must match: filters.countries (where they live, two-letter codes such as US), filters.years_of_experience_min, and filters.years_of_experience_max. Returns up to 10 people, most relevant first, with name, current title, seniority, employer name and domain, location, profile URLs, skills, and schools. For more, pass next_cursor as cursor with the same query and filters; stop when it is null. Costs 10 credits per nonempty page; searches with no matches are free. Use people-enrich to look up one specific person from an email, profile URL, or name, or company-search to find companies.",
+      "Find people who match a plain-language description of their role, employer, industry, location, skills, or experience, such as {\"query\":\"VPs of sales at solar companies in California\"}. Optional filters every result must match: filters.countries (where they live, two-letter codes such as US), filters.years_of_experience_min, and filters.years_of_experience_max. Returns up to 10 people, most relevant first, with name, current title, seniority, employer name and domain, location, profile URLs, skills, and schools. mode defaults to fast, which matches basic criteria such as role, location, or background. Set mode to ultra for complex searches with several criteria: it judges each candidate against every criterion, accepts queries up to 5000 characters instead of 500, adds match.confidence (0 to 1) to each person, and can take up to 30 seconds. For more, pass next_cursor as cursor with the same query, mode, and filters; stop when it is null. Costs 10 credits per nonempty page in fast mode and 50 in ultra mode; searches with no matches are free. Use people-enrich to look up one specific person from an email, profile URL, or name, or company-search to find companies.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

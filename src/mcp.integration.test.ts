@@ -1603,7 +1603,7 @@ test("forwards all scrape formats, browser actions, CSS rules, and request contr
         { type: "wait", milliseconds: 100 },
         { type: "waitFor", selector: "#details" },
       ],
-      parsers: { pdf: { startPage: 1, endPage: 2, ocr: "auto" } },
+      parsers: { pdf: { startPage: 1, endPage: 2, ocr: "auto", includeNumberedPages: true } },
     },
     markdownParams: { includeLinks: true, includeImages: true },
     screenshotParams: { area: "fullPage", format: "webp" },
@@ -2284,6 +2284,40 @@ test("searches companies, people, and browser profiles through the public API", 
   assert.equal(new URL(captured[2]!.url, upstreamBase).searchParams.get("limit"), "5");
 });
 
+test("sends ultra people searches with the longer query and mode the API accepts", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const query = `Heads of platform engineering at European payments companies. ${
+    "Prefer candidates who led a Kubernetes migration. ".repeat(40)
+  }`;
+  assert.ok(query.length > 500 && query.length <= 5000);
+  const ultra = await client.callTool({
+    name: "people-search",
+    arguments: { query, mode: "Ultra", filters: { countries: ["DE"] }, cursor: "page-2" },
+  });
+  const tooLong = await client.callTool({
+    name: "people-search",
+    arguments: { query: "x".repeat(5001), mode: "ultra" },
+  });
+  const unknownMode = await client.callTool({
+    name: "people-search",
+    arguments: { query: "VPs of sales", mode: "deep" },
+  });
+  await client.close();
+
+  assert.notEqual(ultra.isError, true);
+  assert.equal(tooLong.isError, true);
+  assert.equal(unknownMode.isError, true);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.url, "/people/search");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    query,
+    mode: "ultra",
+    cursor: "page-2",
+    filters: { countries: ["DE"] },
+  });
+});
+
 test("accepts every company identifier and legacy news-search calls", async () => {
   captured.length = 0;
   const scenarios = [
@@ -2575,6 +2609,7 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
     arguments: {
       extension: "txt",
       fileBase64: Buffer.from("hello parser").toString("base64"),
+      includeNumberedPages: true,
     },
   });
   const brandCardResult = await client.callTool({
@@ -2613,6 +2648,9 @@ test("executes path operations, JSON bodies, and parse bytes", async () => {
     },
   });
   assert.equal(captured[4]!.body.toString(), "hello parser");
+  const parseQuery = new URL(captured[4]!.url, upstreamBase).searchParams;
+  assert.equal(parseQuery.get("extension"), "txt");
+  assert.equal(parseQuery.get("includeNumberedPages"), "true");
   assert.equal(captured[5]!.method, "POST");
   assert.equal(captured[5]!.url, "/brand/retrieve");
   assert.deepEqual(JSON.parse(captured[5]!.body.toString()), {

@@ -17,11 +17,11 @@ Use the API reference linked for each capability before implementing request or 
 | Return schema-shaped page data | Scrape | `POST /web/scrape` | Enable `formats.json` and supply `jsonParams.schema` and optional instructions. |
 | Extract fields with CSS selectors | Scrape | `POST /web/scrape` | Enable `formats.parse` and supply `parseParams.rules`. |
 | Research a question into sourced JSON | Answers | `POST /web/answers` | Supply a task and optional output shape. |
-| Convert an uploaded file to Markdown | Parse | `POST /parse` | Send file bytes server-side and enforce the documented size limit. |
+| Convert an uploaded file to Markdown | Parse | `POST /parse` | Send file bytes server-side and enforce the documented size limit. Set `includeNumberedPages` to start each PDF page with a `<!-- page N -->` line. |
 | Retrieve company and brand data | Brand Retrieve | `POST /brand/retrieve` | Supports domain, name, work email, ticker, ISIN, transaction descriptor, or direct URL lookups. |
 | Find companies from a description | Company Search | `POST /company/search` | Plain-language `query` plus optional `filters` (countries, headcount). Up to 10 per page; pass `next_cursor` as `cursor`. |
 | Find a brand by name or domain | Brand Search | `GET /brand/search` | Lightweight matches for autocomplete. |
-| Find people from a description | People Search | `POST /people/search` | Plain-language `query` plus optional `filters` (countries, years of experience). Up to 10 per page; pass `next_cursor` as `cursor`. |
+| Find people from a description | People Search | `POST /people/search` | Plain-language `query` plus optional `filters` (countries, years of experience). Up to 10 per page; pass `next_cursor` as `cursor` with the same `mode`. `mode` is `fast` (default, 10 credits per nonempty page, queries up to 500 characters) or `ultra` (50 credits, queries up to 5000 characters, `match.confidence` on each person, up to 30 seconds). |
 | Enrich a person | Person Enrichment | `POST /people/enrich` | Combine identity clues and inspect the returned match score. |
 | Reproduce a site's design system | Styleguide | `GET /web/styleguide` | Returns colors, typography, spacing, shadows, and related design cues. |
 | Identify website typography | Styleguide | `GET /web/styleguide` | Includes typography and font assets. |
