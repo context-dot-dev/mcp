@@ -333,6 +333,27 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
+    "name": "web-scrape",
+    "title": "Scrape Anything",
+    "method": "POST",
+    "path": "/web/scrape",
+    "description": "Scrape Anything — Scrape anything from a URL on the internet. Returns the outputs you enable in formats. Handles PDFs, DOCX, PPT, XLSX, and 40 other file formats.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "schema": {
+        "$ref": "#/components/schemas/ScrapeRequest"
+      },
+      "contentType": "application/json",
+      "binary": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
     "name": "get-usage",
     "title": "Retrieve credit usage",
     "method": "GET",
@@ -697,27 +718,6 @@ export const ENDPOINTS: Endpoint[] = [
           }
         },
         "additionalProperties": false
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "web-scrape",
-    "title": "Scrape Anything",
-    "method": "POST",
-    "path": "/web/scrape",
-    "description": "Scrape Anything — Scrape anything from a URL on the internet. Returns the outputs you enable in formats. Handles PDFs, DOCX, PPT, XLSX, and 40 other file formats.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/ScrapeRequest"
       },
       "contentType": "application/json",
       "binary": false
@@ -1193,6 +1193,17 @@ export const ENDPOINTS: Endpoint[] = [
           "type": "boolean",
           "default": false,
           "description": "Read text from images and scanned PDF pages. PDF page ranges still apply."
+        }
+      },
+      {
+        "name": "includeNumberedPages",
+        "in": "query",
+        "required": false,
+        "description": "Start each PDF page in the Markdown with a `<!-- page N -->` line, where N is the original 1-based page number.",
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start each PDF page in the Markdown with a `<!-- page N -->` line, where N is the original 1-based page number."
         }
       },
       {
@@ -3398,559 +3409,6 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "post-admin-web-search",
-    "title": "Search the web from selected indexes (admin)",
-    "method": "POST",
-    "path": "/admin/web/search",
-    "description": "Search the web from selected indexes (admin) — Same as /web/search, but `sources` restricts which indexes are queried. Requires the master key.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500,
-            "description": "Search query. Accepts natural language as well as Google-style search operators such as `site:`, `-site:`, `inurl:`, `intitle:`, quoted phrases, and `OR`."
-          },
-          "numResults": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "default": 10,
-            "description": "Number of results to request and return (1–100). Defaults to 10."
-          },
-          "includeDomains": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 3
-            },
-            "maxItems": 100,
-            "description": "Allowlist — only return results from these domains. Up to 100 domains. Example: [\"arxiv.org\", \"github.com\"]."
-          },
-          "excludeDomains": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 3
-            },
-            "maxItems": 100,
-            "description": "Blocklist — drop results from these domains. Up to 100 domains. Example: [\"pinterest.com\", \"reddit.com\"]."
-          },
-          "freshness": {
-            "type": "string",
-            "enum": [
-              "last_24_hours",
-              "last_week",
-              "last_month",
-              "last_year"
-            ],
-            "description": "Restrict results to content published within this window."
-          },
-          "country": {
-            "type": "string",
-            "enum": [
-              "af",
-              "al",
-              "dz",
-              "as",
-              "ad",
-              "ao",
-              "ai",
-              "aq",
-              "ag",
-              "ar",
-              "am",
-              "aw",
-              "au",
-              "at",
-              "az",
-              "bs",
-              "bh",
-              "bd",
-              "bb",
-              "by",
-              "be",
-              "bz",
-              "bj",
-              "bm",
-              "bt",
-              "bo",
-              "ba",
-              "bw",
-              "bv",
-              "br",
-              "io",
-              "bn",
-              "bg",
-              "bf",
-              "bi",
-              "kh",
-              "cm",
-              "ca",
-              "cv",
-              "ky",
-              "cf",
-              "td",
-              "cl",
-              "cn",
-              "cx",
-              "cc",
-              "co",
-              "km",
-              "cg",
-              "cd",
-              "ck",
-              "cr",
-              "ci",
-              "hr",
-              "cu",
-              "cy",
-              "cz",
-              "dk",
-              "dj",
-              "dm",
-              "do",
-              "ec",
-              "eg",
-              "sv",
-              "gq",
-              "er",
-              "ee",
-              "et",
-              "fk",
-              "fo",
-              "fj",
-              "fi",
-              "fr",
-              "gf",
-              "pf",
-              "tf",
-              "ga",
-              "gm",
-              "ge",
-              "de",
-              "gh",
-              "gi",
-              "gr",
-              "gl",
-              "gd",
-              "gp",
-              "gu",
-              "gt",
-              "gn",
-              "gw",
-              "gy",
-              "ht",
-              "hm",
-              "va",
-              "hn",
-              "hk",
-              "hu",
-              "is",
-              "in",
-              "id",
-              "ir",
-              "iq",
-              "ie",
-              "il",
-              "it",
-              "jm",
-              "jp",
-              "jo",
-              "kz",
-              "ke",
-              "ki",
-              "kp",
-              "kr",
-              "kw",
-              "kg",
-              "la",
-              "lv",
-              "lb",
-              "ls",
-              "lr",
-              "ly",
-              "li",
-              "lt",
-              "lu",
-              "mo",
-              "mk",
-              "mg",
-              "mw",
-              "my",
-              "mv",
-              "ml",
-              "mt",
-              "mh",
-              "mq",
-              "mr",
-              "mu",
-              "yt",
-              "mx",
-              "fm",
-              "md",
-              "mc",
-              "mn",
-              "ms",
-              "ma",
-              "mz",
-              "mm",
-              "na",
-              "nr",
-              "np",
-              "nl",
-              "an",
-              "nc",
-              "nz",
-              "ni",
-              "ne",
-              "ng",
-              "nu",
-              "nf",
-              "mp",
-              "no",
-              "om",
-              "pk",
-              "pw",
-              "ps",
-              "pa",
-              "pg",
-              "py",
-              "pe",
-              "ph",
-              "pn",
-              "pl",
-              "pt",
-              "pr",
-              "qa",
-              "re",
-              "ro",
-              "ru",
-              "rw",
-              "sh",
-              "kn",
-              "lc",
-              "pm",
-              "vc",
-              "ws",
-              "sm",
-              "st",
-              "sa",
-              "sn",
-              "rs",
-              "sc",
-              "sl",
-              "sg",
-              "sk",
-              "si",
-              "sb",
-              "so",
-              "za",
-              "gs",
-              "es",
-              "lk",
-              "sd",
-              "sr",
-              "sj",
-              "sz",
-              "se",
-              "ch",
-              "sy",
-              "tw",
-              "tj",
-              "tz",
-              "th",
-              "tl",
-              "tg",
-              "tk",
-              "to",
-              "tt",
-              "tn",
-              "tr",
-              "tm",
-              "tc",
-              "tv",
-              "ug",
-              "ua",
-              "ae",
-              "gb",
-              "us",
-              "um",
-              "uy",
-              "uz",
-              "vu",
-              "ve",
-              "vn",
-              "vg",
-              "vi",
-              "wf",
-              "eh",
-              "ye",
-              "zm",
-              "zw"
-            ],
-            "description": "Two-letter ISO 3166-1 alpha-2 country code to localize results to a specific country (maps to Google's `gl` parameter). Example: \"us\", \"gb\", \"de\"."
-          },
-          "languages": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "all"
-                ]
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "am",
-                    "ar",
-                    "az",
-                    "be",
-                    "bg",
-                    "bn",
-                    "ca",
-                    "ceb",
-                    "cs",
-                    "cy",
-                    "da",
-                    "de",
-                    "el",
-                    "en",
-                    "es",
-                    "et",
-                    "eu",
-                    "fa",
-                    "fi",
-                    "fr",
-                    "gu",
-                    "ha",
-                    "haw",
-                    "he",
-                    "hi",
-                    "hr",
-                    "hu",
-                    "hy",
-                    "id",
-                    "is",
-                    "it",
-                    "ja",
-                    "ka",
-                    "kk",
-                    "kn",
-                    "ko",
-                    "ku",
-                    "ky",
-                    "lo",
-                    "lt",
-                    "lv",
-                    "mk",
-                    "ml",
-                    "mn",
-                    "mr",
-                    "ms",
-                    "ne",
-                    "nl",
-                    "no",
-                    "or",
-                    "pa",
-                    "pl",
-                    "ps",
-                    "pt",
-                    "ro",
-                    "ru",
-                    "sk",
-                    "sl",
-                    "so",
-                    "sq",
-                    "sr",
-                    "sv",
-                    "sw",
-                    "ta",
-                    "te",
-                    "th",
-                    "tl",
-                    "tr",
-                    "uk",
-                    "ur",
-                    "uz",
-                    "vi",
-                    "yo",
-                    "zh"
-                  ]
-                },
-                "minItems": 1
-              }
-            ],
-            "default": "all",
-            "description": "Languages to return results in, as BCP 47 language codes such as `en` or `de`, or \"all\" for any language. Defaults to \"all\". Example: [\"en\", \"de\"]."
-          },
-          "queryFanout": {
-            "type": "boolean",
-            "description": "Currently has no effect."
-          },
-          "markdownOptions": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "properties": {
-              "enabled": {
-                "type": "boolean",
-                "default": false,
-                "description": "Scrape each result to Markdown. Adds 1 credit per result with Markdown."
-              },
-              "includeLinks": {
-                "type": "boolean",
-                "default": true,
-                "description": "Keep hyperlinks in the Markdown."
-              },
-              "includeImages": {
-                "type": "boolean",
-                "default": false,
-                "description": "Emit image references in the Markdown."
-              },
-              "shortenBase64Images": {
-                "type": "boolean",
-                "default": true,
-                "description": "Truncate inline base64 image payloads to keep responses small."
-              },
-              "useMainContentOnly": {
-                "type": "boolean",
-                "default": false,
-                "description": "Strip nav, header, footer, and sidebar — keep only the primary article content."
-              },
-              "pdf": {
-                "type": "object",
-                "properties": {
-                  "shouldParse": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Parse PDF URLs. When false, PDF results are skipped with WEBSITE_ACCESS_ERROR."
-                  },
-                  "start": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "First 1-based PDF page to parse."
-                  },
-                  "end": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
-                  }
-                },
-                "default": {
-                  "shouldParse": true
-                },
-                "additionalProperties": false,
-                "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
-              },
-              "includeFrames": {
-                "type": "boolean",
-                "default": false,
-                "description": "Render iframe contents into the Markdown."
-              },
-              "maxAgeMs": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "minimum": 0,
-                "maximum": 31536000000,
-                "description": "Maximum cache age in milliseconds for result page content. Defaults to 180 days (15552000000 ms) when Markdown is requested, or 365 days (31536000000 ms) when only highlights are requested. Explicit values override either default. Maximum: 365 days. Set to 0 to force a fresh scrape."
-              },
-              "waitForMs": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "minimum": 0,
-                "maximum": 30000,
-                "description": "Extra wait after page load before rendering, in ms (0–30000). Useful for JS-heavy pages."
-              },
-              "timeoutOpts": {
-                "$ref": "#/components/schemas/ScrapeTimeout"
-              }
-            },
-            "additionalProperties": false,
-            "description": "Inline Markdown scraping for each result. Set `enabled: true` to activate."
-          },
-          "highlightsOptions": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "properties": {
-              "enabled": {
-                "type": "boolean",
-                "default": false,
-                "description": "Return relevant passages for each result. Adds 1 credit per 10 results."
-              },
-              "maxCharacters": {
-                "type": "integer",
-                "minimum": 100,
-                "maximum": 20000,
-                "default": 4000,
-                "description": "Maximum combined length of passages per result."
-              }
-            },
-            "additionalProperties": false,
-            "description": "Passages from each result page that are relevant to the query. Pages are read with the `markdownOptions` settings."
-          },
-          "descriptionMaxCharacters": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "minimum": 0,
-            "default": null,
-            "description": "Maximum length of each result's `description`, in characters."
-          },
-          "timeoutOpts": {
-            "$ref": "#/components/schemas/PartialTimeout"
-          },
-          "sources": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "serper",
-                "news-index",
-                "scholar-index"
-              ]
-            },
-            "minItems": 1,
-            "default": [
-              "serper",
-              "news-index",
-              "scholar-index"
-            ],
-            "description": "Search indexes to query. Defaults to all of them. The news and scholar indexes are skipped when domain filters are set, and the scholar index also when freshness is set."
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "additionalProperties": false
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
     "name": "web-competitors",
     "title": "Find website competitors",
     "method": "GET",
@@ -5053,144 +4511,6 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "brand-transaction-identifier",
-    "title": "Identify brand from transaction data",
-    "method": "GET",
-    "path": "/brand/transaction_identifier",
-    "description": "Identify brand from transaction data — Endpoint specially designed for platforms that want to identify transaction data by the transaction title.",
-    "parameters": [
-      {
-        "name": "transaction_info",
-        "in": "query",
-        "required": true,
-        "description": "Transaction information to identify the brand",
-        "schema": {
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 500,
-          "description": "Transaction information to identify the brand"
-        }
-      },
-      {
-        "name": "force_language",
-        "in": "query",
-        "required": false,
-        "description": "Language, e.g. `english`.",
-        "schema": {
-          "allOf": [
-            {
-              "$ref": "#/components/schemas/SupportedLanguage"
-            },
-            {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          ]
-        }
-      },
-      {
-        "name": "maxSpeed",
-        "in": "query",
-        "required": false,
-        "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data.",
-        "schema": {
-          "type": "boolean",
-          "default": false,
-          "description": "Optional parameter to optimize the API call for maximum speed. When set to true, the API will skip time-consuming operations for faster response at the cost of less comprehensive data."
-        }
-      },
-      {
-        "name": "timeoutOpts",
-        "in": "query",
-        "required": false,
-        "description": "Request deadline and what to return when it passes.",
-        "schema": {
-          "$ref": "#/components/schemas/PartialTimeout"
-        }
-      },
-      {
-        "name": "country_gl",
-        "in": "query",
-        "required": false,
-        "description": "Two-letter ISO 3166-1 alpha-2 country code (GL parameter) used to localize search.",
-        "schema": {
-          "$ref": "#/components/schemas/CountryGL"
-        }
-      },
-      {
-        "name": "city",
-        "in": "query",
-        "required": false,
-        "description": "Optional city name to prioritize when searching for the brand.",
-        "schema": {
-          "type": "string",
-          "description": "Optional city name to prioritize when searching for the brand."
-        }
-      },
-      {
-        "name": "mcc",
-        "in": "query",
-        "required": false,
-        "description": "Optional Merchant Category Code (MCC) to help identify the business category/industry.",
-        "schema": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "description": "Optional Merchant Category Code (MCC) to help identify the business category/industry."
-        }
-      },
-      {
-        "name": "phone",
-        "in": "query",
-        "required": false,
-        "description": "Optional phone number from the transaction to help verify brand match.",
-        "schema": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "description": "Optional phone number from the transaction to help verify brand match."
-        }
-      },
-      {
-        "name": "high_confidence_only",
-        "in": "query",
-        "required": false,
-        "description": "When set to true, the API will perform an additional verification steps to ensure the identified brand matches the transaction with high confidence.",
-        "schema": {
-          "type": "boolean",
-          "default": false,
-          "description": "When set to true, the API will perform an additional verification steps to ensure the identified brand matches the transaction with high confidence."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
     "name": "brand-retrieve-simplified",
     "title": "Retrieve simplified brand data by domain",
     "method": "GET",
@@ -6051,162 +5371,6 @@ export const ENDPOINTS: Endpoint[] = [
         }
       }
     ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "brand-ai-query",
-    "title": "Query website data using AI",
-    "method": "POST",
-    "path": "/brand/ai/query",
-    "description": "Query website data using AI — Use AI to extract specific data points from a brand's website. The AI will crawl the website and extract the requested information based on the provided data points.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "type": "object",
-        "properties": {
-          "domain": {
-            "type": "string",
-            "minLength": 3,
-            "description": "The domain name to analyze"
-          },
-          "timeoutOpts": {
-            "$ref": "#/components/schemas/PartialTimeout"
-          },
-          "specific_pages": {
-            "type": "object",
-            "properties": {
-              "home_page": {
-                "type": "boolean",
-                "description": "Whether to analyze the home page"
-              },
-              "blog": {
-                "type": "boolean",
-                "description": "Whether to analyze the blog"
-              },
-              "terms_and_conditions": {
-                "type": "boolean",
-                "description": "Whether to analyze the terms and conditions page"
-              },
-              "privacy_policy": {
-                "type": "boolean",
-                "description": "Whether to analyze the privacy policy page"
-              },
-              "about_us": {
-                "type": "boolean",
-                "description": "Whether to analyze the about us page"
-              },
-              "contact_us": {
-                "type": "boolean",
-                "description": "Whether to analyze the contact us page"
-              },
-              "careers": {
-                "type": "boolean",
-                "description": "Whether to analyze the careers page"
-              },
-              "faq": {
-                "type": "boolean",
-                "description": "Whether to analyze the FAQ page"
-              },
-              "pricing": {
-                "type": "boolean",
-                "description": "Whether to analyze the pricing page"
-              }
-            },
-            "description": "Optional object specifying which pages to analyze"
-          },
-          "data_to_extract": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "datapoint_name": {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "Name of the data point to extract"
-                },
-                "datapoint_type": {
-                  "type": "string",
-                  "enum": [
-                    "text",
-                    "number",
-                    "date",
-                    "boolean",
-                    "list",
-                    "url"
-                  ],
-                  "description": "Type of the data point"
-                },
-                "datapoint_list_type": {
-                  "type": "string",
-                  "enum": [
-                    "string",
-                    "text",
-                    "number",
-                    "date",
-                    "boolean",
-                    "list",
-                    "url",
-                    "object"
-                  ],
-                  "default": "string",
-                  "description": "Type of items in the list when datapoint_type is 'list'. Defaults to 'string'. Use 'object' to extract an array of objects matching a schema."
-                },
-                "datapoint_object_schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string",
-                    "enum": [
-                      "string",
-                      "number",
-                      "date",
-                      "boolean"
-                    ]
-                  },
-                  "description": "Schema definition for objects when datapoint_list_type is 'object'. Provide a map of field names to their scalar types.",
-                  "minProperties": 1,
-                  "example": {
-                    "testimonial_text": "string",
-                    "testimonial_author": "string"
-                  }
-                },
-                "datapoint_description": {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "Description of what to extract"
-                },
-                "datapoint_example": {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "Example of the expected value"
-                }
-              },
-              "required": [
-                "datapoint_name",
-                "datapoint_type",
-                "datapoint_description",
-                "datapoint_example"
-              ]
-            },
-            "minItems": 1,
-            "description": "Array of data points to extract from the website"
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
-          }
-        },
-        "required": [
-          "domain",
-          "data_to_extract"
-        ]
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -7217,943 +6381,6 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "list-webdb-collections",
-    "title": "List collections",
-    "method": "GET",
-    "path": "/webdbs/collections",
-    "description": "List collections — Returns your WebDB collections.",
-    "parameters": [
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "create-webdb-collection",
-    "title": "Create a collection",
-    "method": "POST",
-    "path": "/webdbs/collections",
-    "description": "Create a collection — Creates a collection and queues its first sync. Use the preview endpoint first to test extraction.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsCreateCollectionRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-collection",
-    "title": "Get a collection",
-    "method": "GET",
-    "path": "/webdbs/collections/{collection_id}",
-    "description": "Get a collection — Returns one WebDB collection.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "update-webdb-collection",
-    "title": "Update a collection",
-    "method": "PATCH",
-    "path": "/webdbs/collections/{collection_id}",
-    "description": "Update a collection — Changes collection settings. New extraction rules apply on future syncs.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      }
-    ],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsUpdateCollectionRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "delete-webdb-collection",
-    "title": "Delete a collection",
-    "method": "DELETE",
-    "path": "/webdbs/collections/{collection_id}",
-    "description": "Delete a collection — Deletes a collection and all data stored for it.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "query-webdb-collection",
-    "title": "Query rows",
-    "method": "POST",
-    "path": "/webdbs/collections/{collection_id}/query",
-    "description": "Query rows — Filters and sorts collection rows. Use `next_cursor` to load more results.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      }
-    ],
-    "requestBody": {
-      "required": false,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsQueryRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "list-webdb-collection-runs",
-    "title": "List runs for a collection",
-    "method": "GET",
-    "path": "/webdbs/collections/{collection_id}/runs",
-    "description": "List runs for a collection — Returns recent runs for a collection.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      },
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "create-webdb-collection-run",
-    "title": "Start a run",
-    "method": "POST",
-    "path": "/webdbs/collections/{collection_id}/runs",
-    "description": "Start a run — Queues a sync, a reprocess of saved pages, or a purge of rows by URL. Returns the current run when one is already active.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      }
-    ],
-    "requestBody": {
-      "required": false,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsCreateRunRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "list-webdb-collection-rejections",
-    "title": "List rejections for a collection",
-    "method": "GET",
-    "path": "/webdbs/collections/{collection_id}/rejections",
-    "description": "List rejections for a collection — Returns pages that did not become rows and explains why.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      },
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "since",
-        "in": "query",
-        "required": false,
-        "description": "Return entries at or after this time.",
-        "schema": {
-          "type": "string",
-          "description": "Return entries at or after this time.",
-          "example": "2026-01-01T00:00:00Z"
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "list-webdb-collection-changes",
-    "title": "List changes for a collection",
-    "method": "GET",
-    "path": "/webdbs/collections/{collection_id}/changes",
-    "description": "List changes for a collection — Returns row changes for a collection, newest first.",
-    "parameters": [
-      {
-        "name": "collection_id",
-        "in": "path",
-        "required": true,
-        "description": "Collection ID.",
-        "schema": {
-          "type": "string",
-          "example": "col_123",
-          "description": "Collection ID."
-        }
-      },
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "since",
-        "in": "query",
-        "required": false,
-        "description": "Return entries at or after this time.",
-        "schema": {
-          "type": "string",
-          "description": "Return entries at or after this time.",
-          "example": "2026-01-01T00:00:00Z"
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-row",
-    "title": "Get a row",
-    "method": "GET",
-    "path": "/webdbs/rows/{row_id}",
-    "description": "Get a row — Returns one row and links to its latest saved page.",
-    "parameters": [
-      {
-        "name": "row_id",
-        "in": "path",
-        "required": true,
-        "description": "Row ID.",
-        "schema": {
-          "type": "string",
-          "example": "row_1a2b3c",
-          "description": "Row ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "delete-webdb-row",
-    "title": "Delete a row",
-    "method": "DELETE",
-    "path": "/webdbs/rows/{row_id}",
-    "description": "Delete a row — Deletes a row. Set `purge=true` to also delete its history and saved pages.",
-    "parameters": [
-      {
-        "name": "row_id",
-        "in": "path",
-        "required": true,
-        "description": "Row ID.",
-        "schema": {
-          "type": "string",
-          "example": "row_1a2b3c",
-          "description": "Row ID."
-        }
-      },
-      {
-        "name": "purge",
-        "in": "query",
-        "required": false,
-        "description": "Also delete row history and saved pages.",
-        "schema": {
-          "type": "boolean",
-          "default": false,
-          "description": "Also delete row history and saved pages."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-row-history",
-    "title": "Get a row's change history",
-    "method": "GET",
-    "path": "/webdbs/rows/{row_id}/history",
-    "description": "Get a row's change history — Returns changes for one row, newest first.",
-    "parameters": [
-      {
-        "name": "row_id",
-        "in": "path",
-        "required": true,
-        "description": "Row ID.",
-        "schema": {
-          "type": "string",
-          "example": "row_1a2b3c",
-          "description": "Row ID."
-        }
-      },
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-row-snapshot",
-    "title": "Download a row's page snapshot",
-    "method": "GET",
-    "path": "/webdbs/rows/{row_id}/snapshot",
-    "description": "Download a row's page snapshot — Redirects to the latest saved page in HTML or Markdown.",
-    "parameters": [
-      {
-        "name": "row_id",
-        "in": "path",
-        "required": true,
-        "description": "Row ID.",
-        "schema": {
-          "type": "string",
-          "example": "row_1a2b3c",
-          "description": "Row ID."
-        }
-      },
-      {
-        "name": "format",
-        "in": "query",
-        "required": false,
-        "description": "Snapshot format to download.",
-        "schema": {
-          "type": "string",
-          "enum": [
-            "markdown",
-            "html"
-          ],
-          "default": "markdown",
-          "description": "Snapshot format to download."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-run",
-    "title": "Get a run",
-    "method": "GET",
-    "path": "/webdbs/runs/{run_id}",
-    "description": "Get a run — Returns the status and results of one collection run.",
-    "parameters": [
-      {
-        "name": "run_id",
-        "in": "path",
-        "required": true,
-        "description": "Run ID.",
-        "schema": {
-          "type": "string",
-          "example": "run_123",
-          "description": "Run ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "list-webdb-webhooks",
-    "title": "List webhooks",
-    "method": "GET",
-    "path": "/webdbs/webhooks",
-    "description": "List webhooks — Returns your WebDB webhooks.",
-    "parameters": [
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "create-webdb-webhook",
-    "title": "Create a webhook",
-    "method": "POST",
-    "path": "/webdbs/webhooks",
-    "description": "Create a webhook — Creates a webhook for row and run events. Use the returned secret to verify signatures.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsCreateWebhookRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-webhook",
-    "title": "Get a webhook",
-    "method": "GET",
-    "path": "/webdbs/webhooks/{webhook_id}",
-    "description": "Get a webhook — Returns one WebDB webhook.",
-    "parameters": [
-      {
-        "name": "webhook_id",
-        "in": "path",
-        "required": true,
-        "description": "Webhook ID.",
-        "schema": {
-          "type": "string",
-          "example": "wh_123",
-          "description": "Webhook ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "update-webdb-webhook",
-    "title": "Update a webhook",
-    "method": "PATCH",
-    "path": "/webdbs/webhooks/{webhook_id}",
-    "description": "Update a webhook — Changes a WebDB webhook.",
-    "parameters": [
-      {
-        "name": "webhook_id",
-        "in": "path",
-        "required": true,
-        "description": "Webhook ID.",
-        "schema": {
-          "type": "string",
-          "example": "wh_123",
-          "description": "Webhook ID."
-        }
-      }
-    ],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsUpdateWebhookRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "delete-webdb-webhook",
-    "title": "Delete a webhook",
-    "method": "DELETE",
-    "path": "/webdbs/webhooks/{webhook_id}",
-    "description": "Delete a webhook — Deletes a WebDB webhook.",
-    "parameters": [
-      {
-        "name": "webhook_id",
-        "in": "path",
-        "required": true,
-        "description": "Webhook ID.",
-        "schema": {
-          "type": "string",
-          "example": "wh_123",
-          "description": "Webhook ID."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "list-webdb-webhook-deliveries",
-    "title": "List webhook deliveries",
-    "method": "GET",
-    "path": "/webdbs/webhooks/{webhook_id}/deliveries",
-    "description": "List webhook deliveries — Returns delivery attempts for a webhook, newest first.",
-    "parameters": [
-      {
-        "name": "webhook_id",
-        "in": "path",
-        "required": true,
-        "description": "Webhook ID.",
-        "schema": {
-          "type": "string",
-          "example": "wh_123",
-          "description": "Webhook ID."
-        }
-      },
-      {
-        "name": "limit",
-        "in": "query",
-        "required": false,
-        "description": "Maximum items to return. Defaults to 25.",
-        "schema": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 25,
-          "description": "Maximum items to return. Defaults to 25."
-        }
-      },
-      {
-        "name": "cursor",
-        "in": "query",
-        "required": false,
-        "description": "Pagination cursor from a previous response.",
-        "schema": {
-          "type": "string",
-          "description": "Pagination cursor from a previous response."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "preview-webdb",
-    "title": "Preview extraction (dry run)",
-    "method": "POST",
-    "path": "/webdbs/preview",
-    "description": "Preview extraction (dry run) — Tests extraction on up to 5 URLs without creating a collection. Each URL costs 1 credit.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "$ref": "#/components/schemas/WebdbsPreviewRequest"
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "get-webdb-usage",
-    "title": "WebDBs credit usage",
-    "method": "GET",
-    "path": "/webdbs/usage",
-    "description": "WebDBs credit usage — Returns WebDB credit, row, sync, and storage usage.",
-    "parameters": [
-      {
-        "name": "from",
-        "in": "query",
-        "required": false,
-        "description": "Start of the usage period.",
-        "schema": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Start of the usage period."
-        }
-      },
-      {
-        "name": "to",
-        "in": "query",
-        "required": false,
-        "description": "End of the usage period.",
-        "schema": {
-          "type": "string",
-          "format": "date-time",
-          "description": "End of the usage period."
-        }
-      },
-      {
-        "name": "tags",
-        "in": "query",
-        "required": false,
-        "description": "Comma-separated labels for filtering usage, e.g. `production,team-alpha`.",
-        "schema": {
-          "$ref": "#/components/schemas/RequestTags"
-        }
-      }
-    ],
-    "annotations": {
-      "readOnlyHint": true,
-      "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
     "name": "submit-batch",
     "title": "Submit a batch",
     "method": "POST",
@@ -8424,44 +6651,6 @@ export const ENDPOINTS: Endpoint[] = [
     }
   },
   {
-    "name": "post-company-funding",
-    "title": "Retrieve company funding",
-    "method": "POST",
-    "path": "/company/funding",
-    "description": "Retrieve company funding — Retrieve the structured funding history (rounds, dates, amounts) for a company by its domain. Served from Context's continuously updated company graph, which aggregates funding rounds observed across company data sources and global business news. Domains with no known funding data return an empty rounds list and are not charged.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "type": "object",
-        "properties": {
-          "domain": {
-            "type": "string",
-            "minLength": 3,
-            "description": "The domain name of the company to retrieve funding history for."
-          },
-          "timeoutOpts": {
-            "$ref": "#/components/schemas/PartialTimeout"
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
-          }
-        },
-        "required": [
-          "domain"
-        ],
-        "additionalProperties": false
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
-      "openWorldHint": true
-    }
-  },
-  {
     "name": "company-search",
     "title": "Search companies",
     "method": "POST",
@@ -8524,9 +6713,18 @@ export const ENDPOINTS: Endpoint[] = [
           "query": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 500,
-            "description": "Describe the people to find.",
+            "maxLength": 5000,
+            "description": "Describe the people to find. Up to 500 characters in `fast` mode and 5000 in `ultra` mode.",
             "example": "VPs of sales at solar companies in California"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "ultra"
+            ],
+            "default": "fast",
+            "description": "`fast` matches people on basic criteria (e.g. their role, location or background); `ultra` plans a deeper search, judges each candidate against every criterion in the query. Complex `ultra` searches can take up to 30 seconds to complete, so allow for that in your client timeout."
           },
           "filters": {
             "$ref": "#/components/schemas/PeopleSearchFilters"
@@ -8534,7 +6732,7 @@ export const ENDPOINTS: Endpoint[] = [
           "cursor": {
             "type": "string",
             "maxLength": 65536,
-            "description": "Use next_cursor with the same query and filters to fetch the next page."
+            "description": "Use next_cursor with the same query, mode and filters to fetch the next page."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
@@ -8554,54 +6752,6 @@ export const ENDPOINTS: Endpoint[] = [
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
-      "openWorldHint": true
-    }
-  },
-  {
-    "name": "post-jobs-search",
-    "title": "Search jobs",
-    "method": "POST",
-    "path": "/jobs/search",
-    "description": "Search jobs — Find job postings matching a natural-language description, such as \"remote senior backend engineer jobs at Series B fintech startups\". Title, seniority, function, employment and workplace type, location, posting date and pay are applied as exact filters, and the hiring company is matched with the same company filters as POST /company/search. Only open postings are returned unless filters.include_closed is true. The response echoes how the query was interpreted as interpreted_as, which can be sent back as filters to refine the search. Results link to the job posting and the company website. Searches with no matches are not charged.",
-    "parameters": [],
-    "requestBody": {
-      "required": true,
-      "schema": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500,
-            "description": "Natural-language description of what to find, e.g. \"remote senior backend engineer jobs at Series B fintech startups\". The response's interpreted_as shows the filters it was turned into."
-          },
-          "filters": {
-            "$ref": "#/components/schemas/JobSearchFilters"
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "default": 25,
-            "description": "Maximum number of results to return (1-100)."
-          },
-          "cursor": {
-            "type": "string",
-            "maxLength": 64,
-            "description": "The next_cursor from a previous response, to fetch the following page of the same search."
-          },
-          "tags": {
-            "$ref": "#/components/schemas/RequestTags"
-          }
-        },
-        "additionalProperties": false
-      },
-      "contentType": "application/json",
-      "binary": false
-    },
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": true,
       "openWorldHint": true
     }
   }
@@ -10213,937 +8363,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     ],
     "description": "Lifecycle status of a run. `skipped` runs never executed — see `skip_reason` (insufficient credits, monitor paused, or superseded by a concurrent run)."
   },
-  "WebdbsCreateCollectionRequest": {
-    "type": "object",
-    "properties": {
-      "name": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 200,
-        "description": "Collection name."
-      },
-      "description": {
-        "type": "string",
-        "maxLength": 2000,
-        "description": "Optional collection description."
-      },
-      "schema": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSchema"
-          }
-        ],
-        "description": "JSON Schema for each row."
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Rules for deciding which pages become rows."
-          }
-        ]
-      },
-      "targets": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/WebdbsTarget"
-        },
-        "minItems": 1,
-        "maxItems": 20,
-        "description": "Sources that provide pages for the collection."
-      },
-      "sync": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSync"
-          },
-          {
-            "description": "Collection sync schedule. Defaults to once per day."
-          }
-        ]
-      },
-      "change_tracking": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsChangeTracking"
-          },
-          {
-            "description": "Row change history settings."
-          }
-        ]
-      },
-      "budgets": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsBudgets"
-          },
-          {
-            "description": "Optional collection spending limits."
-          }
-        ]
-      },
-      "on_disappear": {
-        "type": "string",
-        "enum": [
-          "soft_delete",
-          "hard_delete",
-          "keep"
-        ],
-        "default": "soft_delete",
-        "description": "Action for rows whose source page disappears or becomes ineligible."
-      },
-      "stale_after": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 50,
-        "default": 3,
-        "description": "Missed syncs before a row becomes stale."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "required": [
-      "name",
-      "schema",
-      "targets"
-    ],
-    "additionalProperties": false,
-    "title": "Create WebDB collection request",
-    "description": "Settings for a new WebDB collection."
-  },
-  "WebdbsUpdateCollectionRequest": {
-    "type": "object",
-    "properties": {
-      "name": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 200,
-        "description": "Collection name."
-      },
-      "description": {
-        "type": "string",
-        "maxLength": 2000,
-        "description": "Optional collection description."
-      },
-      "schema": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSchema"
-          }
-        ],
-        "description": "JSON Schema for each row."
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Rules for deciding which pages become rows."
-          }
-        ]
-      },
-      "targets": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/WebdbsTarget"
-        },
-        "minItems": 1,
-        "maxItems": 20,
-        "description": "Complete replacement list of collection targets."
-      },
-      "sync": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSync"
-          },
-          {
-            "description": "Collection sync schedule."
-          }
-        ]
-      },
-      "change_tracking": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsChangeTracking"
-          },
-          {
-            "description": "Row change history settings."
-          }
-        ]
-      },
-      "budgets": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsBudgets"
-          },
-          {
-            "description": "Optional collection spending limits."
-          }
-        ]
-      },
-      "on_disappear": {
-        "type": "string",
-        "enum": [
-          "soft_delete",
-          "hard_delete",
-          "keep"
-        ],
-        "description": "Action for rows whose source page disappears or becomes ineligible."
-      },
-      "stale_after": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 50,
-        "description": "Missed syncs before a row becomes stale."
-      },
-      "status": {
-        "type": "string",
-        "enum": [
-          "active",
-          "paused"
-        ],
-        "description": "Pause or resume syncing."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "additionalProperties": false,
-    "title": "Update WebDB collection request",
-    "description": "Fields to update on a WebDB collection."
-  },
-  "WebdbsQueryRequest": {
-    "type": "object",
-    "properties": {
-      "where": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Filters rows by field values. Supports comparisons, lists, text matching, and boolean groups."
-      },
-      "order_by": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "field": {
-              "type": "string",
-              "description": "Field used to sort rows."
-            },
-            "dir": {
-              "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "default": "asc",
-              "description": "Sort direction."
-            }
-          },
-          "required": [
-            "field"
-          ],
-          "additionalProperties": false
-        },
-        "maxItems": 3,
-        "description": "Fields used to sort the results."
-      },
-      "select": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "maxItems": 50,
-        "description": "Fields to include in each row. `_id` is always included."
-      },
-      "limit": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 200,
-        "default": 25,
-        "description": "Maximum rows to return. Defaults to 25."
-      },
-      "cursor": {
-        "type": "string",
-        "description": "Pagination cursor from a previous query."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "additionalProperties": false,
-    "title": "WebDB query request",
-    "description": "Filters, sorts, and selects fields from collection rows."
-  },
-  "WebdbsCreateRunRequest": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "sync",
-          "reprocess",
-          "purge"
-        ],
-        "default": "sync",
-        "description": "`sync` fetches pages and updates rows, `reprocess` extracts rows again from saved pages, and `purge` permanently deletes rows by URL. Defaults to `sync`."
-      },
-      "where": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Rows to reprocess. Only valid when `type` is `reprocess`. Omit to reprocess every row."
-      },
-      "url_match": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "minItems": 1,
-        "maxItems": 50,
-        "example": [
-          "https://shop.com/products/:product_id",
-          "https://foo.com/item?id=*",
-          "https://foo.com/bar/*",
-          "**/events/**"
-        ],
-        "description": "URL patterns for rows to permanently delete. Required when `type` is `purge`. Supports exact URLs, `*`, `**`, and `:name` path values."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "additionalProperties": false,
-    "title": "WebDB create run request",
-    "description": "Chooses the kind of run to start. `where` applies only to `reprocess`, and `url_match` is required for `purge`."
-  },
-  "WebdbsCreateWebhookRequest": {
-    "type": "object",
-    "properties": {
-      "url": {
-        "type": "string",
-        "format": "uri",
-        "description": "HTTPS URL that receives events."
-      },
-      "events": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "row.created",
-            "row.updated",
-            "row.removed",
-            "row.error",
-            "row.cap_consumed",
-            "run.completed",
-            "run.failed",
-            "credits.low",
-            "credits.exhausted"
-          ]
-        },
-        "minItems": 1,
-        "description": "Events sent to this webhook."
-      },
-      "collection_id": {
-        "type": "string",
-        "description": "Collection to watch. Omit to watch all collections."
-      },
-      "on": {
-        "type": "object",
-        "properties": {
-          "fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 20,
-            "description": "Fields that trigger row.updated events."
-          }
-        },
-        "required": [
-          "fields"
-        ],
-        "additionalProperties": false,
-        "description": "Sends row.updated only when one of these fields changes."
-      },
-      "delivery": {
-        "type": "string",
-        "enum": [
-          "instant",
-          "batch"
-        ],
-        "default": "instant",
-        "description": "Send events immediately or in batches."
-      },
-      "batch": {
-        "type": "object",
-        "properties": {
-          "max_size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 500,
-            "description": "Maximum events in one batch."
-          },
-          "max_delay": {
-            "type": "string",
-            "pattern": "^(\\d+)(s|m|h|d)$",
-            "description": "Maximum wait before sending a batch."
-          }
-        },
-        "additionalProperties": false,
-        "description": "Batch delivery settings."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "required": [
-      "url",
-      "events"
-    ],
-    "additionalProperties": false,
-    "title": "Create WebDB webhook request",
-    "description": "Settings for a new WebDB webhook."
-  },
-  "WebdbsUpdateWebhookRequest": {
-    "type": "object",
-    "properties": {
-      "url": {
-        "type": "string",
-        "format": "uri",
-        "description": "HTTPS URL that receives events."
-      },
-      "events": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "row.created",
-            "row.updated",
-            "row.removed",
-            "row.error",
-            "row.cap_consumed",
-            "run.completed",
-            "run.failed",
-            "credits.low",
-            "credits.exhausted"
-          ]
-        },
-        "minItems": 1,
-        "description": "Events sent to this webhook."
-      },
-      "collection_id": {
-        "type": "string",
-        "description": "Collection to watch."
-      },
-      "on": {
-        "type": "object",
-        "properties": {
-          "fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 20,
-            "description": "Fields that trigger row.updated events."
-          }
-        },
-        "required": [
-          "fields"
-        ],
-        "additionalProperties": false,
-        "description": "Sends row.updated only when one of these fields changes."
-      },
-      "delivery": {
-        "type": "string",
-        "enum": [
-          "instant",
-          "batch"
-        ],
-        "description": "Send events immediately or in batches."
-      },
-      "batch": {
-        "type": "object",
-        "properties": {
-          "max_size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 500,
-            "description": "Maximum events in one batch."
-          },
-          "max_delay": {
-            "type": "string",
-            "pattern": "^(\\d+)(s|m|h|d)$",
-            "description": "Maximum wait before sending a batch."
-          }
-        },
-        "additionalProperties": false,
-        "description": "Batch delivery settings."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "additionalProperties": false,
-    "title": "Update WebDB webhook request",
-    "description": "Fields to update on a WebDB webhook."
-  },
-  "WebdbsPreviewRequest": {
-    "type": "object",
-    "properties": {
-      "urls": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "format": "uri"
-        },
-        "minItems": 1,
-        "maxItems": 5,
-        "description": "URLs to test. Maximum 5."
-      },
-      "schema": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSchema"
-          }
-        ],
-        "description": "JSON Schema for each row."
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Rules for deciding which pages become rows."
-          }
-        ]
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags"
-      }
-    },
-    "required": [
-      "urls",
-      "schema"
-    ],
-    "additionalProperties": false,
-    "title": "WebDB preview request",
-    "description": "Tests extraction without creating a collection."
-  },
-  "BatchUnifiedScrapeData": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "urls": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "url": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Page URL to scrape.",
-              "example": "https://example.com/products/anvil"
-            },
-            "itemId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200,
-              "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
-              "example": "sku-1"
-            },
-            "meta": {
-              "type": "object",
-              "additionalProperties": {},
-              "description": "Custom JSON returned unchanged with this page result."
-            }
-          },
-          "required": [
-            "url"
-          ],
-          "additionalProperties": false,
-          "description": "A page to scrape, with optional data for matching results."
-        },
-        "minItems": 1,
-        "maxItems": 100000,
-        "description": "Pages to scrape. Maximum 100000."
-      },
-      "formats": {
-        "$ref": "#/components/schemas/ScrapeFormats",
-        "description": "Outputs to return. Set at least one to `true`."
-      },
-      "markdownParams": {
-        "$ref": "#/components/schemas/ScrapeMarkdownParams",
-        "description": "Markdown options. Requires `formats.markdown`."
-      },
-      "screenshotParams": {
-        "$ref": "#/components/schemas/ScrapeScreenshotParams",
-        "description": "Screenshot options. Requires formats.screenshot: true."
-      },
-      "imageParams": {
-        "$ref": "#/components/schemas/ScrapeImageParams",
-        "description": "Image options. Requires formats.images: true."
-      },
-      "parseParams": {
-        "$ref": "#/components/schemas/ScrapeParseParams",
-        "description": "Requires `formats.parse: true`; required when it is set."
-      },
-      "highlightsParams": {
-        "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Requires `formats.highlights: true`; required when it is set."
-      },
-      "jsonParams": {
-        "$ref": "#/components/schemas/ScrapeJsonParams",
-        "description": "Requires `formats.json: true`; required when it is set."
-      },
-      "productParams": {
-        "$ref": "#/components/schemas/ScrapeProductParams",
-        "description": "Product options. Requires formats.product: true."
-      },
-      "sharedParams": {
-        "$ref": "#/components/schemas/ScrapeSharedParams",
-        "description": "Browser and content settings shared by all outputs."
-      },
-      "maxAgeMs": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 31536000000,
-        "default": 259200000,
-        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
-      },
-      "zdr": {
-        "type": "string",
-        "enum": [
-          "disabled"
-        ],
-        "default": "disabled",
-        "description": "Batches persist their results. Only disabled is supported; enabled returns ZDR_NOT_SUPPORTED."
-      },
-      "timeoutOpts": {
-        "$ref": "#/components/schemas/ScrapeTimeout",
-        "default": {
-          "milliseconds": 90000,
-          "behavior": "fail"
-        },
-        "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags",
-        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
-      }
-    },
-    "required": [
-      "urls",
-      "formats"
-    ],
-    "title": "Scrape Anything",
-    "description": "Use the same formats and parameters as POST /web/scrape, replacing url with urls. Options apply to every page."
-  },
-  "BatchUnifiedCrawlData": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "source": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "start_url"
-                ],
-                "description": "Start from one page."
-              },
-              "url": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Page where crawling begins. A URL without a scheme is read as https://.",
-                "example": "https://example.com/docs"
-              },
-              "controls": {
-                "type": "object",
-                "properties": {
-                  "maxUrls": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 100000,
-                    "default": 100,
-                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
-                  },
-                  "maxDepth": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 50,
-                    "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
-                  },
-                  "followSubdomains": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Follow links to subdomains."
-                  },
-                  "regex": {
-                    "type": "string",
-                    "maxLength": 256,
-                    "description": "Regex pattern for URLs to include. The `start_url` itself is always included.",
-                    "example": "^https://example\\.com/docs/"
-                  },
-                  "excludeRegex": {
-                    "type": "string",
-                    "maxLength": 256,
-                    "description": "Regex pattern for URLs to exclude, even when they match `regex`. The `start_url` itself is always included.",
-                    "example": "/tag/|/author/"
-                  },
-                  "languages": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "enum": [
-                          "same_as_start_url"
-                        ]
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string",
-                          "enum": [
-                            "am",
-                            "ar",
-                            "az",
-                            "be",
-                            "bg",
-                            "bn",
-                            "ca",
-                            "ceb",
-                            "cs",
-                            "cy",
-                            "da",
-                            "de",
-                            "el",
-                            "en",
-                            "es",
-                            "et",
-                            "eu",
-                            "fa",
-                            "fi",
-                            "fr",
-                            "gu",
-                            "ha",
-                            "haw",
-                            "he",
-                            "hi",
-                            "hr",
-                            "hu",
-                            "hy",
-                            "id",
-                            "is",
-                            "it",
-                            "ja",
-                            "ka",
-                            "kk",
-                            "kn",
-                            "ko",
-                            "ku",
-                            "ky",
-                            "lo",
-                            "lt",
-                            "lv",
-                            "mk",
-                            "ml",
-                            "mn",
-                            "mr",
-                            "ms",
-                            "ne",
-                            "nl",
-                            "no",
-                            "or",
-                            "pa",
-                            "pl",
-                            "ps",
-                            "pt",
-                            "ro",
-                            "ru",
-                            "sk",
-                            "sl",
-                            "so",
-                            "sq",
-                            "sr",
-                            "sv",
-                            "sw",
-                            "ta",
-                            "te",
-                            "th",
-                            "tl",
-                            "tr",
-                            "uk",
-                            "ur",
-                            "uz",
-                            "vi",
-                            "yo",
-                            "zh"
-                          ]
-                        },
-                        "minItems": 1
-                      }
-                    ],
-                    "description": "Only follow pages in these languages, or `same_as_start_url`; all languages when omitted.",
-                    "example": "same_as_start_url"
-                  }
-                },
-                "default": {
-                  "maxUrls": 100,
-                  "followSubdomains": false
-                },
-                "additionalProperties": false,
-                "description": "Limits and filters for page discovery."
-              }
-            },
-            "required": [
-              "type",
-              "url"
-            ],
-            "additionalProperties": false,
-            "description": "Discover pages by following links from one URL.",
-            "title": "Start URL"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "sitemap"
-                ],
-                "description": "Scrape the URLs in the domain's sitemap."
-              },
-              "domain": {
-                "type": "string",
-                "minLength": 3,
-                "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
-                "example": "example.com"
-              },
-              "controls": {
-                "type": "object",
-                "properties": {
-                  "maxUrls": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 100000,
-                    "default": 100,
-                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
-                  },
-                  "regex": {
-                    "type": "string",
-                    "maxLength": 256,
-                    "description": "Regex pattern; only sitemap URLs matching it are scraped.",
-                    "example": "^https://example\\.com/docs/"
-                  },
-                  "excludeRegex": {
-                    "type": "string",
-                    "maxLength": 256,
-                    "description": "Regex pattern; sitemap URLs matching it are not scraped, even when they match `regex`.",
-                    "example": "/tag/|/author/"
-                  }
-                },
-                "default": {
-                  "maxUrls": 100
-                },
-                "additionalProperties": false,
-                "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
-              }
-            },
-            "required": [
-              "type",
-              "domain"
-            ],
-            "additionalProperties": false,
-            "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
-            "title": "Sitemap"
-          }
-        ],
-        "discriminator": {
-          "propertyName": "type"
-        },
-        "title": "Crawl source",
-        "description": "How to find pages to crawl."
-      },
-      "formats": {
-        "$ref": "#/components/schemas/ScrapeFormats",
-        "description": "Outputs to return. Set at least one to `true`."
-      },
-      "markdownParams": {
-        "$ref": "#/components/schemas/ScrapeMarkdownParams",
-        "description": "Markdown options. Requires `formats.markdown`."
-      },
-      "screenshotParams": {
-        "$ref": "#/components/schemas/ScrapeScreenshotParams",
-        "description": "Screenshot options. Requires formats.screenshot: true."
-      },
-      "imageParams": {
-        "$ref": "#/components/schemas/ScrapeImageParams",
-        "description": "Image options. Requires formats.images: true."
-      },
-      "parseParams": {
-        "$ref": "#/components/schemas/ScrapeParseParams",
-        "description": "Requires `formats.parse: true`; required when it is set."
-      },
-      "highlightsParams": {
-        "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Requires `formats.highlights: true`; required when it is set."
-      },
-      "jsonParams": {
-        "$ref": "#/components/schemas/ScrapeJsonParams",
-        "description": "Requires `formats.json: true`; required when it is set."
-      },
-      "productParams": {
-        "$ref": "#/components/schemas/ScrapeProductParams",
-        "description": "Product options. Requires formats.product: true."
-      },
-      "sharedParams": {
-        "$ref": "#/components/schemas/ScrapeSharedParams",
-        "description": "Browser and content settings shared by all outputs."
-      },
-      "maxAgeMs": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 31536000000,
-        "default": 259200000,
-        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
-      },
-      "zdr": {
-        "type": "string",
-        "enum": [
-          "disabled"
-        ],
-        "default": "disabled",
-        "description": "Batches persist their results. Only disabled is supported; enabled returns ZDR_NOT_SUPPORTED."
-      },
-      "timeoutOpts": {
-        "$ref": "#/components/schemas/ScrapeTimeout",
-        "default": {
-          "milliseconds": 90000,
-          "behavior": "fail"
-        },
-        "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
-      },
-      "tags": {
-        "$ref": "#/components/schemas/RequestTags",
-        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
-      }
-    },
-    "required": [
-      "source",
-      "formats"
-    ],
-    "title": "Crawl with Scrape Anything",
-    "description": "Use the same formats and parameters as POST /web/scrape, replacing url with source. Options apply to every page."
-  },
   "BatchSubmitRequest": {
     "type": "object",
     "properties": {
@@ -11160,345 +8379,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                 "description": "Scrape the pages in `data.urls`."
               },
               "data": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "format": {
-                        "type": "string",
-                        "enum": [
-                          "markdown"
-                        ],
-                        "description": "Return page content as Markdown."
-                      },
-                      "urls": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "url": {
-                              "type": "string",
-                              "minLength": 1,
-                              "description": "Page URL to scrape.",
-                              "example": "https://example.com/products/anvil"
-                            },
-                            "itemId": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 200,
-                              "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
-                              "example": "sku-1"
-                            },
-                            "meta": {
-                              "type": "object",
-                              "additionalProperties": {},
-                              "description": "Custom JSON returned unchanged with this page result."
-                            }
-                          },
-                          "required": [
-                            "url"
-                          ],
-                          "additionalProperties": false,
-                          "description": "A page to scrape, with optional data for matching results."
-                        },
-                        "minItems": 1,
-                        "maxItems": 100000,
-                        "description": "Pages to scrape. Maximum 100000."
-                      },
-                      "options": {
-                        "type": "object",
-                        "properties": {
-                          "includeLinks": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Include links in the Markdown."
-                          },
-                          "includeImages": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Include image references in the Markdown."
-                          },
-                          "shortenBase64Images": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Shorten inline base64 image data."
-                          },
-                          "useMainContentOnly": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Return the main content without navigation or footers."
-                          },
-                          "includeHTML": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Also return each page's HTML in `html`."
-                          },
-                          "pdf": {
-                            "type": "object",
-                            "properties": {
-                              "shouldParse": {
-                                "type": "boolean",
-                                "default": true,
-                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
-                              },
-                              "start": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "First 1-based PDF page to parse."
-                              },
-                              "end": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
-                              },
-                              "ocr": {
-                                "type": "boolean",
-                                "default": false,
-                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
-                              }
-                            },
-                            "default": {
-                              "shouldParse": true,
-                              "ocr": false
-                            },
-                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
-                          },
-                          "includeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
-                          },
-                          "excludeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
-                          },
-                          "waitForMs": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 15000,
-                            "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
-                          },
-                          "settleAnimations": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
-                          },
-                          "country": {
-                            "$ref": "#/components/schemas/BrowserCountryCode"
-                          },
-                          "maxAgeMs": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ],
-                            "minimum": 0,
-                            "maximum": 31536000000,
-                            "default": 259200000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
-                          }
-                        },
-                        "default": {
-                          "includeLinks": true,
-                          "includeImages": false,
-                          "shortenBase64Images": true,
-                          "useMainContentOnly": false,
-                          "includeHTML": false,
-                          "pdf": {
-                            "shouldParse": true,
-                            "ocr": false
-                          },
-                          "settleAnimations": false,
-                          "maxAgeMs": 259200000
-                        },
-                        "additionalProperties": false,
-                        "description": "Options for Markdown output."
-                      }
-                    },
-                    "required": [
-                      "format",
-                      "urls"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Scrape the listed pages as Markdown.",
-                    "title": "Markdown"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "format": {
-                        "type": "string",
-                        "enum": [
-                          "html"
-                        ],
-                        "description": "Return page content as HTML."
-                      },
-                      "urls": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "url": {
-                              "type": "string",
-                              "minLength": 1,
-                              "description": "Page URL to scrape.",
-                              "example": "https://example.com/products/anvil"
-                            },
-                            "itemId": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 200,
-                              "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
-                              "example": "sku-1"
-                            },
-                            "meta": {
-                              "type": "object",
-                              "additionalProperties": {},
-                              "description": "Custom JSON returned unchanged with this page result."
-                            }
-                          },
-                          "required": [
-                            "url"
-                          ],
-                          "additionalProperties": false,
-                          "description": "A page to scrape, with optional data for matching results."
-                        },
-                        "minItems": 1,
-                        "maxItems": 100000,
-                        "description": "Pages to scrape. Maximum 100000."
-                      },
-                      "options": {
-                        "type": "object",
-                        "properties": {
-                          "useMainContentOnly": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Return the main content without navigation or footers."
-                          },
-                          "pdf": {
-                            "type": "object",
-                            "properties": {
-                              "shouldParse": {
-                                "type": "boolean",
-                                "default": true,
-                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
-                              },
-                              "start": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "First 1-based PDF page to parse."
-                              },
-                              "end": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
-                              },
-                              "ocr": {
-                                "type": "boolean",
-                                "default": false,
-                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
-                              }
-                            },
-                            "default": {
-                              "shouldParse": true,
-                              "ocr": false
-                            },
-                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
-                          },
-                          "includeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
-                          },
-                          "excludeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
-                          },
-                          "waitForMs": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 15000,
-                            "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
-                          },
-                          "settleAnimations": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
-                          },
-                          "country": {
-                            "$ref": "#/components/schemas/BrowserCountryCode"
-                          },
-                          "maxAgeMs": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ],
-                            "minimum": 0,
-                            "maximum": 31536000000,
-                            "default": 259200000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
-                          }
-                        },
-                        "default": {
-                          "useMainContentOnly": false,
-                          "pdf": {
-                            "shouldParse": true,
-                            "ocr": false
-                          },
-                          "settleAnimations": false,
-                          "maxAgeMs": 259200000
-                        },
-                        "additionalProperties": false,
-                        "description": "Options for HTML output."
-                      }
-                    },
-                    "required": [
-                      "format",
-                      "urls"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Scrape the listed pages as HTML.",
-                    "title": "HTML"
-                  },
-                  {
-                    "$ref": "#/components/schemas/BatchUnifiedScrapeData"
-                  }
-                ],
-                "title": "Scrape data",
-                "description": "Pages to scrape with legacy format options or Scrape Anything formats."
+                "$ref": "#/components/schemas/BatchUnifiedScrapeData"
               }
             },
             "required": [
@@ -11520,511 +8401,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                 "description": "Discover and scrape pages from `data.source`."
               },
               "data": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "format": {
-                        "type": "string",
-                        "enum": [
-                          "markdown"
-                        ],
-                        "description": "Return page content as Markdown."
-                      },
-                      "source": {
-                        "oneOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "start_url"
-                                ],
-                                "description": "Start from one page."
-                              },
-                              "url": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Page where crawling begins. A URL without a scheme is read as https://.",
-                                "example": "https://example.com/docs"
-                              },
-                              "controls": {
-                                "type": "object",
-                                "properties": {
-                                  "maxUrls": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 100000,
-                                    "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
-                                  },
-                                  "maxDepth": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 50,
-                                    "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
-                                  },
-                                  "followSubdomains": {
-                                    "type": "boolean",
-                                    "default": false,
-                                    "description": "Follow links to subdomains."
-                                  },
-                                  "regex": {
-                                    "type": "string",
-                                    "maxLength": 256,
-                                    "description": "RE2 pattern for URLs to include. The `start_url` itself is always included.",
-                                    "example": "^https://example\\.com/docs/"
-                                  }
-                                },
-                                "default": {
-                                  "maxUrls": 100,
-                                  "followSubdomains": false
-                                },
-                                "additionalProperties": false,
-                                "description": "Limits and filters for page discovery."
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "url"
-                            ],
-                            "additionalProperties": false,
-                            "description": "Discover pages by following links from one URL.",
-                            "title": "Start URL"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "sitemap"
-                                ],
-                                "description": "Scrape the URLs in the domain's sitemap."
-                              },
-                              "domain": {
-                                "type": "string",
-                                "minLength": 3,
-                                "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
-                                "example": "example.com"
-                              },
-                              "controls": {
-                                "type": "object",
-                                "properties": {
-                                  "maxUrls": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 100000,
-                                    "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
-                                  },
-                                  "regex": {
-                                    "type": "string",
-                                    "maxLength": 256,
-                                    "description": "RE2 pattern; only sitemap URLs matching it are scraped.",
-                                    "example": "^https://example\\.com/docs/"
-                                  }
-                                },
-                                "default": {
-                                  "maxUrls": 100
-                                },
-                                "additionalProperties": false,
-                                "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "domain"
-                            ],
-                            "additionalProperties": false,
-                            "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
-                            "title": "Sitemap"
-                          }
-                        ],
-                        "discriminator": {
-                          "propertyName": "type"
-                        },
-                        "title": "Crawl source",
-                        "description": "How to find pages to crawl."
-                      },
-                      "options": {
-                        "type": "object",
-                        "properties": {
-                          "includeLinks": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Include links in the Markdown."
-                          },
-                          "includeImages": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Include image references in the Markdown."
-                          },
-                          "shortenBase64Images": {
-                            "type": "boolean",
-                            "default": true,
-                            "description": "Shorten inline base64 image data."
-                          },
-                          "useMainContentOnly": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Return the main content without navigation or footers."
-                          },
-                          "includeHTML": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Also return each page's HTML in `html`."
-                          },
-                          "pdf": {
-                            "type": "object",
-                            "properties": {
-                              "shouldParse": {
-                                "type": "boolean",
-                                "default": true,
-                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
-                              },
-                              "start": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "First 1-based PDF page to parse."
-                              },
-                              "end": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
-                              },
-                              "ocr": {
-                                "type": "boolean",
-                                "default": false,
-                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
-                              }
-                            },
-                            "default": {
-                              "shouldParse": true,
-                              "ocr": false
-                            },
-                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
-                          },
-                          "includeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
-                          },
-                          "excludeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
-                          },
-                          "waitForMs": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 15000,
-                            "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
-                          },
-                          "settleAnimations": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
-                          },
-                          "country": {
-                            "$ref": "#/components/schemas/BrowserCountryCode"
-                          },
-                          "maxAgeMs": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ],
-                            "minimum": 0,
-                            "maximum": 31536000000,
-                            "default": 259200000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
-                          }
-                        },
-                        "default": {
-                          "includeLinks": true,
-                          "includeImages": false,
-                          "shortenBase64Images": true,
-                          "useMainContentOnly": false,
-                          "includeHTML": false,
-                          "pdf": {
-                            "shouldParse": true,
-                            "ocr": false
-                          },
-                          "settleAnimations": false,
-                          "maxAgeMs": 259200000
-                        },
-                        "additionalProperties": false,
-                        "description": "Options for Markdown output."
-                      }
-                    },
-                    "required": [
-                      "format",
-                      "source"
-                    ],
-                    "additionalProperties": false,
-                    "title": "Markdown",
-                    "description": "Crawl pages and return Markdown."
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "format": {
-                        "type": "string",
-                        "enum": [
-                          "html"
-                        ],
-                        "description": "Return page content as HTML."
-                      },
-                      "source": {
-                        "oneOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "start_url"
-                                ],
-                                "description": "Start from one page."
-                              },
-                              "url": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Page where crawling begins. A URL without a scheme is read as https://.",
-                                "example": "https://example.com/docs"
-                              },
-                              "controls": {
-                                "type": "object",
-                                "properties": {
-                                  "maxUrls": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 100000,
-                                    "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
-                                  },
-                                  "maxDepth": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 50,
-                                    "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
-                                  },
-                                  "followSubdomains": {
-                                    "type": "boolean",
-                                    "default": false,
-                                    "description": "Follow links to subdomains."
-                                  },
-                                  "regex": {
-                                    "type": "string",
-                                    "maxLength": 256,
-                                    "description": "RE2 pattern for URLs to include. The `start_url` itself is always included.",
-                                    "example": "^https://example\\.com/docs/"
-                                  }
-                                },
-                                "default": {
-                                  "maxUrls": 100,
-                                  "followSubdomains": false
-                                },
-                                "additionalProperties": false,
-                                "description": "Limits and filters for page discovery."
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "url"
-                            ],
-                            "additionalProperties": false,
-                            "description": "Discover pages by following links from one URL.",
-                            "title": "Start URL"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "sitemap"
-                                ],
-                                "description": "Scrape the URLs in the domain's sitemap."
-                              },
-                              "domain": {
-                                "type": "string",
-                                "minLength": 3,
-                                "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
-                                "example": "example.com"
-                              },
-                              "controls": {
-                                "type": "object",
-                                "properties": {
-                                  "maxUrls": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 100000,
-                                    "default": 100,
-                                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
-                                  },
-                                  "regex": {
-                                    "type": "string",
-                                    "maxLength": 256,
-                                    "description": "RE2 pattern; only sitemap URLs matching it are scraped.",
-                                    "example": "^https://example\\.com/docs/"
-                                  }
-                                },
-                                "default": {
-                                  "maxUrls": 100
-                                },
-                                "additionalProperties": false,
-                                "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "domain"
-                            ],
-                            "additionalProperties": false,
-                            "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
-                            "title": "Sitemap"
-                          }
-                        ],
-                        "discriminator": {
-                          "propertyName": "type"
-                        },
-                        "title": "Crawl source",
-                        "description": "How to find pages to crawl."
-                      },
-                      "options": {
-                        "type": "object",
-                        "properties": {
-                          "useMainContentOnly": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Return the main content without navigation or footers."
-                          },
-                          "pdf": {
-                            "type": "object",
-                            "properties": {
-                              "shouldParse": {
-                                "type": "boolean",
-                                "default": true,
-                                "description": "Parse PDF URLs. When false, PDFs fail with `PDF_SKIPPED`."
-                              },
-                              "start": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "First 1-based PDF page to parse."
-                              },
-                              "end": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "Last PDF page to parse (1-based, inclusive). Defaults to the final page. Must be >= start."
-                              },
-                              "ocr": {
-                                "type": "boolean",
-                                "default": false,
-                                "description": "Read scanned PDF pages with OCR; preserve pages that already have text."
-                              }
-                            },
-                            "default": {
-                              "shouldParse": true,
-                              "ocr": false
-                            },
-                            "description": "PDF handling. `start`/`end` limit parsing to an inclusive, 1-based page range."
-                          },
-                          "includeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Keep only elements matching these CSS selectors. Filtered pages ignore `maxAgeMs`."
-                          },
-                          "excludeSelectors": {
-                            "type": [
-                              "array",
-                              "null"
-                            ],
-                            "items": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 2048
-                            },
-                            "maxItems": 50,
-                            "description": "Remove elements matching these CSS selectors. Applied after `includeSelectors`, so an element matching both is removed."
-                          },
-                          "waitForMs": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 15000,
-                            "description": "How long to wait after initial page load, in milliseconds. `0` waits 500 ms."
-                          },
-                          "settleAnimations": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Wait for CSS animations to finish before extracting, on browser-rendered pages."
-                          },
-                          "country": {
-                            "$ref": "#/components/schemas/BrowserCountryCode"
-                          },
-                          "maxAgeMs": {
-                            "type": [
-                              "integer",
-                              "null"
-                            ],
-                            "minimum": 0,
-                            "maximum": 31536000000,
-                            "default": 259200000,
-                            "description": "Maximum cache age in milliseconds. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms). `0` fetches fresh."
-                          }
-                        },
-                        "default": {
-                          "useMainContentOnly": false,
-                          "pdf": {
-                            "shouldParse": true,
-                            "ocr": false
-                          },
-                          "settleAnimations": false,
-                          "maxAgeMs": 259200000
-                        },
-                        "additionalProperties": false,
-                        "description": "Options for HTML output."
-                      }
-                    },
-                    "required": [
-                      "format",
-                      "source"
-                    ],
-                    "additionalProperties": false,
-                    "title": "HTML",
-                    "description": "Crawl pages and return HTML."
-                  },
-                  {
-                    "$ref": "#/components/schemas/BatchUnifiedCrawlData"
-                  }
-                ],
-                "title": "Crawl data",
-                "description": "Crawl pages with legacy format options or Scrape Anything formats."
+                "$ref": "#/components/schemas/BatchUnifiedCrawlData"
               }
             },
             "required": [
@@ -12136,173 +8513,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     },
     "additionalProperties": false,
     "description": "Additional constraints every result must match."
-  },
-  "JobSearchFilters": {
-    "type": "object",
-    "properties": {
-      "semantic_query": {
-        "type": "string",
-        "description": "What the role involves, ranked by meaning rather than matched exactly (\"backend engineering on payments infrastructure\")."
-      },
-      "titles": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200
-        },
-        "maxItems": 25,
-        "description": "Job titles; a posting matches when its title contains every word of any one entry (\"data engineer\" matches \"Senior Data Engineer\")."
-      },
-      "seniorities": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "internship",
-            "entry_level",
-            "associate",
-            "mid_senior_level",
-            "director",
-            "executive"
-          ]
-        },
-        "description": "Seniority levels of the role."
-      },
-      "functions": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "accounting",
-            "administrative",
-            "advertising",
-            "analyst",
-            "art_creative",
-            "business_development",
-            "consulting",
-            "customer_service",
-            "design",
-            "distribution",
-            "education",
-            "engineering",
-            "finance",
-            "general_business",
-            "health_care_provider",
-            "human_resources",
-            "information_technology",
-            "legal",
-            "management",
-            "manufacturing",
-            "marketing",
-            "other",
-            "product_management",
-            "production",
-            "project_management",
-            "public_relations",
-            "purchasing",
-            "quality_assurance",
-            "research",
-            "sales",
-            "science",
-            "strategy_planning",
-            "supply_chain",
-            "training",
-            "writing_editing"
-          ]
-        },
-        "description": "Job functions of the role."
-      },
-      "employment_types": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "full_time",
-            "part_time",
-            "contract",
-            "internship",
-            "temporary",
-            "volunteer",
-            "other"
-          ]
-        },
-        "description": "Employment types of the role."
-      },
-      "workplace_types": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "on_site",
-            "remote",
-            "hybrid"
-          ]
-        },
-        "description": "Where the work happens."
-      },
-      "countries": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "pattern": "^[A-Z]{2}$"
-        },
-        "description": "ISO 3166-1 alpha-2 codes of the job location countries."
-      },
-      "regions": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200
-        },
-        "maxItems": 25,
-        "description": "States or provinces of the job location, by full name (\"California\")."
-      },
-      "cities": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200
-        },
-        "maxItems": 25,
-        "description": "Cities of the job location."
-      },
-      "posted_after": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-        "description": "Earliest posting date (YYYY-MM-DD)."
-      },
-      "salary_min": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Minimum annual pay, in `salary_currency`. Postings without disclosed pay are excluded when set."
-      },
-      "salary_currency": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "pattern": "^[A-Z]{3}$",
-        "description": "ISO 4217 currency of `salary_min`."
-      },
-      "include_closed": {
-        "type": "boolean",
-        "description": "Also return postings that are no longer open (default false)."
-      },
-      "company": {
-        "$ref": "#/components/schemas/EmployerFilters"
-      }
-    },
-    "additionalProperties": false,
-    "description": "Structured job filters, the same fields as interpreted_as. Every field is optional; set fields override what the query was interpreted as. company filters the hiring company with the same fields as interpreted_as.company; null drops an employer constraint the query implied."
   },
   "ScrapeFormats": {
     "type": "object",
@@ -13732,233 +9942,413 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       }
     ]
   },
-  "WebdbsSchema": {
+  "BatchUnifiedScrapeData": {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
-      "$schema": {
-        "type": "string",
-        "maxLength": 500,
-        "description": "Optional JSON Schema dialect identifier.",
-        "example": "https://json-schema.org/draft/2020-12/schema"
-      },
-      "title": {
-        "type": "string",
-        "maxLength": 200
-      },
-      "description": {
-        "type": "string",
-        "maxLength": 2000
-      },
-      "type": {
-        "type": "string",
-        "enum": [
-          "object"
-        ]
-      },
-      "properties": {
-        "type": "object",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/WebdbsFieldDefinition"
-        }
-      },
-      "required": {
+      "urls": {
         "type": "array",
         "items": {
-          "type": "string"
-        },
-        "maxItems": 200
-      },
-      "additionalProperties": {
-        "type": "boolean",
-        "enum": [
-          false
-        ],
-        "description": "WebDB row schemas are closed; omitted is treated as false."
-      }
-    },
-    "required": [
-      "type",
-      "properties"
-    ],
-    "additionalProperties": false,
-    "description": "JSON Schema for the fields extracted into each row. Zod users can pass the output of z.toJSONSchema().",
-    "title": "WebDB row schema",
-    "example": {
-      "type": "object",
-      "properties": {
-        "title": {
-          "type": "string",
-          "description": "Product name."
-        },
-        "price": {
-          "type": "number",
-          "description": "Current price."
-        }
-      },
-      "required": [
-        "title"
-      ],
-      "additionalProperties": false
-    }
-  },
-  "WebdbsEligibility": {
-    "type": "object",
-    "properties": {
-      "prefilter": {
-        "type": "object",
-        "properties": {
-          "url_match": {
-            "type": "array",
-            "items": {
-              "type": "string"
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Page URL to scrape.",
+              "example": "https://example.com/products/anvil"
             },
-            "maxItems": 50,
-            "example": [
-              "https://shop.com/products/:product_id",
-              "https://foo.com/item?id=*",
-              "https://foo.com/bar/*",
-              "**/events/**"
-            ],
-            "description": "URL patterns a page must match. Supports exact URLs, `*`, `**`, and `:name` path values."
-          },
-          "must_contain_any": {
-            "type": "array",
-            "items": {
-              "type": "string"
+            "itemId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Your ID for this page, returned with its result. The same URL can use different IDs.",
+              "example": "sku-1"
             },
-            "maxItems": 50,
-            "description": "Text where at least one value must appear."
+            "meta": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Custom JSON returned unchanged with this page result."
+            }
           },
-          "must_not_contain": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 50,
-            "description": "Text values that must not appear."
-          }
+          "required": [
+            "url"
+          ],
+          "additionalProperties": false,
+          "description": "A page to scrape, with optional data for matching results."
         },
-        "additionalProperties": false,
-        "description": "Fast URL and text checks."
+        "minItems": 1,
+        "maxItems": 100000,
+        "description": "Pages to scrape. Maximum 100000."
       },
-      "semantic": {
-        "type": "object",
-        "properties": {
-          "condition": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 4000,
-            "description": "Plain-language rule a page must satisfy."
-          },
-          "min_score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Minimum matching score from 0 to 1. Defaults to 0.7."
-          }
-        },
-        "required": [
-          "condition"
-        ],
-        "additionalProperties": false,
-        "description": "AI check for whether a page should become a row."
-      }
-    },
-    "additionalProperties": false,
-    "description": "Rules that decide whether a page becomes a row.",
-    "title": "WebDB eligibility rules"
-  },
-  "WebdbsTarget": {
-    "oneOf": [
-      {
-        "$ref": "#/components/schemas/WebdbsUrlTarget"
+      "formats": {
+        "$ref": "#/components/schemas/ScrapeFormats",
+        "description": "Outputs to return. Set at least one to `true`."
       },
-      {
-        "$ref": "#/components/schemas/WebdbsUrlListTarget"
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams",
+        "description": "Markdown options. Requires `formats.markdown`."
       },
-      {
-        "$ref": "#/components/schemas/WebdbsSitemapTarget"
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams",
+        "description": "Screenshot options. Requires formats.screenshot: true."
       },
-      {
-        "$ref": "#/components/schemas/WebdbsCrawlTarget"
-      }
-    ],
-    "discriminator": {
-      "propertyName": "type",
-      "mapping": {
-        "url": "#/components/schemas/WebdbsUrlTarget",
-        "url_list": "#/components/schemas/WebdbsUrlListTarget",
-        "sitemap": "#/components/schemas/WebdbsSitemapTarget",
-        "crawl": "#/components/schemas/WebdbsCrawlTarget"
-      }
-    },
-    "description": "Source that provides pages for a collection."
-  },
-  "WebdbsSync": {
-    "type": "object",
-    "properties": {
-      "every": {
-        "type": "string",
-        "example": "6h",
-        "description": "Sync interval such as `6h`, or a five-field cron expression."
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams",
+        "description": "Image options. Requires formats.images: true."
       },
-      "mode": {
-        "type": "string",
-        "enum": [
-          "incremental",
-          "full"
-        ],
-        "default": "incremental",
-        "description": "Use `incremental` for changed pages or `full` for every page."
-      }
-    },
-    "required": [
-      "every"
-    ],
-    "additionalProperties": false,
-    "title": "WebDB sync schedule",
-    "description": "Controls when pages are checked for updates."
-  },
-  "WebdbsChangeTracking": {
-    "type": "object",
-    "properties": {
-      "enabled": {
-        "type": "boolean",
-        "description": "Whether to record row changes."
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams",
+        "description": "Requires `formats.parse: true`; required when it is set."
       },
-      "granularity": {
-        "type": "string",
-        "enum": [
-          "field"
-        ],
-        "description": "Records changes for each field."
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams",
+        "description": "Requires `formats.highlights: true`; required when it is set."
       },
-      "retention": {
-        "type": "string",
-        "pattern": "^(\\d+)(s|m|h|d)$",
-        "default": "90d",
-        "description": "How long to keep row changes, such as `90d`."
-      }
-    },
-    "required": [
-      "enabled"
-    ],
-    "additionalProperties": false,
-    "title": "WebDB change tracking",
-    "description": "Controls row change history."
-  },
-  "WebdbsBudgets": {
-    "type": "object",
-    "properties": {
-      "credits": {
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams",
+        "description": "Requires `formats.json: true`; required when it is set."
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams",
+        "description": "Product options. Requires formats.product: true."
+      },
+      "sharedParams": {
+        "$ref": "#/components/schemas/ScrapeSharedParams",
+        "description": "Browser and content settings shared by all outputs."
+      },
+      "maxAgeMs": {
         "type": "integer",
-        "exclusiveMinimum": 0,
-        "description": "Maximum credits this collection can use."
+        "minimum": 0,
+        "maximum": 31536000000,
+        "default": 259200000,
+        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "disabled"
+        ],
+        "default": "disabled",
+        "description": "Batches persist their results. Only disabled is supported; enabled returns ZDR_NOT_SUPPORTED."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/ScrapeTimeout",
+        "default": {
+          "milliseconds": 90000,
+          "behavior": "fail"
+        },
+        "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags",
+        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
       }
     },
+    "required": [
+      "urls",
+      "formats"
+    ],
+    "title": "Scrape Anything",
+    "description": "Use the same formats and parameters as POST /web/scrape, replacing url with urls. Options apply to every page."
+  },
+  "BatchUnifiedCrawlData": {
+    "type": "object",
     "additionalProperties": false,
-    "title": "WebDB spending limits",
-    "description": "Optional spending limits for a collection."
+    "properties": {
+      "source": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "start_url"
+                ],
+                "description": "Start from one page."
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Page where crawling begins. A URL without a scheme is read as https://.",
+                "example": "https://example.com/docs"
+              },
+              "controls": {
+                "type": "object",
+                "properties": {
+                  "maxUrls": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000,
+                    "default": 100,
+                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                  },
+                  "maxDepth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50,
+                    "description": "Maximum link depth. Source pages are depth 0. No limit when omitted."
+                  },
+                  "followSubdomains": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Follow links to subdomains."
+                  },
+                  "regex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern for URLs to include. The `start_url` itself is always included.",
+                    "example": "^https://example\\.com/docs/"
+                  },
+                  "excludeRegex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern for URLs to exclude, even when they match `regex`. The `start_url` itself is always included.",
+                    "example": "/tag/|/author/"
+                  },
+                  "languages": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "same_as_start_url"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "am",
+                            "ar",
+                            "az",
+                            "be",
+                            "bg",
+                            "bn",
+                            "ca",
+                            "ceb",
+                            "cs",
+                            "cy",
+                            "da",
+                            "de",
+                            "el",
+                            "en",
+                            "es",
+                            "et",
+                            "eu",
+                            "fa",
+                            "fi",
+                            "fr",
+                            "gu",
+                            "ha",
+                            "haw",
+                            "he",
+                            "hi",
+                            "hr",
+                            "hu",
+                            "hy",
+                            "id",
+                            "is",
+                            "it",
+                            "ja",
+                            "ka",
+                            "kk",
+                            "kn",
+                            "ko",
+                            "ku",
+                            "ky",
+                            "lo",
+                            "lt",
+                            "lv",
+                            "mk",
+                            "ml",
+                            "mn",
+                            "mr",
+                            "ms",
+                            "ne",
+                            "nl",
+                            "no",
+                            "or",
+                            "pa",
+                            "pl",
+                            "ps",
+                            "pt",
+                            "ro",
+                            "ru",
+                            "sk",
+                            "sl",
+                            "so",
+                            "sq",
+                            "sr",
+                            "sv",
+                            "sw",
+                            "ta",
+                            "te",
+                            "th",
+                            "tl",
+                            "tr",
+                            "uk",
+                            "ur",
+                            "uz",
+                            "vi",
+                            "yo",
+                            "zh"
+                          ]
+                        },
+                        "minItems": 1
+                      }
+                    ],
+                    "description": "Only follow pages in these languages, or `same_as_start_url`; all languages when omitted.",
+                    "example": "same_as_start_url"
+                  }
+                },
+                "default": {
+                  "maxUrls": 100,
+                  "followSubdomains": false
+                },
+                "additionalProperties": false,
+                "description": "Limits and filters for page discovery."
+              }
+            },
+            "required": [
+              "type",
+              "url"
+            ],
+            "additionalProperties": false,
+            "description": "Discover pages by following links from one URL.",
+            "title": "Start URL"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "sitemap"
+                ],
+                "description": "Scrape the URLs in the domain's sitemap."
+              },
+              "domain": {
+                "type": "string",
+                "minLength": 3,
+                "description": "Domain whose sitemap lists the pages to scrape. A full URL is reduced to its domain.",
+                "example": "example.com"
+              },
+              "controls": {
+                "type": "object",
+                "properties": {
+                  "maxUrls": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000,
+                    "default": 100,
+                    "description": "Maximum pages to fetch. Unused reserved credits are refunded. Maximum 100000."
+                  },
+                  "regex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern; only sitemap URLs matching it are scraped.",
+                    "example": "^https://example\\.com/docs/"
+                  },
+                  "excludeRegex": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Regex pattern; sitemap URLs matching it are not scraped, even when they match `regex`.",
+                    "example": "/tag/|/author/"
+                  }
+                },
+                "default": {
+                  "maxUrls": 100
+                },
+                "additionalProperties": false,
+                "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
+              }
+            },
+            "required": [
+              "type",
+              "domain"
+            ],
+            "additionalProperties": false,
+            "description": "Scrape the pages listed in a domain's sitemap. Links on those pages are not followed.",
+            "title": "Sitemap"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        },
+        "title": "Crawl source",
+        "description": "How to find pages to crawl."
+      },
+      "formats": {
+        "$ref": "#/components/schemas/ScrapeFormats",
+        "description": "Outputs to return. Set at least one to `true`."
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams",
+        "description": "Markdown options. Requires `formats.markdown`."
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams",
+        "description": "Screenshot options. Requires formats.screenshot: true."
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams",
+        "description": "Image options. Requires formats.images: true."
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams",
+        "description": "Requires `formats.parse: true`; required when it is set."
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams",
+        "description": "Requires `formats.highlights: true`; required when it is set."
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams",
+        "description": "Requires `formats.json: true`; required when it is set."
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams",
+        "description": "Product options. Requires formats.product: true."
+      },
+      "sharedParams": {
+        "$ref": "#/components/schemas/ScrapeSharedParams",
+        "description": "Browser and content settings shared by all outputs."
+      },
+      "maxAgeMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 31536000000,
+        "default": 259200000,
+        "description": "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms)."
+      },
+      "zdr": {
+        "type": "string",
+        "enum": [
+          "disabled"
+        ],
+        "default": "disabled",
+        "description": "Batches persist their results. Only disabled is supported; enabled returns ZDR_NOT_SUPPORTED."
+      },
+      "timeoutOpts": {
+        "$ref": "#/components/schemas/ScrapeTimeout",
+        "default": {
+          "milliseconds": 90000,
+          "behavior": "fail"
+        },
+        "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
+      },
+      "tags": {
+        "$ref": "#/components/schemas/RequestTags",
+        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+      }
+    },
+    "required": [
+      "source",
+      "formats"
+    ],
+    "title": "Crawl with Scrape Anything",
+    "description": "Use the same formats and parameters as POST /web/scrape, replacing url with source. Options apply to every page."
   },
   "WebhookRetry": {
     "type": "object",
@@ -13992,657 +10382,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         57600
       ]
     }
-  },
-  "EmployerFilters": {
-    "type": [
-      "object",
-      "null"
-    ],
-    "properties": {
-      "semantic_query": {
-        "type": "string",
-        "description": "What the companies do and requested constraints without a structured filter. Results are ranked by how closely they match it; these constraints are not guaranteed exact matches."
-      },
-      "names": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Company names."
-      },
-      "excluded_names": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default": [],
-        "description": "Company names to exclude, including the references in a competitor search."
-      },
-      "excluded_countries": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "pattern": "^[A-Z]{2}$"
-        },
-        "default": [],
-        "description": "Headquarters countries to exclude."
-      },
-      "excluded_domains": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default": [],
-        "description": "Company website domains to exclude."
-      },
-      "investors": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default": [],
-        "description": "Investors that must have backed the company."
-      },
-      "accelerators": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default": [],
-        "description": "Accelerator programs or batches the company participated in."
-      },
-      "organization_types": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default": [],
-        "description": "Company types, such as public_company or privately_held."
-      },
-      "operating_statuses": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default": [],
-        "description": "Operating statuses, such as active, acquired or closed."
-      },
-      "revenue_min_usd": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "default": null,
-        "description": "Minimum estimated annual revenue in US dollars."
-      },
-      "revenue_max_usd": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "default": null,
-        "description": "Maximum estimated annual revenue in US dollars."
-      },
-      "countries": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "pattern": "^[A-Z]{2}$"
-        },
-        "description": "Headquarters countries, as ISO 3166-1 alpha-2 codes."
-      },
-      "regions": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Headquarters states or provinces."
-      },
-      "cities": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Headquarters cities."
-      },
-      "places": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Wider areas around the headquarters, such as continents, counties or metro areas."
-      },
-      "postal_code_prefixes": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Headquarters postal codes or their prefixes."
-      },
-      "office_countries": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "pattern": "^[A-Z]{2}$"
-        },
-        "description": "Countries the company has an office in, as ISO 3166-1 alpha-2 codes."
-      },
-      "office_regions": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "States or provinces the company has an office in."
-      },
-      "office_cities": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Cities the company has an office in."
-      },
-      "industries": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "Accounting",
-            "Airlines/Aviation",
-            "Alternative Dispute Resolution",
-            "Alternative Medicine",
-            "Animation",
-            "Apparel & Fashion",
-            "Architecture & Planning",
-            "Arts and Crafts",
-            "Automotive",
-            "Aviation & Aerospace",
-            "Banking",
-            "Biotechnology",
-            "Broadcast Media",
-            "Building Materials",
-            "Business Supplies and Equipment",
-            "Capital Markets",
-            "Chemicals",
-            "Civic & Social Organization",
-            "Civil Engineering",
-            "Commercial Real Estate",
-            "Computer Games",
-            "Computer Hardware",
-            "Computer Networking",
-            "Computer & Network Security",
-            "Computer Software",
-            "Construction",
-            "Consumer Electronics",
-            "Consumer Goods",
-            "Consumer Services",
-            "Cosmetics",
-            "Dairy",
-            "Defense & Space",
-            "Design",
-            "Education Management",
-            "E-Learning",
-            "Electrical/Electronic Manufacturing",
-            "Entertainment",
-            "Environmental Services",
-            "Events Services",
-            "Executive Office",
-            "Facilities Services",
-            "Farming",
-            "Financial Services",
-            "Fine Art",
-            "Fishery",
-            "Food & Beverages",
-            "Food Production",
-            "Fund-Raising",
-            "Furniture",
-            "Gambling & Casinos",
-            "Glass, Ceramics & Concrete",
-            "Government Administration",
-            "Government Relations",
-            "Graphic Design",
-            "Health, Wellness and Fitness",
-            "Higher Education",
-            "Hospital & Health Care",
-            "Hospitality",
-            "Human Resources",
-            "Import and Export",
-            "Individual & Family Services",
-            "Industrial Automation",
-            "Information Services",
-            "Information Technology and Services",
-            "Insurance",
-            "International Affairs",
-            "International Trade and Development",
-            "Internet",
-            "Investment Banking",
-            "Investment Management",
-            "Judiciary",
-            "Law Enforcement",
-            "Law Practice",
-            "Legal Services",
-            "Legislative Office",
-            "Leisure, Travel & Tourism",
-            "Libraries",
-            "Logistics and Supply Chain",
-            "Luxury Goods & Jewelry",
-            "Machinery",
-            "Management Consulting",
-            "Maritime",
-            "Marketing and Advertising",
-            "Market Research",
-            "Mechanical or Industrial Engineering",
-            "Media Production",
-            "Medical Devices",
-            "Medical Practice",
-            "Mental Health Care",
-            "Military",
-            "Mining & Metals",
-            "Mobile Games",
-            "Motion Pictures and Film",
-            "Museums and Institutions",
-            "Music",
-            "Nanotechnology",
-            "Newspapers",
-            "Non-Profit Organization Management",
-            "Oil & Energy",
-            "Online Media",
-            "Outsourcing/Offshoring",
-            "Package/Freight Delivery",
-            "Packaging and Containers",
-            "Paper & Forest Products",
-            "Performing Arts",
-            "Pharmaceuticals",
-            "Philanthropy",
-            "Photography",
-            "Plastics",
-            "Political Organization",
-            "Primary/Secondary Education",
-            "Printing",
-            "Professional Training & Coaching",
-            "Program Development",
-            "Public Policy",
-            "Public Relations and Communications",
-            "Public Safety",
-            "Publishing",
-            "Railroad Manufacture",
-            "Ranching",
-            "Real Estate",
-            "Recreational Facilities and Services",
-            "Religious Institutions",
-            "Renewables & Environment",
-            "Research",
-            "Restaurants",
-            "Retail",
-            "Security and Investigations",
-            "Semiconductors",
-            "Shipbuilding",
-            "Sporting Goods",
-            "Sports",
-            "Staffing and Recruiting",
-            "Supermarkets",
-            "Telecommunications",
-            "Textiles",
-            "Think Tanks",
-            "Tobacco",
-            "Translation and Localization",
-            "Transportation/Trucking/Railroad",
-            "Utilities",
-            "Venture Capital & Private Equity",
-            "Veterinary",
-            "Warehousing",
-            "Wholesale",
-            "Wine and Spirits",
-            "Wireless",
-            "Writing and Editing"
-          ]
-        },
-        "description": "Industries the company operates in."
-      },
-      "primary_industry_only": {
-        "type": "boolean",
-        "description": "Whether industries must be the company's main industry rather than any of its industries."
-      },
-      "keywords": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Tags the company is labeled with."
-      },
-      "technologies": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Products in the company's tech stack."
-      },
-      "technologies_match": {
-        "type": "string",
-        "enum": [
-          "any",
-          "all"
-        ],
-        "description": "\"all\" when the company must use every listed technology, \"any\" when one is enough."
-      },
-      "employees_min": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Minimum headcount."
-      },
-      "employees_max": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Maximum headcount."
-      },
-      "founded_after": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "description": "Earliest founding year, inclusive."
-      },
-      "founded_before": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "description": "Latest founding year, inclusive."
-      },
-      "monthly_visits_min": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Minimum monthly website visits."
-      },
-      "website_rank_max": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Lowest global website popularity rank allowed, where 1 is the most visited site."
-      },
-      "has_linkedin": {
-        "type": [
-          "boolean",
-          "null"
-        ],
-        "description": "true when the company must have a LinkedIn page, false when it must not."
-      },
-      "linkedin_slugs": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "LinkedIn company page slugs, as in linkedin.com/company/<slug>."
-      },
-      "domains": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Website domains."
-      },
-      "tlds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Website domain endings without the dot, such as \"ai\" or \"co.uk\"."
-      },
-      "funding_types": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "pre_seed",
-            "seed",
-            "angel",
-            "series_a",
-            "series_b",
-            "series_c",
-            "series_d",
-            "series_e",
-            "series_f",
-            "series_g",
-            "series_h",
-            "series_i",
-            "series_j",
-            "series_k",
-            "series_l",
-            "series_m",
-            "debt_financing",
-            "growth_debt",
-            "strategic_investment",
-            "safe_convertible",
-            "corporate_round",
-            "private_equity",
-            "grant",
-            "equity_crowdfunding",
-            "product_crowdfunding",
-            "secondary_market",
-            "ipo",
-            "post_ipo_equity",
-            "post_ipo_debt",
-            "post_ipo_secondary",
-            "initial_coin_offering",
-            "non_equity_assistance"
-          ]
-        },
-        "description": "Funding rounds the company has raised, such as seed or series_b."
-      },
-      "current_funding_stages": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "pre_seed",
-            "seed",
-            "angel",
-            "series_a",
-            "series_b",
-            "series_c",
-            "series_d",
-            "series_e",
-            "series_f",
-            "series_g",
-            "series_h",
-            "series_i",
-            "series_j",
-            "series_k",
-            "series_l",
-            "series_m",
-            "debt_financing",
-            "growth_debt",
-            "strategic_investment",
-            "safe_convertible",
-            "corporate_round",
-            "private_equity",
-            "grant",
-            "equity_crowdfunding",
-            "product_crowdfunding",
-            "secondary_market",
-            "ipo",
-            "post_ipo_equity",
-            "post_ipo_debt",
-            "post_ipo_secondary",
-            "initial_coin_offering",
-            "non_equity_assistance"
-          ]
-        },
-        "default": [],
-        "description": "Current funding stages, rather than rounds raised in the past."
-      },
-      "funding_round_phase": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "enum": [
-          "initial",
-          "extension",
-          null
-        ],
-        "description": "\"initial\" for the first close of a round, \"extension\" for an extension of it."
-      },
-      "funded_after": {
-        "anyOf": [
-          {
-            "type": "string",
-            "pattern": "^\\d{4}-\\d{2}$"
-          },
-          {
-            "type": "string",
-            "format": "date"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "Earliest date of a matching funding round, inclusive (YYYY-MM-DD, or YYYY-MM for the whole month)."
-      },
-      "funded_before": {
-        "anyOf": [
-          {
-            "type": "string",
-            "pattern": "^\\d{4}-\\d{2}$"
-          },
-          {
-            "type": "string",
-            "format": "date"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "Latest date of a matching funding round, inclusive (YYYY-MM-DD, or YYYY-MM for the whole month)."
-      },
-      "round_amount_min_usd": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Minimum size of a matching funding round, in US dollars."
-      },
-      "round_amount_max_usd": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Maximum size of a matching funding round, in US dollars."
-      },
-      "total_funding_min_usd": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Minimum total funding raised, in US dollars."
-      },
-      "total_funding_max_usd": {
-        "type": [
-          "number",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Maximum total funding raised, in US dollars."
-      },
-      "funding_rounds_min": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "minimum": 0,
-        "description": "Minimum number of funding rounds raised."
-      },
-      "funding_rounds_max": {
-        "type": [
-          "integer",
-          "null"
-        ],
-        "minimum": 0,
-        "default": null,
-        "description": "Maximum number of funding rounds raised."
-      },
-      "first_funded_after": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "pattern": "^\\d{4}-\\d{2}$",
-        "description": "Earliest month of the company's first funding round (YYYY-MM)."
-      },
-      "first_funded_before": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "pattern": "^\\d{4}-\\d{2}$",
-        "description": "Latest month of the company's first funding round (YYYY-MM)."
-      },
-      "first_seen_after": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "pattern": "^\\d{4}-\\d{2}$",
-        "description": "Earliest month the company was first discovered (YYYY-MM)."
-      },
-      "sort_by": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "enum": [
-          "employees",
-          "monthly_visits",
-          "total_funding",
-          "founded_year",
-          null
-        ],
-        "description": "What results are ordered by; null orders them by relevance."
-      },
-      "sort_direction": {
-        "type": "string",
-        "enum": [
-          "desc",
-          "asc"
-        ],
-        "description": "\"desc\" puts the highest values first, \"asc\" the lowest. Only applies with sort_by."
-      }
-    },
-    "additionalProperties": false,
-    "description": "Structured company filters, the same fields as interpreted_as.company. Every field is optional; set fields override what the query was interpreted as."
   },
   "ScrapeParseRules": {
     "type": "object",
@@ -14938,6 +10677,11 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         ],
         "default": "off",
         "description": "Set `auto` to read scanned pages with OCR."
+      },
+      "includeNumberedPages": {
+        "type": "boolean",
+        "default": false,
+        "description": "Start each page in the Markdown with a `<!-- page N -->` line using its original 1-based page number; these responses are never served from cache."
       }
     }
   },
@@ -15264,490 +11008,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "url"
     ],
     "additionalProperties": false
-  },
-  "WebdbsFieldDefinition": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "anyOf": [
-          {
-            "type": "string",
-            "enum": [
-              "string",
-              "number",
-              "integer",
-              "boolean",
-              "object",
-              "array"
-            ]
-          },
-          {
-            "type": "array",
-            "prefixItems": [
-              {
-                "type": "string",
-                "enum": [
-                  "string",
-                  "number",
-                  "integer",
-                  "boolean",
-                  "object",
-                  "array"
-                ]
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "null"
-                ]
-              }
-            ],
-            "minItems": 2,
-            "maxItems": 2
-          },
-          {
-            "type": "array",
-            "prefixItems": [
-              {
-                "type": "string",
-                "enum": [
-                  "null"
-                ]
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "string",
-                  "number",
-                  "integer",
-                  "boolean",
-                  "object",
-                  "array"
-                ]
-              }
-            ],
-            "minItems": 2,
-            "maxItems": 2
-          }
-        ],
-        "description": "A single JSON Schema type, optionally paired with null for nullable values."
-      },
-      "title": {
-        "type": "string",
-        "maxLength": 200
-      },
-      "description": {
-        "type": "string",
-        "maxLength": 2000,
-        "description": "Natural-language instruction describing what to extract into this field."
-      },
-      "format": {
-        "type": "string",
-        "maxLength": 100,
-        "description": "JSON Schema string format. date, date-time, and uri receive WebDB-specific canonicalization and query behavior."
-      },
-      "enum": {
-        "type": "array",
-        "items": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "minItems": 1,
-        "description": "Allowed values."
-      },
-      "minimum": {
-        "type": "number"
-      },
-      "maximum": {
-        "type": "number"
-      },
-      "maxLength": {
-        "type": "integer",
-        "minimum": 0
-      },
-      "pattern": {
-        "type": "string",
-        "description": "Regular expression the value must match."
-      },
-      "items": {
-        "$ref": "#/components/schemas/WebdbsFieldDefinition"
-      },
-      "properties": {
-        "type": "object",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/WebdbsFieldDefinition"
-        },
-        "description": "Nested field definitions for object fields."
-      },
-      "required": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "maxItems": 200,
-        "description": "Names of object properties that must be present when the object is extracted."
-      },
-      "additionalProperties": {
-        "type": "boolean",
-        "enum": [
-          false
-        ],
-        "description": "WebDB object schemas are closed; omitted is treated as false."
-      },
-      "examples": {
-        "type": "array",
-        "items": {},
-        "maxItems": 10,
-        "description": "Example values to steer extraction."
-      }
-    },
-    "required": [
-      "type"
-    ],
-    "additionalProperties": false,
-    "description": "A JSON Schema property supported by WebDBs. Definitions may nest via items/properties at most 5 levels deep. References, combinators, tuple arrays, and dynamic properties are not supported because every top-level property must map to one stable index type."
-  },
-  "WebdbsUrlTarget": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "url"
-        ],
-        "description": "Fetch one URL."
-      },
-      "seeds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "format": "uri"
-        },
-        "description": "URL to fetch."
-      },
-      "id": {
-        "type": "string",
-        "example": "tgt_123",
-        "description": "Stable target ID. Omit it when adding a target."
-      },
-      "sync": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSync"
-          },
-          {
-            "description": "Schedule for this target."
-          }
-        ]
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Extra eligibility rules for this target."
-          }
-        ]
-      },
-      "crawl_options": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Optional page loading settings."
-      }
-    },
-    "required": [
-      "type",
-      "seeds"
-    ],
-    "additionalProperties": false,
-    "title": "URL target",
-    "description": "Fetches exactly one page."
-  },
-  "WebdbsUrlListTarget": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "url_list"
-        ],
-        "description": "Fetch a fixed list of URLs."
-      },
-      "seeds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "format": "uri"
-        },
-        "minItems": 1,
-        "maxItems": 10000,
-        "description": "URLs to fetch. Maximum 10000."
-      },
-      "id": {
-        "type": "string",
-        "example": "tgt_123",
-        "description": "Stable target ID. Omit it when adding a target."
-      },
-      "sync": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSync"
-          },
-          {
-            "description": "Schedule for this target."
-          }
-        ]
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Extra eligibility rules for this target."
-          }
-        ]
-      },
-      "crawl_options": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Optional page loading settings."
-      }
-    },
-    "required": [
-      "type",
-      "seeds"
-    ],
-    "additionalProperties": false,
-    "title": "URL list target",
-    "description": "Fetches a fixed set of pages."
-  },
-  "WebdbsSitemapTarget": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "sitemap"
-        ],
-        "description": "Discover URLs from sitemaps."
-      },
-      "seeds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "format": "uri"
-        },
-        "minItems": 1,
-        "maxItems": 10,
-        "description": "Sitemap URLs to read. Maximum 10."
-      },
-      "ingest": {
-        "type": "object",
-        "properties": {
-          "match": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 100,
-            "example": [
-              "https://shop.com/products/:product_id",
-              "https://foo.com/item?id=*",
-              "https://foo.com/bar/*",
-              "**/events/**"
-            ],
-            "description": "URL patterns for pages that become rows. Supports exact URLs, `*`, `**`, and `:name` path values."
-          }
-        },
-        "required": [
-          "match"
-        ],
-        "additionalProperties": false,
-        "description": "Rules for choosing pages to save as rows."
-      },
-      "id": {
-        "type": "string",
-        "example": "tgt_123",
-        "description": "Stable target ID. Omit it when adding a target."
-      },
-      "sync": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSync"
-          },
-          {
-            "description": "Schedule for this target."
-          }
-        ]
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Extra eligibility rules for this target."
-          }
-        ]
-      },
-      "crawl_options": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Optional page loading settings."
-      },
-      "max_pages": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 1000000,
-        "default": 10000,
-        "description": "Maximum pages processed for this target per sync."
-      }
-    },
-    "required": [
-      "type",
-      "seeds"
-    ],
-    "additionalProperties": false,
-    "title": "Sitemap target",
-    "description": "Expands sitemap URLs into pages."
-  },
-  "WebdbsCrawlTarget": {
-    "type": "object",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "crawl"
-        ],
-        "description": "Crawl links from starting URLs."
-      },
-      "seeds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "format": "uri"
-        },
-        "minItems": 1,
-        "maxItems": 100,
-        "description": "URLs where the crawl starts. Maximum 100."
-      },
-      "follow": {
-        "type": "object",
-        "properties": {
-          "match": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 100,
-            "example": [
-              "https://shop.com/products/:product_id",
-              "https://foo.com/item?id=*",
-              "https://foo.com/bar/*",
-              "**/events/**"
-            ],
-            "description": "URL patterns for links to follow. Supports exact URLs, `*`, `**`, and `:name` path values."
-          },
-          "max_depth": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10,
-            "description": "Maximum link depth from each starting URL."
-          }
-        },
-        "required": [
-          "match"
-        ],
-        "additionalProperties": false,
-        "description": "Rules for which links the crawl follows."
-      },
-      "ingest": {
-        "type": "object",
-        "properties": {
-          "match": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 100,
-            "example": [
-              "https://shop.com/products/:product_id",
-              "https://foo.com/item?id=*",
-              "https://foo.com/bar/*",
-              "**/events/**"
-            ],
-            "description": "URL patterns for pages that become rows. Supports exact URLs, `*`, `**`, and `:name` path values."
-          }
-        },
-        "required": [
-          "match"
-        ],
-        "additionalProperties": false,
-        "description": "Rules for choosing pages to save as rows."
-      },
-      "id": {
-        "type": "string",
-        "example": "tgt_123",
-        "description": "Stable target ID. Omit it when adding a target."
-      },
-      "sync": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsSync"
-          },
-          {
-            "description": "Schedule for this target."
-          }
-        ]
-      },
-      "eligibility": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/WebdbsEligibility"
-          },
-          {
-            "description": "Extra eligibility rules for this target."
-          }
-        ]
-      },
-      "crawl_options": {
-        "type": "object",
-        "additionalProperties": {},
-        "description": "Optional page loading settings."
-      },
-      "max_pages": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 1000000,
-        "default": 100,
-        "description": "Maximum pages processed for this target per sync."
-      }
-    },
-    "required": [
-      "type",
-      "seeds",
-      "ingest"
-    ],
-    "additionalProperties": false,
-    "title": "Crawl target",
-    "description": "Crawls a site and saves matching pages as rows."
   },
   "MonitorsScheduleUnit": {
     "type": "string",
