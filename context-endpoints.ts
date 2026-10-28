@@ -3823,14 +3823,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -3955,14 +3955,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4532,14 +4532,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4644,14 +4644,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4747,14 +4747,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4832,14 +4832,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -4928,14 +4928,14 @@ export const ENDPOINTS: Endpoint[] = [
         "name": "zdr",
         "in": "query",
         "required": false,
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR.",
         "schema": {
           "type": "string",
           "enum": [
             "enabled",
             "disabled"
           ],
-          "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
         }
       },
       {
@@ -11058,7 +11058,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11138,7 +11138,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11208,7 +11208,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11289,7 +11289,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11337,7 +11337,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
@@ -11443,7 +11443,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "enabled",
           "disabled"
         ],
-        "description": "`enabled` disables request logs, usage logs, and traces. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+        "description": "`enabled` disables request logs and traces and omits request and response content from usage logs. Brand data and hosted assets may still be stored. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
       },
       "tags": {
         "$ref": "#/components/schemas/RequestTags"
