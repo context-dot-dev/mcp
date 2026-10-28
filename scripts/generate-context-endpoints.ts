@@ -274,11 +274,58 @@ function generateEndpoints(spec: JsonObject): JsonObject[] {
   return endpoints;
 }
 
+// The API still accepts the legacy markdown/html batch inputs, but the spec no
+// longer documents them; existing MCP clients send them, so keep them here.
+function withLegacyBatchData(spec: JsonObject): JsonObject {
+  const legacyDataByMode = JSON.parse(
+    readFileSync(new URL("./legacy-batch-data.json", import.meta.url), "utf8")
+  ) as Record<string, JsonObject[]>;
+  const schemas = asObject(asObject(spec.components).schemas);
+  const batchRequest = asObject(schemas.BatchSubmitRequest);
+  const input = asObject(asObject(batchRequest.properties).input);
+  const variants = (input.oneOf as JsonObject[]).map((variant) => {
+    const properties = asObject(variant.properties);
+    const mode = (asObject(properties.mode).enum as string[])[0];
+    const label = mode === "scrape" ? "Scrape" : "Crawl";
+    const verb = mode === "scrape" ? "Pages to scrape" : "Crawl pages";
+    return {
+      ...variant,
+      properties: {
+        ...properties,
+        data: {
+          oneOf: [...legacyDataByMode[mode], properties.data],
+          title: `${label} data`,
+          description: `${verb} with legacy format options or Scrape Anything formats.`,
+        },
+      },
+    };
+  });
+
+  return {
+    ...spec,
+    components: {
+      ...asObject(spec.components),
+      schemas: {
+        ...schemas,
+        BatchSubmitRequest: {
+          ...batchRequest,
+          properties: {
+            ...asObject(batchRequest.properties),
+            input: { ...input, oneOf: variants },
+          },
+        },
+      },
+    },
+  };
+}
+
 const sourcePath = resolve(
   process.argv[2] ?? "../brand-dev-server/gcp/openapispec.json"
 );
 const outputPath = resolve(process.argv[3] ?? "context-endpoints.ts");
-const spec = JSON.parse(readFileSync(sourcePath, "utf8")) as JsonObject;
+const spec = withLegacyBatchData(
+  JSON.parse(readFileSync(sourcePath, "utf8")) as JsonObject
+);
 const endpoints = generateEndpoints(spec);
 const schemas = collectReferencedSchemas(
   asObject(asObject(spec.components).schemas),
