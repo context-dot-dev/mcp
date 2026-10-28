@@ -175,93 +175,6 @@ function collectReferencedSchemas(
   return collected;
 }
 
-type LegacyBatchData = {
-  title: string;
-  description: string;
-  variants: JsonObject[];
-};
-
-const legacyBatchData = JSON.parse(
-  readFileSync(new URL("./legacy-batch-data.json", import.meta.url), "utf8")
-) as Record<string, LegacyBatchData>;
-
-// The API still accepts the Markdown and HTML batch inputs that predate Scrape
-// Anything, but its spec documents only the Scrape Anything `data` schemas.
-// Offer the older shapes beside them so existing clients keep working; the
-// variants come from legacy-batch-data.json. Applied after collection, and the
-// data schemas are listed ahead of the request that embeds them, as in earlier
-// output, so regenerating does not move them.
-function withLegacyBatchInputs(schemas: JsonObject): JsonObject {
-  const request = asObject(schemas.BatchSubmitRequest);
-  const input = asObject(asObject(request.properties).input);
-  if (!Array.isArray(input.oneOf)) {
-    throw new Error(
-      "BatchSubmitRequest.input is no longer a oneOf of batch modes; update withLegacyBatchInputs"
-    );
-  }
-
-  const legacyReferences = new Set<string>();
-  collectSchemaReferences(legacyBatchData, legacyReferences);
-  for (const name of legacyReferences) {
-    if (!(name in schemas)) {
-      throw new Error(
-        `legacy-batch-data.json references ${name}, which no endpoint uses any more`
-      );
-    }
-  }
-
-  const dataSchemaNames = new Set<string>();
-  const variants = input.oneOf.map((rawVariant) => {
-    const variant = asObject(rawVariant);
-    const properties = asObject(variant.properties);
-    const [mode] = (asObject(properties.mode).enum as unknown[] | undefined) ?? [];
-    const legacy = typeof mode === "string" ? legacyBatchData[mode] : undefined;
-    const data = asObject(properties.data);
-    if (!legacy || Array.isArray(data.oneOf)) {
-      return variant;
-    }
-
-    collectSchemaReferences(data, dataSchemaNames);
-    return {
-      ...variant,
-      properties: {
-        ...properties,
-        data: {
-          oneOf: [...legacy.variants, data],
-          title: legacy.title,
-          description: legacy.description,
-        },
-      },
-    };
-  });
-
-  const merged = {
-    ...request,
-    properties: {
-      ...asObject(request.properties),
-      input: { ...input, oneOf: variants },
-    },
-  };
-  const ordered: JsonObject = {};
-  for (const [name, schema] of Object.entries(schemas)) {
-    if (dataSchemaNames.has(name)) {
-      continue;
-    }
-    if (name === "BatchSubmitRequest") {
-      for (const dataName of dataSchemaNames) {
-        if (dataName in schemas) {
-          ordered[dataName] = schemas[dataName];
-        }
-      }
-      ordered[name] = merged;
-    } else {
-      ordered[name] = schema;
-    }
-  }
-
-  return ordered;
-}
-
 function generateEndpoints(spec: JsonObject): JsonObject[] {
   const endpoints: JsonObject[] = [];
   const paths = asObject(spec.paths);
@@ -367,8 +280,9 @@ const sourcePath = resolve(
 const outputPath = resolve(process.argv[3] ?? "context-endpoints.ts");
 const spec = JSON.parse(readFileSync(sourcePath, "utf8")) as JsonObject;
 const endpoints = generateEndpoints(spec);
-const schemas = withLegacyBatchInputs(
-  collectReferencedSchemas(asObject(asObject(spec.components).schemas), endpoints)
+const schemas = collectReferencedSchemas(
+  asObject(asObject(spec.components).schemas),
+  endpoints
 );
 const source = `// Generated from Context's OpenAPI specification by scripts/generate-context-endpoints.ts.
 export type JsonSchema = {
