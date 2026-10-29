@@ -1644,14 +1644,16 @@ export const ENDPOINTS: Endpoint[] = [
                   "selector": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 2048
+                    "maxLength": 2048,
+                    "description": "CSS selector to match within the current page or parent rule."
                   },
                   "type": {
                     "type": "string",
                     "enum": [
                       "item",
                       "list"
-                    ]
+                    ],
+                    "description": "Return the first match with `item` or all matches with `list`."
                   },
                   "output": {
                     "anyOf": [
@@ -1669,7 +1671,8 @@ export const ENDPOINTS: Endpoint[] = [
                       {
                         "$ref": "#/components/schemas/HtmlExtractionRules"
                       }
-                    ]
+                    ],
+                    "description": "Return text, HTML, an attribute such as `@href`, or nested field rules. Defaults to text."
                   }
                 },
                 "required": [
@@ -2708,6 +2711,7 @@ export const ENDPOINTS: Endpoint[] = [
               "html-conversion",
               "markdown-direct"
             ],
+            "uniqueItems": true,
             "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
           },
           "followSubdomains": {
@@ -7194,49 +7198,40 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
   },
   "ScrapeRequest": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "url": {
         "type": "string",
+        "minLength": 1,
         "format": "uri",
-        "pattern": "^https?://",
+        "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
         "description": "Public HTTP or HTTPS URL to scrape."
       },
       "formats": {
-        "$ref": "#/components/schemas/ScrapeFormats",
-        "description": "Outputs to return. Set at least one to `true`."
-      },
-      "markdownParams": {
-        "$ref": "#/components/schemas/ScrapeMarkdownParams",
-        "description": "Markdown options. Requires `formats.markdown`."
-      },
-      "screenshotParams": {
-        "$ref": "#/components/schemas/ScrapeScreenshotParams",
-        "description": "Screenshot options. Requires formats.screenshot: true."
-      },
-      "imageParams": {
-        "$ref": "#/components/schemas/ScrapeImageParams",
-        "description": "Image options. Requires formats.images: true."
-      },
-      "parseParams": {
-        "$ref": "#/components/schemas/ScrapeParseParams",
-        "description": "Requires `formats.parse: true`; required when it is set."
-      },
-      "highlightsParams": {
-        "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Requires `formats.highlights: true`; required when it is set."
-      },
-      "jsonParams": {
-        "$ref": "#/components/schemas/ScrapeJsonParams",
-        "description": "Requires `formats.json: true`; required when it is set."
-      },
-      "productParams": {
-        "$ref": "#/components/schemas/ScrapeProductParams",
-        "description": "Product options. Requires formats.product: true."
+        "$ref": "#/components/schemas/ScrapeFormats"
       },
       "sharedParams": {
-        "$ref": "#/components/schemas/ScrapeSharedParams",
-        "description": "Browser and content settings shared by all outputs."
+        "$ref": "#/components/schemas/ScrapeSharedParams"
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams"
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams"
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams"
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams"
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams"
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams"
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams"
       },
       "maxAgeMs": {
         "type": "integer",
@@ -7255,16 +7250,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "description": "`enabled` turns on zero data retention. Your organization must have ZDR enabled."
       },
       "timeoutOpts": {
-        "$ref": "#/components/schemas/ScrapeTimeout",
-        "default": {
-          "milliseconds": 90000,
-          "behavior": "fail"
-        },
-        "description": "Deadline for the whole request. Defaults to 90000 ms with `fail`. Fixed waits must end before it."
+        "$ref": "#/components/schemas/ScrapeTimeout"
       },
       "tags": {
-        "$ref": "#/components/schemas/RequestTags",
-        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+        "$ref": "#/components/schemas/RequestTags"
       },
       "policies": {
         "type": "array",
@@ -7281,6 +7270,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "url",
       "formats"
     ],
+    "additionalProperties": false,
     "allOf": [
       {
         "if": {
@@ -7390,90 +7380,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       {
         "if": {
           "required": [
-            "highlightsParams"
-          ]
-        },
-        "then": {
-          "properties": {
-            "formats": {
-              "required": [
-                "highlights"
-              ],
-              "properties": {
-                "highlights": {
-                  "const": true
-                }
-              }
-            }
-          }
-        }
-      },
-      {
-        "if": {
-          "properties": {
-            "formats": {
-              "required": [
-                "highlights"
-              ],
-              "properties": {
-                "highlights": {
-                  "const": true
-                }
-              }
-            }
-          }
-        },
-        "then": {
-          "required": [
-            "highlightsParams"
-          ]
-        }
-      },
-      {
-        "if": {
-          "required": [
-            "jsonParams"
-          ]
-        },
-        "then": {
-          "properties": {
-            "formats": {
-              "required": [
-                "json"
-              ],
-              "properties": {
-                "json": {
-                  "const": true
-                }
-              }
-            }
-          }
-        }
-      },
-      {
-        "if": {
-          "properties": {
-            "formats": {
-              "required": [
-                "json"
-              ],
-              "properties": {
-                "json": {
-                  "const": true
-                }
-              }
-            }
-          }
-        },
-        "then": {
-          "required": [
-            "jsonParams"
-          ]
-        }
-      },
-      {
-        "if": {
-          "required": [
             "productParams"
           ]
         },
@@ -7490,6 +7396,90 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
               }
             }
           }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "highlightsParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "highlights"
+              ],
+              "properties": {
+                "highlights": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "formats": {
+              "required": [
+                "highlights"
+              ],
+              "properties": {
+                "highlights": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "highlightsParams"
+          ]
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "jsonParams"
+          ]
+        },
+        "then": {
+          "properties": {
+            "formats": {
+              "required": [
+                "json"
+              ],
+              "properties": {
+                "json": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "formats": {
+              "required": [
+                "json"
+              ],
+              "properties": {
+                "json": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "jsonParams"
+          ]
         }
       }
     ]
@@ -7866,14 +7856,16 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "selector": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 2048
+              "maxLength": 2048,
+              "description": "CSS selector to match within the current page or parent rule."
             },
             "type": {
               "type": "string",
               "enum": [
                 "item",
                 "list"
-              ]
+              ],
+              "description": "Return the first match with `item` or all matches with `list`."
             },
             "output": {
               "anyOf": [
@@ -7891,7 +7883,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                 {
                   "$ref": "#/components/schemas/HtmlExtractionRules"
                 }
-              ]
+              ],
+              "description": "Return text, HTML, an attribute such as `@href`, or nested field rules. Defaults to text."
             }
           },
           "required": [
@@ -8926,6 +8919,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "html-conversion",
                               "markdown-direct"
                             ],
+                            "uniqueItems": true,
                             "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
                           },
                           "pdf": {
@@ -9487,6 +9481,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                               "html-conversion",
                               "markdown-direct"
                             ],
+                            "uniqueItems": true,
                             "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
                           },
                           "pdf": {
@@ -10064,7 +10059,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
   },
   "ScrapeFormats": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "html": {
         "type": "boolean",
@@ -10096,6 +10090,11 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "default": false,
         "description": "Fields extracted with custom rules or a prebuilt parser, returned as `parsed`."
       },
+      "product": {
+        "type": "boolean",
+        "default": false,
+        "description": "Product details such as name, price, and availability."
+      },
       "highlights": {
         "type": "boolean",
         "default": false,
@@ -10105,13 +10104,10 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "type": "boolean",
         "default": false,
         "description": "An object matching `jsonParams.schema`, extracted from the page."
-      },
-      "product": {
-        "type": "boolean",
-        "default": false,
-        "description": "Product details such as name, price, and availability."
       }
     },
+    "additionalProperties": false,
+    "description": "Outputs to return. Set at least one to `true`.",
     "not": {
       "allOf": [
         {
@@ -10189,6 +10185,18 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         {
           "not": {
             "required": [
+              "product"
+            ],
+            "properties": {
+              "product": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
               "highlights"
             ],
             "properties": {
@@ -10209,25 +10217,168 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
               }
             }
           }
-        },
-        {
-          "not": {
-            "required": [
-              "product"
-            ],
-            "properties": {
-              "product": {
-                "const": true
-              }
-            }
-          }
         }
       ]
     }
   },
+  "ScrapeSharedParams": {
+    "type": "object",
+    "properties": {
+      "profile": {
+        "$ref": "#/components/schemas/ScrapeProfile"
+      },
+      "country": {
+        "type": "string",
+        "description": "Proxy country as a two-letter code, such as `US`. Case-insensitive.",
+        "pattern": "^[A-Za-z]{2}$",
+        "examples": [
+          "US"
+        ]
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 8192,
+          "pattern": "^[^\\r\\n]*$"
+        },
+        "examples": [
+          {
+            "Accept-Language": "en-US"
+          }
+        ],
+        "propertyNames": {
+          "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
+          "not": {
+            "pattern": "^(?:[Hh][Oo][Ss][Tt]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ll][Ee][Nn][Gg][Tt][Hh]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Kk][Ee][Ee][Pp]-[Aa][Ll][Ii][Vv][Ee]|[Tt][Rr][Aa][Nn][Ss][Ff][Ee][Rr]-[Ee][Nn][Cc][Oo][Dd][Ii][Nn][Gg]|[Uu][Pp][Gg][Rr][Aa][Dd][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Pp][Rr][Oo][Xx][Yy]-[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Tt][Ee]|[Tt][Rr][Aa][Ii][Ll][Ee][Rr]|[Ee][Xx][Pp][Ee][Cc][Tt])$"
+          }
+        },
+        "description": "HTTP headers to send to the target site. Requests with headers skip the cache."
+      },
+      "viewport": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 7680,
+            "default": 1440,
+            "description": "Browser viewport width in pixels."
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 4320,
+            "default": 900,
+            "description": "Browser viewport height in pixels."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Browser size in pixels. Omit for 1920 × 1080. When provided, missing dimensions default to 1440 × 900."
+      },
+      "theme": {
+        "type": "string",
+        "enum": [
+          "light",
+          "dark"
+        ],
+        "description": "Emulate a light or dark color scheme."
+      },
+      "dismissCookies": {
+        "type": "boolean",
+        "default": true,
+        "description": "Accept cookie banners before actions and capture."
+      },
+      "dismissPopups": {
+        "type": "boolean",
+        "default": false,
+        "description": "Close other popups before actions and capture."
+      },
+      "actions": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ScrapeAction"
+        },
+        "minItems": 1,
+        "maxItems": 5,
+        "description": "Browser steps run in order before capture. Requires a paid plan. Skips the cache."
+      },
+      "waitFor": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000
+          },
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          }
+        ],
+        "description": "Milliseconds, or a CSS selector to wait for, after actions. Defaults to 500 (2000 with frames or XML).",
+        "examples": [
+          500,
+          "#content"
+        ]
+      },
+      "settleAnimations": {
+        "type": "boolean",
+        "description": "Wait for CSS animations to finish before capture. Defaults to `true` when `screenshot` is requested."
+      },
+      "mainContentOnly": {
+        "type": "boolean",
+        "default": false,
+        "description": "Keep only the main content. Doesn't affect `screenshot`, `bytes`, or `product`."
+      },
+      "includeSelectors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "\\S"
+        },
+        "minItems": 1,
+        "maxItems": 50,
+        "uniqueItems": true,
+        "description": "Keep only elements matching these CSS selectors."
+      },
+      "excludeSelectors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "\\S"
+        },
+        "minItems": 1,
+        "maxItems": 50,
+        "uniqueItems": true,
+        "description": "Remove elements matching these CSS selectors. Overrides `includeSelectors`."
+      },
+      "includeFrames": {
+        "type": "boolean",
+        "default": false,
+        "description": "Include iframe content in HTML and text outputs. Screenshots always show visible frames."
+      },
+      "parsers": {
+        "type": "object",
+        "properties": {
+          "pdf": {
+            "$ref": "#/components/schemas/ScrapePdfOptions"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Document parsing options."
+      }
+    },
+    "additionalProperties": false,
+    "description": "Browser and content settings shared by all outputs."
+  },
   "ScrapeMarkdownParams": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "includeLinks": {
         "type": "boolean",
@@ -10245,12 +10396,11 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
           "placeholder",
           "preserve"
         ],
+        "default": "placeholder",
         "description": "How base64 images appear when `includeImages` is set (`html-conversion` only)."
       },
       "sourcePreference": {
         "type": "array",
-        "minItems": 1,
-        "uniqueItems": true,
         "items": {
           "type": "string",
           "enum": [
@@ -10258,123 +10408,74 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "markdown-direct"
           ]
         },
+        "minItems": 1,
         "default": [
           "html-conversion",
           "markdown-direct"
         ],
+        "uniqueItems": true,
         "description": "Markdown sources in order of preference: `html-conversion` converts the page HTML, `markdown-direct` uses Markdown the site publishes."
       }
     },
-    "allOf": [
-      {
-        "if": {
-          "required": [
-            "inlineImages"
-          ]
-        },
-        "then": {
-          "required": [
-            "includeImages"
-          ],
-          "properties": {
-            "includeImages": {
-              "const": true
-            }
-          }
-        }
-      },
-      {
-        "if": {
-          "required": [
-            "sourcePreference"
-          ],
-          "properties": {
-            "sourcePreference": {
-              "items": {
-                "not": {
-                  "enum": [
-                    "html-conversion"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "then": {
-          "properties": {
-            "includeLinks": {
-              "not": {}
-            },
-            "includeImages": {
-              "not": {}
-            },
-            "inlineImages": {
-              "not": {}
-            }
-          }
-        }
-      }
-    ]
+    "additionalProperties": false,
+    "description": "Markdown options. Requires `formats.markdown`."
   },
   "ScrapeScreenshotParams": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "area": {
-        "default": "viewport",
-        "description": "What to capture: `viewport`, `fullPage`, one element, or a rectangle. Max 40 megapixels.",
-        "oneOf": [
+        "anyOf": [
           {
             "type": "string",
             "enum": [
               "viewport",
               "fullPage"
             ],
-            "title": "Page"
+            "x-stainless-variantName": "Page"
           },
           {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
               "selector": {
                 "type": "string",
-                "pattern": "\\S",
+                "minLength": 1,
                 "maxLength": 2048,
+                "pattern": "\\S",
                 "description": "CSS selector matching exactly one visible element."
               }
             },
             "required": [
               "selector"
             ],
-            "title": "Element"
+            "additionalProperties": false,
+            "x-stainless-variantName": "Element"
           },
           {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
               "x": {
                 "type": "integer",
-                "description": "Left edge of the capture, in pixels from the document origin.",
                 "minimum": 0,
-                "maximum": 100000
+                "maximum": 100000,
+                "description": "Left edge of the capture, in pixels from the document origin."
               },
               "y": {
                 "type": "integer",
-                "description": "Top edge of the capture, in pixels from the document origin.",
                 "minimum": 0,
-                "maximum": 100000
+                "maximum": 100000,
+                "description": "Top edge of the capture, in pixels from the document origin."
               },
               "width": {
                 "type": "integer",
-                "description": "Width of the capture in pixels.",
                 "minimum": 1,
-                "maximum": 7680
+                "maximum": 7680,
+                "description": "Width of the capture in pixels."
               },
               "height": {
                 "type": "integer",
-                "description": "Height of the capture in pixels.",
                 "minimum": 1,
-                "maximum": 100000
+                "maximum": 100000,
+                "description": "Height of the capture in pixels."
               }
             },
             "required": [
@@ -10383,10 +10484,13 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
               "width",
               "height"
             ],
-            "title": "Rectangle",
+            "additionalProperties": false,
+            "x-stainless-variantName": "Rectangle",
             "description": "Pixels from the document origin."
           }
-        ]
+        ],
+        "default": "viewport",
+        "description": "What to capture: `viewport`, `fullPage`, one element, or a rectangle. Max 40 megapixels."
       },
       "format": {
         "type": "string",
@@ -10398,17 +10502,15 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "default": "png",
         "description": "Image format for the screenshot."
       }
-    }
+    },
+    "additionalProperties": false,
+    "description": "Screenshot options. Requires formats.screenshot: true."
   },
   "ScrapeImageParams": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "enrich": {
         "type": "array",
-        "minItems": 1,
-        "maxItems": 3,
-        "uniqueItems": true,
         "items": {
           "type": "string",
           "enum": [
@@ -10417,6 +10519,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
             "file"
           ]
         },
+        "maxItems": 3,
+        "uniqueItems": true,
         "description": "Extra data per image: `dimensions`, `classification`, or a hosted `file` URL."
       },
       "dedupe": {
@@ -10428,19 +10532,22 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "default": "none",
         "description": "Set `visual` to drop visual duplicates, keeping the largest copy."
       }
-    }
+    },
+    "additionalProperties": false,
+    "description": "Image options. Requires formats.images: true."
   },
   "ScrapeParseParams": {
     "oneOf": [
       {
         "type": "object",
-        "title": "Custom parser",
-        "additionalProperties": false,
         "properties": {
           "type": {
             "type": "string",
-            "const": "custom",
+            "enum": [
+              "custom"
+            ],
             "default": "custom",
+            "const": "custom",
             "description": "Extract fields using custom CSS rules. This is the default when type is omitted."
           },
           "rules": {
@@ -10449,15 +10556,18 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         },
         "required": [
           "rules"
-        ]
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "CustomParser"
       },
       {
         "type": "object",
-        "title": "Prebuilt parser",
-        "additionalProperties": false,
         "properties": {
           "type": {
             "type": "string",
+            "enum": [
+              "prebuilt"
+            ],
             "const": "prebuilt",
             "description": "Use a prebuilt parser instead of custom rules."
           },
@@ -10510,13 +10620,32 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "required": [
           "type",
           "parser"
-        ]
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "PrebuiltParser"
       }
-    ]
+    ],
+    "description": "Requires `formats.parse: true`; required when it is set."
+  },
+  "ScrapeProductParams": {
+    "type": "object",
+    "properties": {
+      "dedupeImages": {
+        "type": "boolean",
+        "default": false,
+        "description": "Drop visually duplicate product images, keeping the largest copy."
+      },
+      "useAIFallback": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Ignored. The AI fallback runs automatically."
+      }
+    },
+    "additionalProperties": false,
+    "description": "Product options. Requires formats.product: true."
   },
   "ScrapeHighlightsParams": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "query": {
         "type": "string",
@@ -10534,11 +10663,12 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     },
     "required": [
       "query"
-    ]
+    ],
+    "additionalProperties": false,
+    "description": "Requires `formats.highlights: true`; required when it is set."
   },
   "ScrapeJsonParams": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "schema": {
         "type": "object",
@@ -10573,174 +10703,9 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
     },
     "required": [
       "schema"
-    ]
-  },
-  "ScrapeProductParams": {
-    "type": "object",
+    ],
     "additionalProperties": false,
-    "properties": {
-      "dedupeImages": {
-        "type": "boolean",
-        "default": false,
-        "description": "Drop visually duplicate product images, keeping the largest copy."
-      }
-    }
-  },
-  "ScrapeSharedParams": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "profile": {
-        "$ref": "#/components/schemas/ScrapeProfile",
-        "description": "Create or reuse an authenticated browser profile. Requires a paid plan and an HTTPS target. Profiles persist session state, bypass shared caches, and cannot be combined with ZDR, custom headers, raw bytes, or prebuilt parsers."
-      },
-      "country": {
-        "type": "string",
-        "pattern": "^[A-Za-z]{2}$",
-        "examples": [
-          "US"
-        ],
-        "description": "Proxy country as a two-letter code, such as `US`. Case-insensitive."
-      },
-      "headers": {
-        "type": "object",
-        "propertyNames": {
-          "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
-          "not": {
-            "pattern": "^(?:[Hh][Oo][Ss][Tt]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Ll][Ee][Nn][Gg][Tt][Hh]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Kk][Ee][Ee][Pp]-[Aa][Ll][Ii][Vv][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Pp][Rr][Oo][Xx][Yy]-[Cc][Oo][Nn][Nn][Ee][Cc][Tt][Ii][Oo][Nn]|[Tt][Ee]|[Tt][Rr][Aa][Ii][Ll][Ee][Rr]|[Tt][Rr][Aa][Nn][Ss][Ff][Ee][Rr]-[Ee][Nn][Cc][Oo][Dd][Ii][Nn][Gg]|[Uu][Pp][Gg][Rr][Aa][Dd][Ee]|[Ee][Xx][Pp][Ee][Cc][Tt])$"
-          }
-        },
-        "additionalProperties": {
-          "type": "string",
-          "maxLength": 8192,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "description": "HTTP headers to send to the target site. Requests with headers skip the cache.",
-        "examples": [
-          {
-            "Accept-Language": "en-US"
-          }
-        ]
-      },
-      "viewport": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "width": {
-            "type": "integer",
-            "description": "Browser viewport width in pixels.",
-            "minimum": 240,
-            "maximum": 7680,
-            "default": 1440
-          },
-          "height": {
-            "type": "integer",
-            "description": "Browser viewport height in pixels.",
-            "minimum": 240,
-            "maximum": 4320,
-            "default": 900
-          }
-        },
-        "description": "Browser size in pixels. Omit for 1920 × 1080. When provided, missing dimensions default to 1440 × 900."
-      },
-      "theme": {
-        "type": "string",
-        "enum": [
-          "light",
-          "dark"
-        ],
-        "description": "Emulate a light or dark color scheme."
-      },
-      "dismissCookies": {
-        "type": "boolean",
-        "default": true,
-        "description": "Accept cookie banners before actions and capture."
-      },
-      "dismissPopups": {
-        "type": "boolean",
-        "default": false,
-        "description": "Close other popups before actions and capture."
-      },
-      "actions": {
-        "type": "array",
-        "minItems": 1,
-        "maxItems": 5,
-        "items": {
-          "$ref": "#/components/schemas/ScrapeAction"
-        },
-        "description": "Browser steps run in order before capture. Requires a paid plan. Skips the cache."
-      },
-      "waitFor": {
-        "oneOf": [
-          {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 30000,
-            "title": "Milliseconds"
-          },
-          {
-            "type": "string",
-            "pattern": "\\S",
-            "maxLength": 2048,
-            "title": "CSS selector"
-          }
-        ],
-        "examples": [
-          500,
-          "#content"
-        ],
-        "description": "Milliseconds, or a CSS selector to wait for, after actions. Defaults to 500 (2000 with frames or XML)."
-      },
-      "settleAnimations": {
-        "type": "boolean",
-        "description": "Wait for CSS animations to finish before capture. Defaults to `true` when `screenshot` is requested."
-      },
-      "mainContentOnly": {
-        "type": "boolean",
-        "default": false,
-        "description": "Keep only the main content. Doesn't affect `screenshot`, `bytes`, or `product`."
-      },
-      "includeSelectors": {
-        "type": "array",
-        "minItems": 1,
-        "maxItems": 50,
-        "uniqueItems": true,
-        "items": {
-          "type": "string",
-          "pattern": "\\S",
-          "maxLength": 2048
-        },
-        "description": "Keep only elements matching these CSS selectors."
-      },
-      "excludeSelectors": {
-        "type": "array",
-        "minItems": 1,
-        "maxItems": 50,
-        "uniqueItems": true,
-        "items": {
-          "type": "string",
-          "pattern": "\\S",
-          "maxLength": 2048
-        },
-        "description": "Remove elements matching these CSS selectors. Overrides `includeSelectors`."
-      },
-      "includeFrames": {
-        "type": "boolean",
-        "default": false,
-        "description": "Include iframe content in HTML and text outputs. Screenshots always show visible frames."
-      },
-      "parsers": {
-        "type": "object",
-        "additionalProperties": false,
-        "description": "Document parsing options.",
-        "properties": {
-          "pdf": {
-            "$ref": "#/components/schemas/ScrapePdfOptions",
-            "description": "PDF page range and OCR."
-          }
-        }
-      }
-    }
+    "description": "Requires `formats.json: true`; required when it is set."
   },
   "NewsSearchEntityByName": {
     "type": "object",
@@ -11604,7 +11569,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
   },
   "BatchUnifiedScrapeData": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "urls": {
         "type": "array",
@@ -11641,40 +11605,31 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "description": "Pages to scrape. Maximum 100000."
       },
       "formats": {
-        "$ref": "#/components/schemas/ScrapeFormats",
-        "description": "Outputs to return. Set at least one to `true`."
-      },
-      "markdownParams": {
-        "$ref": "#/components/schemas/ScrapeMarkdownParams",
-        "description": "Markdown options. Requires `formats.markdown`."
-      },
-      "screenshotParams": {
-        "$ref": "#/components/schemas/ScrapeScreenshotParams",
-        "description": "Screenshot options. Requires formats.screenshot: true."
-      },
-      "imageParams": {
-        "$ref": "#/components/schemas/ScrapeImageParams",
-        "description": "Image options. Requires formats.images: true."
-      },
-      "parseParams": {
-        "$ref": "#/components/schemas/ScrapeParseParams",
-        "description": "Requires `formats.parse: true`; required when it is set."
-      },
-      "highlightsParams": {
-        "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Requires `formats.highlights: true`; required when it is set."
-      },
-      "jsonParams": {
-        "$ref": "#/components/schemas/ScrapeJsonParams",
-        "description": "Requires `formats.json: true`; required when it is set."
-      },
-      "productParams": {
-        "$ref": "#/components/schemas/ScrapeProductParams",
-        "description": "Product options. Requires formats.product: true."
+        "$ref": "#/components/schemas/ScrapeFormats"
       },
       "sharedParams": {
-        "$ref": "#/components/schemas/ScrapeSharedParams",
-        "description": "Browser and content settings shared by all outputs."
+        "$ref": "#/components/schemas/ScrapeSharedParams"
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams"
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams"
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams"
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams"
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams"
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams"
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams"
       },
       "maxAgeMs": {
         "type": "integer",
@@ -11693,27 +11648,22 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/ScrapeTimeout",
-        "default": {
-          "milliseconds": 90000,
-          "behavior": "fail"
-        },
         "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
       },
       "tags": {
-        "$ref": "#/components/schemas/RequestTags",
-        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+        "$ref": "#/components/schemas/RequestTags"
       }
     },
     "required": [
       "urls",
       "formats"
     ],
+    "additionalProperties": false,
     "title": "Scrape Anything",
     "description": "Use the same formats and parameters as POST /web/scrape, replacing url with urls. Options apply to every page."
   },
   "BatchUnifiedCrawlData": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "source": {
         "oneOf": [
@@ -11940,40 +11890,31 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         "description": "How to find pages to crawl."
       },
       "formats": {
-        "$ref": "#/components/schemas/ScrapeFormats",
-        "description": "Outputs to return. Set at least one to `true`."
-      },
-      "markdownParams": {
-        "$ref": "#/components/schemas/ScrapeMarkdownParams",
-        "description": "Markdown options. Requires `formats.markdown`."
-      },
-      "screenshotParams": {
-        "$ref": "#/components/schemas/ScrapeScreenshotParams",
-        "description": "Screenshot options. Requires formats.screenshot: true."
-      },
-      "imageParams": {
-        "$ref": "#/components/schemas/ScrapeImageParams",
-        "description": "Image options. Requires formats.images: true."
-      },
-      "parseParams": {
-        "$ref": "#/components/schemas/ScrapeParseParams",
-        "description": "Requires `formats.parse: true`; required when it is set."
-      },
-      "highlightsParams": {
-        "$ref": "#/components/schemas/ScrapeHighlightsParams",
-        "description": "Requires `formats.highlights: true`; required when it is set."
-      },
-      "jsonParams": {
-        "$ref": "#/components/schemas/ScrapeJsonParams",
-        "description": "Requires `formats.json: true`; required when it is set."
-      },
-      "productParams": {
-        "$ref": "#/components/schemas/ScrapeProductParams",
-        "description": "Product options. Requires formats.product: true."
+        "$ref": "#/components/schemas/ScrapeFormats"
       },
       "sharedParams": {
-        "$ref": "#/components/schemas/ScrapeSharedParams",
-        "description": "Browser and content settings shared by all outputs."
+        "$ref": "#/components/schemas/ScrapeSharedParams"
+      },
+      "markdownParams": {
+        "$ref": "#/components/schemas/ScrapeMarkdownParams"
+      },
+      "screenshotParams": {
+        "$ref": "#/components/schemas/ScrapeScreenshotParams"
+      },
+      "imageParams": {
+        "$ref": "#/components/schemas/ScrapeImageParams"
+      },
+      "parseParams": {
+        "$ref": "#/components/schemas/ScrapeParseParams"
+      },
+      "productParams": {
+        "$ref": "#/components/schemas/ScrapeProductParams"
+      },
+      "highlightsParams": {
+        "$ref": "#/components/schemas/ScrapeHighlightsParams"
+      },
+      "jsonParams": {
+        "$ref": "#/components/schemas/ScrapeJsonParams"
       },
       "maxAgeMs": {
         "type": "integer",
@@ -11992,21 +11933,17 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       },
       "timeoutOpts": {
         "$ref": "#/components/schemas/ScrapeTimeout",
-        "default": {
-          "milliseconds": 90000,
-          "behavior": "fail"
-        },
         "description": "Deadline for each page, using the same behavior and defaults as POST /web/scrape."
       },
       "tags": {
-        "$ref": "#/components/schemas/RequestTags",
-        "description": "Labels for tracking request usage. Not retained when zdr is enabled."
+        "$ref": "#/components/schemas/RequestTags"
       }
     },
     "required": [
       "source",
       "formats"
     ],
+    "additionalProperties": false,
     "title": "Crawl with Scrape Anything",
     "description": "Use the same formats and parameters as POST /web/scrape, replacing url with source. Options apply to every page."
   },
@@ -12042,6 +11979,252 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         57600
       ]
     }
+  },
+  "ScrapeProfile": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "existing"
+            ],
+            "const": "existing",
+            "description": "Reuse a saved browser profile."
+          },
+          "profileId": {
+            "type": "string",
+            "pattern": "^prof_[a-f0-9]{32}$",
+            "description": "The ID returned in profile.id by an earlier scrape."
+          }
+        },
+        "required": [
+          "type",
+          "profileId"
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "Existing"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "new"
+            ],
+            "const": "new",
+            "description": "Sign in and create a browser profile."
+          },
+          "identifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Username or email for the target website."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Password used to sign in. It is never stored in the profile.",
+            "writeOnly": true
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Optional label shown when listing profiles with `GET /org/browser/profiles`."
+          }
+        },
+        "required": [
+          "type",
+          "identifier",
+          "password"
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "New"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    },
+    "description": "Create or reuse an authenticated browser profile. Requires a paid plan and an HTTPS target. Profiles persist session state, bypass shared caches, and cannot be combined with ZDR, custom headers, raw bytes, or prebuilt parsers."
+  },
+  "ScrapeAction": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "perform"
+            ],
+            "description": "Use `perform` for a plain-language browser instruction."
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "One browser instruction, such as clicking a button or entering text.",
+            "examples": [
+              "Click the product details tab"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "action"
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "Perform"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "scroll"
+            ],
+            "description": "Use `scroll` to move through the page or a container."
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "down",
+              "up",
+              "left",
+              "right"
+            ],
+            "default": "down",
+            "description": "Direction to scroll."
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "viewport",
+                  "max"
+                ]
+              }
+            ],
+            "default": "viewport",
+            "description": "Distance per scroll: pixels, one `viewport`, or `max` to reach the end."
+          },
+          "selector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S",
+            "description": "Scroll this container. Omit to scroll the page."
+          },
+          "maxScrolls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 1,
+            "description": "Maximum number of scroll steps for this action."
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "Scroll"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "wait"
+            ],
+            "description": "Use `wait` to pause for a fixed duration."
+          },
+          "milliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "description": "Time to pause in milliseconds before the next action."
+          }
+        },
+        "required": [
+          "type",
+          "milliseconds"
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "Wait"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "waitFor"
+            ],
+            "description": "Use `waitFor` to wait for a matching element."
+          },
+          "selector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S",
+            "description": "CSS selector to wait for before continuing."
+          }
+        },
+        "required": [
+          "type",
+          "selector"
+        ],
+        "additionalProperties": false,
+        "x-stainless-variantName": "WaitFor"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "type"
+    },
+    "title": "Browser action"
+  },
+  "ScrapePdfOptions": {
+    "type": "object",
+    "properties": {
+      "startPage": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "First page to parse, starting at 1."
+      },
+      "endPage": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Last page to parse. Must be at least `startPage`."
+      },
+      "ocr": {
+        "type": "string",
+        "enum": [
+          "off",
+          "auto"
+        ],
+        "default": "off",
+        "description": "Set `auto` to read scanned pages with OCR."
+      },
+      "includeNumberedPages": {
+        "type": "boolean",
+        "default": false,
+        "description": "Start each page in the Markdown with a `<!-- page N -->` line using its original 1-based page number; these responses are never served from cache."
+      }
+    },
+    "additionalProperties": false,
+    "description": "PDF page range and OCR."
   },
   "ScrapeParseRules": {
     "type": "object",
@@ -12096,8 +12279,8 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         }
       ]
     },
-    "minProperties": 1,
     "description": "Field names mapped to CSS selectors (`h1`, `a@href`) or rule objects. Max 100 fields, 5 levels.",
+    "minProperties": 1,
     "examples": [
       {
         "title": "h1",
@@ -12108,242 +12291,6 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
         }
       }
     ]
-  },
-  "ScrapeProfile": {
-    "oneOf": [
-      {
-        "type": "object",
-        "title": "Existing Profile",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "existing",
-            "description": "Reuse a saved browser profile."
-          },
-          "profileId": {
-            "type": "string",
-            "pattern": "^prof_[a-f0-9]{32}$",
-            "description": "The ID returned in profile.id by an earlier scrape."
-          }
-        },
-        "required": [
-          "type",
-          "profileId"
-        ]
-      },
-      {
-        "type": "object",
-        "title": "New Profile",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "new",
-            "description": "Sign in and create a browser profile."
-          },
-          "identifier": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 1024,
-            "description": "Username or email for the target website."
-          },
-          "password": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 4096,
-            "writeOnly": true,
-            "description": "Password used to sign in. It is never stored in the profile."
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500,
-            "description": "Optional label shown when listing profiles with `GET /org/browser/profiles`."
-          }
-        },
-        "required": [
-          "type",
-          "identifier",
-          "password"
-        ]
-      }
-    ],
-    "discriminator": {
-      "propertyName": "type"
-    }
-  },
-  "ScrapeAction": {
-    "title": "Browser action",
-    "oneOf": [
-      {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "perform"
-            ],
-            "description": "Use `perform` for a plain-language browser instruction."
-          },
-          "action": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500,
-            "examples": [
-              "Click the product details tab"
-            ],
-            "description": "One browser instruction, such as clicking a button or entering text."
-          }
-        },
-        "required": [
-          "type",
-          "action"
-        ],
-        "title": "Instruction"
-      },
-      {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "scroll"
-            ],
-            "description": "Use `scroll` to move through the page or a container."
-          },
-          "direction": {
-            "type": "string",
-            "enum": [
-              "down",
-              "up",
-              "left",
-              "right"
-            ],
-            "default": "down",
-            "description": "Direction to scroll."
-          },
-          "amount": {
-            "oneOf": [
-              {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 100000
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "viewport",
-                  "max"
-                ]
-              }
-            ],
-            "default": "viewport",
-            "description": "Distance per scroll: pixels, one `viewport`, or `max` to reach the end."
-          },
-          "selector": {
-            "type": "string",
-            "pattern": "\\S",
-            "maxLength": 2000,
-            "description": "Scroll this container. Omit to scroll the page."
-          },
-          "maxScrolls": {
-            "type": "integer",
-            "description": "Maximum number of scroll steps for this action.",
-            "minimum": 1,
-            "maximum": 50,
-            "default": 1
-          }
-        },
-        "required": [
-          "type"
-        ],
-        "title": "Scroll"
-      },
-      {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "wait"
-            ],
-            "description": "Use `wait` to pause for a fixed duration."
-          },
-          "milliseconds": {
-            "type": "integer",
-            "description": "Time to pause in milliseconds before the next action.",
-            "minimum": 0,
-            "maximum": 30000
-          }
-        },
-        "required": [
-          "type",
-          "milliseconds"
-        ],
-        "title": "Wait"
-      },
-      {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "waitFor"
-            ],
-            "description": "Use `waitFor` to wait for a matching element."
-          },
-          "selector": {
-            "type": "string",
-            "pattern": "\\S",
-            "maxLength": 2048,
-            "description": "CSS selector to wait for before continuing."
-          }
-        },
-        "required": [
-          "type",
-          "selector"
-        ],
-        "title": "Wait for element"
-      }
-    ],
-    "discriminator": {
-      "propertyName": "type"
-    }
-  },
-  "ScrapePdfOptions": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "startPage": {
-        "type": "integer",
-        "minimum": 1,
-        "description": "First page to parse, starting at 1."
-      },
-      "endPage": {
-        "type": "integer",
-        "minimum": 1,
-        "description": "Last page to parse. Must be at least `startPage`."
-      },
-      "ocr": {
-        "type": "string",
-        "enum": [
-          "off",
-          "auto"
-        ],
-        "default": "off",
-        "description": "Set `auto` to read scanned pages with OCR."
-      },
-      "includeNumberedPages": {
-        "type": "boolean",
-        "default": false,
-        "description": "Start each page in the Markdown with a `<!-- page N -->` line using its original 1-based page number; these responses are never served from cache."
-      }
-    }
   },
   "MonitorsPageTarget": {
     "type": "object",
