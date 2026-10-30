@@ -40,6 +40,11 @@ const API_REFERENCE_TOOL_ORDER = [
   "get-webhook-delivery",
   "list-webhook-delivery-attempts",
   "retry-webhook-delivery",
+  "list-access-policies",
+  "create-access-policy",
+  "get-access-policy",
+  "update-access-policy",
+  "delete-access-policy",
   "list-logs",
   "get-log",
   "list-browser-profiles",
@@ -146,7 +151,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "brand-retrieve-unified": {
     title: "Get brand intelligence",
     description:
-      "Retrieve machine-readable company and brand intelligence—logos, colors, descriptions, socials, links, industry, location, and more—from one domain, company name, work email, stock ticker, ISIN, transaction descriptor, or direct URL. Use get-brand for a visual card from a domain; use this tool for raw structured data or non-domain lookups.",
+      "Retrieve machine-readable company and brand intelligence—logos, colors, descriptions, socials, links, industry, location, and more—from one domain, company name, work email, stock ticker, ISIN, transaction descriptor, or direct URL. Supports zdr and access policies. Use get-brand for a visual card from a domain; use this tool for raw structured data or non-domain lookups.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -157,7 +162,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-styleguide": {
     title: "Extract a website style guide",
     description:
-      "Extract a website's design system. Returns the normalized domain and a styleguide with the color mode, colors, typography, element spacing, shadows, font links, and component styles. Use this to reproduce a brand accurately in generated UI, design audits, or creative workflows.",
+      "Extract a website's design system. Returns the normalized domain and a styleguide with the color mode, colors, typography, element spacing, shadows, font links, and component styles. Supports zdr. Use this to reproduce a brand accurately in generated UI, design audits, or creative workflows.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -207,6 +212,61 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
       destructiveHint: false,
       idempotentHint: true,
       openWorldHint: true,
+    },
+  },
+  "list-access-policies": {
+    title: "List access policies",
+    description:
+      "List the authenticated Context account's access policies, newest first, with cursor pagination. Each policy allows or blocks domains for requests that pass its ID in policies, for chosen API keys, or for the whole organization. Use this to find a policy ID before reading, updating, or deleting it. Requires access policies enabled for the organization (403 ACCESS_POLICIES_NOT_ENABLED otherwise).",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  "create-access-policy": {
+    title: "Create an access policy",
+    description:
+      "Create an access policy that limits which websites requests can reach: an allowed_domains allowlist or a blocked_domains blocklist, each matching subdomains and accepting wildcards such as *.gov. applies_to is request (apply by passing the returned ID in policies on web-scrape, web-crawl, web-search, web-answers, get-news-search, brand-retrieve-unified, submit-batch, or a monitor), api_keys (every request made with api_key_ids), or organization (every request). A URL must pass every applied policy or the request fails with ACCESS_POLICY_DENIED. Requires access policies enabled for the organization.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  "get-access-policy": {
+    title: "Get an access policy",
+    description:
+      "Retrieve one access policy by ID: its name, allowed or blocked domains, what it applies to, API key IDs, and timestamps. Use list-access-policies to find the ID.",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  "update-access-policy": {
+    title: "Update an access policy",
+    description:
+      "Update an access policy's name, allowed or blocked domains, scope, or API keys. Changes apply right away, including to running batches and monitors that use the policy, so a narrower policy can make their pending pages fail. Use get-access-policy first when the current definition must be preserved.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  "delete-access-policy": {
+    title: "Delete an access policy",
+    description:
+      "Permanently delete an access policy. Requests, batches, and monitors that still list its ID in policies will fail, so remove the ID from them first. This cannot be undone; use only when the user explicitly wants the policy removed.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
     },
   },
   "list-logs": {
@@ -288,7 +348,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "create-monitor": {
     title: "Create a recurring monitor",
     description:
-      "Create a recurring monitor for a page, sitemap, or structured extraction target. Use this when the user wants ongoing change detection, not a one-time scrape. Configure the target, schedule, change detection, and optional webhook; Context immediately runs an initial baseline and returns the monitor.",
+      "Create a recurring monitor for a page, sitemap, structured extraction, or web search target. Use this when the user wants ongoing change detection, not a one-time scrape. A search target runs its query on every check and reports results not seen before; with semantic detection (the default) only results describing a new development that matches the target instructions count. Configure the target, schedule, change detection, optional access policies, and optional webhook; Context immediately runs an initial baseline and returns the monitor.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -453,7 +513,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "list-changes": {
     title: "List all detected changes",
     description:
-      "List detected changes across all monitors in the authenticated account, with monitor, type, time, and tag filters. Each change has its ID, monitor and run IDs, target and detection types, title, summary, URL, detection time, importance, confidence, and the diff, evidence, or URL lists when available. Use this for an account-wide change feed; use list-monitor-changes for one monitor.",
+      "List detected changes across all monitors in the authenticated account, with monitor, type, time, and tag filters. Each change has its ID, monitor and run IDs, target and detection types, title, summary, URL, detection time, importance, confidence, and the diff, evidence, added or removed URLs, or newly matched search results when available. Use this for an account-wide change feed; use list-monitor-changes for one monitor.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -464,7 +524,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-change": {
     title: "Get a detected change",
     description:
-      "Retrieve one detected change with full text diffs, added or removed URLs, semantic evidence, confidence, importance, and the current snapshot when available. Use after either change-listing tool when the complete evidence is needed.",
+      "Retrieve one detected change with full text diffs, added or removed URLs, newly matched search results, semantic evidence, confidence, importance, and the current snapshot when available. Use after either change-listing tool when the complete evidence is needed.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

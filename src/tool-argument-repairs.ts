@@ -792,6 +792,10 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
     'people-search needs `query`, a plain-language description of the people to find, for example {"query":"VPs of sales at solar companies","filters":{"countries":["US"],"years_of_experience_min":10}}. Countries are two-letter codes. `mode` is "fast" (default) or "ultra" (queries up to 5000 characters, 50 credits per page instead of 10). To look up one known person, use people-enrich.',
   "brand-retrieve-unified":
     'Send one lookup in `body`, for example {"body":{"type":"by_domain","domain":"stripe.com"}}. Other lookups: by_name with name, by_email with email, by_ticker with ticker, by_direct_url with direct_url, by_transaction with transaction_info.',
+  "create-monitor":
+    'create-monitor needs `name` and `target`. Targets: {"type":"page","url":"https://example.com/pricing"}, {"type":"sitemap","url":"https://example.com/sitemap.xml"}, {"type":"extract","url":"https://example.com","instructions":"..."}, or {"type":"search","query":"Acme Corp funding round","instructions":"New funding rounds or acquisitions"} to watch the web for new results.',
+  "create-access-policy":
+    'create-access-policy needs `name` and either `allowed_domains` or `blocked_domains`, for example {"name":"Research sources","allowed_domains":["arxiv.org","*.gov"]}. Set `applies_to` to "api_keys" with `api_key_ids`, or "organization" for every request; the default "request" applies only when the policy ID is passed in `policies`.',
   "submit-batch":
     'submit-batch takes {"input":{"mode":"scrape","data":{"urls":[{"url":"https://example.com"}],"formats":{"markdown":true}}}}. Use data.source for crawl; legacy data.format "markdown" or "html" also works.',
 };

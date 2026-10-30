@@ -1138,6 +1138,9 @@ function mcpParameterDescription(
   if (parameterName === "run_id") {
     return "Unique monitor run ID returned by run-monitor-now or list-monitor-runs, for example `run_123`.";
   }
+  if (parameterName === "policy_id") {
+    return "Access policy ID returned by create-access-policy or list-access-policies; it starts with `pol_`.";
+  }
   if (parameterName === "batch_id") {
     return "Batch ID returned by submit-batch or list-batches; it starts with `batch_`.";
   }

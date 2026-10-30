@@ -507,6 +507,71 @@
         "destructive_justification": "Adds a delivery attempt without deleting delivery history. The receiver may process repeated events."
       }
     },
+    "list-access-policies": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists the access policies saved in the authenticated Context account without modifying them.",
+        "open_world_justification": "Reads only policy metadata from the authenticated user's private Context account and does not access or alter external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "create-access-policy": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Creates a new access policy record in the authenticated Context account.",
+        "open_world_justification": "Writes only to the authenticated user's private Context account and does not contact external websites or platforms.",
+        "destructive_justification": "Adds a policy without deleting or overwriting existing data; a policy only takes effect on requests that list it or on the keys or organization it is scoped to."
+      }
+    },
+    "get-access-policy": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one access policy's definition from the authenticated Context account without modifying it.",
+        "open_world_justification": "Reads only policy metadata from the authenticated user's private Context account and does not access or alter external internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform any irreversible actions."
+      }
+    },
+    "update-access-policy": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Overwrites an access policy's name, domain lists, scope, or API keys in the authenticated Context account.",
+        "open_world_justification": "Operates only on the authenticated user's private Context account and does not write to or alter any external internet systems.",
+        "destructive_justification": "Replaces the previous policy definition, and the change applies immediately to running batches and monitors, whose pending pages can fail under a narrower policy."
+      }
+    },
+    "delete-access-policy": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Permanently deletes an access policy from the authenticated account.",
+        "open_world_justification": "Operates only on the authenticated user's private Context account and does not write to or alter any external internet systems.",
+        "destructive_justification": "Permanently deletes the policy; requests, batches, and monitors that still reference it will fail, and the policy cannot be recovered after deletion."
+      }
+    },
     "list-logs": {
       "annotations": {
         "readOnlyHint": true,

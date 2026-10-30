@@ -114,13 +114,14 @@ export const OUTPUT_SCHEMAS: Readonly<Record<string, JsonSchema>> = {
   "get-change": output({
     title: text("Change title."),
     summary: text("What changed."),
-    url: text("Where the change was detected."),
+    url: text("Where the change was detected; for search targets, the first new result."),
     detected_at: text("Detection time."),
     importance: text("`low`, `medium`, or `high`."),
     confidence: numeric("Confidence from 0 to 1."),
     diff: text("Text diff (page targets)."),
     added_urls: list("Added URLs (at most 500)."),
     removed_urls: list("Removed URLs (at most 500)."),
+    matched_urls: list("New search results (search targets, at most 500)."),
     evidence: list("Evidence, each with url, before, and after."),
   }),
   "list-changes": output({ data: changeList(), ...cursorPage() }),
@@ -148,6 +149,14 @@ export const OUTPUT_SCHEMAS: Readonly<Record<string, JsonSchema>> = {
   "retry-webhook-delivery": output({
     id: text("Delivery ID whose retry was accepted."),
   }),
+  "list-access-policies": output({
+    data: list("Policies, newest first, each with the fields get-access-policy returns."),
+    ...cursorPage(),
+  }),
+  "create-access-policy": output(accessPolicyFields()),
+  "get-access-policy": output(accessPolicyFields()),
+  "update-access-policy": output(accessPolicyFields()),
+  "delete-access-policy": output(deletion()),
   "list-logs": output({
     data: list("Entries, newest first, each with request_id, timestamp, method, path, status_code, error_code, latency_ms, credits_used, key_id, tags, and zdr."),
     has_more: flag("True when a next page exists."),
@@ -201,11 +210,24 @@ function monitorFields(): Record<string, JsonSchema> {
   return {
     id: text("Monitor ID."),
     status: text("`active`, `paused`, or `failed`."),
-    target: record("Watched page, sitemap, or extraction target."),
+    target: record("Watched page, sitemap, extraction, or web search target."),
     change_detection: record("`exact` or `semantic` detection settings."),
     webhook: nullable("Webhook url, events, retry, and secret (with monitors:write), or null."),
     next_run_at: nullable("Next scheduled run, or null while paused."),
     last_error: nullable("Latest run error, or null."),
+  };
+}
+
+function accessPolicyFields(): Record<string, JsonSchema> {
+  return {
+    id: text("Policy ID; pass it in `policies` on a request."),
+    name: text("Policy name."),
+    allowed_domains: nullable("Domains (and subdomains) requests may reach, or null for a blocklist."),
+    blocked_domains: nullable("Domains (and subdomains) requests may not reach, or null for an allowlist."),
+    applies_to: text("`request`, `api_keys`, or `organization`."),
+    api_key_ids: nullable("API keys the policy applies to; null unless applies_to is `api_keys`."),
+    created_at: text("Creation time."),
+    updated_at: text("Last change time."),
   };
 }
 
