@@ -28,11 +28,28 @@ let mcpProcess: ChildProcess;
 function batchResponse(method: string, requestUrl: string, requestBody: Buffer) {
   const path = new URL(requestUrl, "http://context.test").pathname;
   const args =
+    path === "/people/search" ||
     path === "/web/search" ||
     path === "/web/scrape" ||
     path === "/web/crawl"
       ? JSON.parse(requestBody.toString())
       : {};
+  if (path === "/people/search" && args.query === "fifty people fixture") {
+    const offset = Number(args.cursor ?? 0);
+    const count = args.count ?? 10;
+    return {
+      status: 200,
+      body: {
+        results: Array.from({ length: Math.min(count, 50 - offset) }, (_, i) => ({
+          name: `Person ${offset + i}`,
+          description: "Software engineer with experience in distributed systems. ".repeat(8),
+          profiles: [`https://example.test/people/${offset + i}`],
+          role: { title: "Software engineer", company: { name: "Example", domain: "example.test" } },
+        })),
+        next_cursor: offset + count < 50 ? String(offset + count) : null,
+      },
+    };
+  }
   if (path === "/web/search" && args.query === "compact empty") {
     return { status: 200, body: { results: [], request_id: "req_empty" } };
   }
@@ -2282,6 +2299,38 @@ test("searches companies, people, and browser profiles through the public API", 
     filters: { countries: ["US"] },
   });
   assert.equal(new URL(captured[2]!.url, upstreamBase).searchParams.get("limit"), "5");
+});
+
+test("delivers fifty complete people in one call instead of five without changing defaults", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const tools = await client.listTools();
+  const search = tools.tools.find((tool) => tool.name === "people-search")!;
+  assert.equal((search.inputSchema.properties?.count as { maximum: number }).maximum, 50);
+  const names: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await client.callTool({ name: "people-search", arguments: { query: "fifty people fixture", ...(cursor ? { cursor } : {}) } });
+    const data = page.structuredContent as { results: Array<{ name: string }>; next_cursor: string | null };
+    assert.equal(data.results.length, 10);
+    names.push(...data.results.map((person) => person.name));
+    cursor = data.next_cursor;
+  } while (cursor);
+  assert.equal(captured.length, 5);
+  const bulk = await client.callTool({ name: "people-search", arguments: { query: "fifty people fixture", count: 50 } });
+  const data = bulk.structuredContent as { results: Array<{ name: string }>; next_cursor: null; _context_mcp?: unknown };
+  assert.notEqual(bulk.isError, true);
+  assert.deepEqual(data.results.map((person) => person.name), names);
+  assert.equal(data.next_cursor, null);
+  assert.equal(data._context_mcp, undefined);
+  const text = (bulk.content as Array<{ type: string; text?: string }>).find((block) => block.type === "text")!.text!;
+  assert.deepEqual(JSON.parse(text), data);
+  assert.equal(captured.length, 6);
+  const clamped = await client.callTool({ name: "people-search", arguments: { query: "fifty people fixture", count: 51 } });
+  assert.notEqual(clamped.isError, true);
+  assert.equal(JSON.parse(captured[6]!.body.toString()).count, 50);
+  await client.close();
+  await writeFile(join(tmpdir(), "context-people50-mcp-proof.json"), JSON.stringify({ defaultCalls: 5, largerPageCalls: 1, identicalPeople: names.length, textCharacters: text.length, structuredContentMatchesText: true, truncated: false }, null, 2));
 });
 
 test("sends ultra people searches with the longer query and mode the API accepts", async () => {

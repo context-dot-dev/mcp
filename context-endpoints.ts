@@ -7042,13 +7042,20 @@ export const ENDPOINTS: Endpoint[] = [
             "default": "fast",
             "description": "`fast` matches people on basic criteria (e.g. their role, location or background); `ultra` plans a deeper search, judges each candidate against every criterion in the query. Complex `ultra` searches can take up to 30 seconds to complete, so allow for that in your client timeout."
           },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10,
+            "description": "Maximum people per page: 1–50 in fast mode, 1–10 in ultra. Defaults to 10. Larger pages keep the same price but must fit 40,000 JSON characters; oversized pages fail without a charge. Keep count unchanged when using a cursor."
+          },
           "filters": {
             "$ref": "#/components/schemas/PeopleSearchFilters"
           },
           "cursor": {
             "type": "string",
             "maxLength": 65536,
-            "description": "Use next_cursor with the same query, mode and filters to fetch the next page."
+            "description": "Use next_cursor with the same query, mode, filters and count to fetch the next page."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
