@@ -892,11 +892,11 @@ test("compresses MCP responses for clients that accept gzip", async () => {
 
   const compressed = await listTools("gzip, deflate, br");
   assert.equal(compressed.headers.get("content-encoding"), "gzip");
-  assert.equal((await compressed.json()).result.tools.length, 45);
+  assert.equal((await compressed.json()).result.tools.length, 50);
 
   const uncompressed = await listTools("identity");
   assert.equal(uncompressed.headers.get("content-encoding"), null);
-  assert.equal((await uncompressed.json()).result.tools.length, 45);
+  assert.equal((await uncompressed.json()).result.tools.length, 50);
 
   const notification = await fetch(`${mcpBase}/mcp`, {
     method: "POST",
@@ -1199,7 +1199,7 @@ test("lists the public Context API with safety annotations", async () => {
   const { tools } = await client.listTools();
   await client.close();
 
-  assert.equal(tools.length, 45);
+  assert.equal(tools.length, 50);
   const missingPropertyDescriptions: string[] = [];
   const assertPropertiesDescribed = (
     schema: unknown,
@@ -1341,6 +1341,11 @@ test("lists the public Context API with safety annotations", async () => {
     "get-webhook-delivery",
     "list-webhook-delivery-attempts",
     "retry-webhook-delivery",
+    "list-access-policies",
+    "create-access-policy",
+    "get-access-policy",
+    "update-access-policy",
+    "delete-access-policy",
     "list-logs",
     "get-log",
     "list-browser-profiles",
@@ -1459,9 +1464,9 @@ test("lists the public Context API with safety annotations", async () => {
     "images",
     "bytes",
     "parse",
+    "product",
     "highlights",
     "json",
-    "product",
   ]);
   for (const property of ["parseParams", "timeoutOpts", "zdr", "tags"]) {
     assert.ok(webScrapeProperties[property], `missing scrape option ${property}`);
@@ -1892,7 +1897,7 @@ test("publishes spec string patterns unescaped and still enforces them", async (
       name
     ] ?? {}) as Record<string, unknown>;
 
-  assert.equal(property("web-scrape", "url").pattern, "^https?://.*$");
+  assert.equal(property("web-scrape", "url").pattern, "^[Hh][Tt][Tt][Pp][Ss]?://.*$");
   assert.equal(property("list-logs", "path").pattern, "^/.*$");
 
   for (const call of [

@@ -8,7 +8,7 @@ test("toolset follows API reference order and excludes prefetch", () => {
   const selected = selectEndpoints([...ENDPOINTS].reverse());
   const names = new Set(selected.map((endpoint) => endpoint.name));
 
-  assert.equal(selected.length, 44);
+  assert.equal(selected.length, 49);
   assert.equal(names.size, selected.length);
   assert.deepEqual(
     selected.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
@@ -51,6 +51,11 @@ test("toolset follows API reference order and excludes prefetch", () => {
       "GET /webhooks/deliveries/{delivery_id}",
       "GET /webhooks/deliveries/{delivery_id}/attempts",
       "POST /webhooks/deliveries/{delivery_id}/retry",
+      "GET /access-policies",
+      "POST /access-policies",
+      "GET /access-policies/{policy_id}",
+      "PATCH /access-policies/{policy_id}",
+      "DELETE /access-policies/{policy_id}",
       "GET /org/logs",
       "GET /org/logs/{request_id}",
       "GET /org/browser/profiles",
@@ -89,6 +94,26 @@ test("tool descriptions route agents between overlapping workflows", () => {
   assert.match(
     tools.get("create-monitor")?.description ?? "",
     /recurring.*not a one-time scrape/i,
+  );
+  assert.match(
+    tools.get("create-monitor")?.description ?? "",
+    /page, sitemap, structured extraction, or web search target.*search target runs its query on every check.*results not seen before/i,
+  );
+  assert.match(
+    tools.get("get-change")?.description ?? "",
+    /newly matched search results/i,
+  );
+  assert.match(
+    tools.get("create-access-policy")?.description ?? "",
+    /allowed_domains.*blocked_domains.*\*\.gov.*applies_to.*policies.*ACCESS_POLICY_DENIED/,
+  );
+  assert.match(
+    tools.get("list-access-policies")?.description ?? "",
+    /ACCESS_POLICIES_NOT_ENABLED/,
+  );
+  assert.match(
+    tools.get("delete-access-policy")?.description ?? "",
+    /batches, and monitors that still list its ID.*cannot be undone/i,
   );
   assert.match(
     tools.get("brand-retrieve-unified")?.description ?? "",
@@ -209,9 +234,15 @@ test("every public tool has annotations that match its most privileged behavior"
     "run-monitor-now",
     "update-monitor",
   ]);
-  const additivePrivateTools = new Set(["parse-document", "submit-feedback"]);
+  const additivePrivateTools = new Set([
+    "parse-document",
+    "submit-feedback",
+    "create-access-policy",
+  ]);
   const destructivePrivateTools = new Set([
     "delete-monitor",
+    "update-access-policy",
+    "delete-access-policy",
     "cancel-batch",
     "delete-batch",
     "rotate-monitor-webhook-secret",
@@ -222,6 +253,7 @@ test("every public tool has annotations that match its most privileged behavior"
     "web-scrape",
     "submit-batch",
     "create-monitor",
+    "create-access-policy",
     "run-monitor-now",
     "rotate-monitor-webhook-secret",
     "retry-webhook-delivery",

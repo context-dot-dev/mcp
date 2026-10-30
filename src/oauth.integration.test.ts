@@ -897,7 +897,7 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
     })
   );
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 45);
+  assert.equal(tools.length, 50);
   const { resources } = await client.listResources();
   assert.equal(resources.length, 1);
   const resource = await client.readResource({
@@ -934,9 +934,10 @@ test("completes the authorization proxy flow without passing OAuth tokens upstre
   );
   const { resourceTemplates } = await client.listResourceTemplates();
   assert.equal(resourceTemplates.length, 1);
+  // 138,756 bytes before the access-policy tools, 146,719 with them.
   const toolCatalogBytes = Buffer.byteLength(JSON.stringify(tools));
   assert.ok(
-    toolCatalogBytes < 145_000,
+    toolCatalogBytes < 155_000,
     `public tool catalog exceeds the release budget: ${toolCatalogBytes} bytes`
   );
   const brandResult = await client.callTool({
@@ -996,7 +997,7 @@ test("accepts direct Context API keys at the MCP transport", async () => {
     })
   );
   const { tools } = await bearerClient.listTools();
-  assert.equal(tools.length, 45);
+  assert.equal(tools.length, 50);
   await bearerClient.callTool({
     name: "web-scrape",
     arguments: { url: "https://example.test", formats: { markdown: true } },
