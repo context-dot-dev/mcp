@@ -32,7 +32,7 @@ export const OUTPUT_SCHEMAS: Readonly<Record<string, JsonSchema>> = {
   }),
   "company-search": output({
     results: list("Up to 10 companies, most relevant first, each with name, domain, description, organization_type, operating_status, stock_symbols, revenue, industries, founded_year, headquarters, employees, and funding."),
-    next_cursor: nullable("Cursor for the next page with the same query and filters, or null."),
+    next_cursor: nullable("Cursor for the next page with the same query, mode, and filters, or null."),
   }),
   "people-search": output({
     results: list("Up to 10 people, most relevant first, each with name, description, profiles, location, role, years_of_experience, is_founder, skills, and schools, plus match (confidence from 0 to 1) in ultra mode."),

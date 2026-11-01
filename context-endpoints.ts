@@ -6981,9 +6981,18 @@ export const ENDPOINTS: Endpoint[] = [
           "query": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 500,
-            "description": "Describe the companies to find.",
+            "maxLength": 5000,
+            "description": "Describe the companies to find. Up to 500 characters in `fast` mode and 5000 in `ultra` mode.",
             "example": "Solar startups in California that raised a Series B"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "ultra"
+            ],
+            "default": "fast",
+            "description": "`fast` returns results in about two seconds; `ultra` searches more thoroughly and checks every result against each criterion in the query. `ultra` can take up to 20 seconds, so allow for that in your client timeout."
           },
           "filters": {
             "$ref": "#/components/schemas/CompanySearchFilters"
@@ -6991,7 +7000,7 @@ export const ENDPOINTS: Endpoint[] = [
           "cursor": {
             "type": "string",
             "maxLength": 64,
-            "description": "Use next_cursor with the same query and filters to fetch the next page."
+            "description": "Use next_cursor with the same query, mode and filters to fetch the next page."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
