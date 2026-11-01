@@ -74,7 +74,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-scrape": {
     title: "Scrape a URL",
     description:
-      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing with optional page markers, deadlines, and zero data retention. Browser clicks can change the target site's state. Prefer responseMode=\"compact\" with formats.highlights and highlightsParams.query for focused research; use full for complete content or metadata. Use web-search when the URL is unknown, web-map for URLs only, web-crawl for linked pages, or submit-batch for large asynchronous jobs.",
+      "Scrape one known URL and return any combination of HTML, Markdown, a screenshot, page images, original bytes, CSS-selected fields, relevant highlights, schema-shaped JSON, or product data. Supports browser actions, custom target headers, PDF parsing with optional page markers, deadlines, and zero data retention. Browser clicks can change the target site's state. For focused research, responseMode=\"compact\" with formats.highlights and highlightsParams.query returns relevant excerpts; responseMode=\"full\" returns complete content or metadata.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
