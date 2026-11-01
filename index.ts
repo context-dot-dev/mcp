@@ -1106,7 +1106,7 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "create-monitor.webhook":
     "Optional webhook configuration for delivering monitor change notifications.",
   "submit-batch.input":
-    "Batch job definition. Choose a scrape or crawl mode and provide the URLs, output format, and processing options for that mode.",
+    "Batch job: scrape URLs or crawl a source with output and processing options.",
   "update-monitor.name": "New human-readable name for the monitor.",
   "update-monitor.status":
     "New monitor lifecycle status: active continues scheduled runs; paused stops them until reactivated.",
@@ -1327,7 +1327,7 @@ const RESPONSE_MODE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "web-search":
     "Prefer compact for research: one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 1,200 characters per field for each result. Clipping is marked. Omit or use full for the complete response, up to the server response limit. For query-relevant excerpts, enable highlightsOptions instead of reading clipped page text.",
   "web-scrape":
-    "Prefer compact for research: one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 4,000 characters per format. Clipping is marked; JSON, parsed data, product data, and images are kept. Omit or use full for the complete response, up to the server response limit. For query-relevant excerpts, request formats.highlights with highlightsParams.query instead of reading clipped page text.",
+    "The responseMode=\"compact\" setting returns one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 4,000 characters per format. Clipping is marked; JSON, parsed data, product data, and images are kept. The responseMode=\"full\" setting returns the complete response, up to the server response limit. For query-relevant excerpts, request formats.highlights with highlightsParams.query instead of reading clipped page text.",
   "web-crawl":
     "Prefer compact for research: one JSON text response without verbose page metadata, with each page's Markdown and HTML clipped to 4,000 characters. Clipping is marked. Omit or use full for the complete response, up to the server response limit.",
 };

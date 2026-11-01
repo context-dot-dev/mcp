@@ -7,8 +7,8 @@ export const MCP_DESCRIPTION_REPLACEMENTS: Readonly<Record<string, string>> = {
   "Public HTTP or HTTPS URL to scrape.": "URL of the public page to scrape.",
   "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms). Maximum: 1 year (31536000000 ms).":
     "Maximum age of a cached output, in milliseconds. `0` fetches fresh. Defaults to 3 days (259200000 ms).",
-  "google-maps-reviews only. Maximum number of reviews to return. Defaults to 100; maximum 1000.":
-    "google-maps-reviews only. Maximum number of reviews to return. Defaults to 100.",
+  "google-maps-reviews and reddit parsers only. Maximum number of reviews (google-maps-reviews, default 100), comments (reddit-post, default 100), or results (reddit-search, reddit-subreddit, and reddit-user, default 100) to return; maximum 1000.":
+    "google-maps-reviews and reddit parsers only. Maximum reviews, comments, or results to return. Defaults to 100.",
   "Proxy country as a two-letter code, such as `US`. Case-insensitive.":
     "Country of the proxy that fetches the page, as a country code such as `US`.",
   "Browser wait time in milliseconds after initial page load for each crawled page. Defaults to 3500 (3.5 seconds). Min: 0. Max: 30000 (30 seconds).":
