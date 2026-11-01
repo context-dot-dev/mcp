@@ -787,7 +787,7 @@ export const VALIDATION_HINTS: Readonly<Record<string, string>> = {
   "get-news-search":
     'get-news-search takes exactly one of: `query`, a plain-language topic such as {"query":"chip export restrictions to China"}, ordered by relevance; or one company identifier, for example {"companyName":"Acme"}, {"domain":"acme.com"}, {"ticker":"ACME"}, or {"isin":"US0000000000"}, with sortBy "newest" or "relevance".',
   "company-search":
-    'company-search needs `query`, a plain-language description of the companies to find, for example {"query":"solar startups in California","filters":{"countries":["US"],"employees_min":50}}. Countries are two-letter codes. To resolve a company you can already name, use brand-search.',
+    'company-search needs `query`, a plain-language description of the companies to find, for example {"query":"solar startups in California","filters":{"countries":["US"],"employees_min":50}}. Countries are two-letter codes. `mode` is "fast" (default) or "ultra" (queries up to 5000 characters, 10 credits per page instead of 2). To resolve a company you can already name, use brand-search.',
   "people-search":
     'people-search needs `query`, a plain-language description of the people to find, for example {"query":"VPs of sales at solar companies","filters":{"countries":["US"],"years_of_experience_min":10}}. Countries are two-letter codes. `mode` is "fast" (default) or "ultra" (queries up to 5000 characters, 50 credits per page instead of 10). To look up one known person, use people-enrich.',
   "brand-retrieve-unified":

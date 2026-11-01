@@ -2289,6 +2289,40 @@ test("searches companies, people, and browser profiles through the public API", 
   assert.equal(new URL(captured[2]!.url, upstreamBase).searchParams.get("limit"), "5");
 });
 
+test("sends ultra company searches with the longer query and mode the API accepts", async () => {
+  captured.length = 0;
+  const client = await connectClient();
+  const query = `Robotics companies in Germany that sell to automotive plants. ${
+    "Prefer companies with their own motion-control software. ".repeat(40)
+  }`;
+  assert.ok(query.length > 500 && query.length <= 5000);
+  const ultra = await client.callTool({
+    name: "company-search",
+    arguments: { query, mode: "Ultra", filters: { countries: ["DE"] }, cursor: "page-2" },
+  });
+  const tooLong = await client.callTool({
+    name: "company-search",
+    arguments: { query: "x".repeat(5001), mode: "ultra" },
+  });
+  const unknownMode = await client.callTool({
+    name: "company-search",
+    arguments: { query: "Robotics companies", mode: "deep" },
+  });
+  await client.close();
+
+  assert.notEqual(ultra.isError, true);
+  assert.equal(tooLong.isError, true);
+  assert.equal(unknownMode.isError, true);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.url, "/company/search");
+  assert.deepEqual(JSON.parse(captured[0]!.body.toString()), {
+    query,
+    mode: "ultra",
+    cursor: "page-2",
+    filters: { countries: ["DE"] },
+  });
+});
+
 test("sends ultra people searches with the longer query and mode the API accepts", async () => {
   captured.length = 0;
   const client = await connectClient();

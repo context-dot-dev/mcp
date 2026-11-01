@@ -136,6 +136,10 @@ test("tool descriptions route agents between overlapping workflows", () => {
     /plain-language.*filters\.countries.*next_cursor.*brand-search.*people-search/i,
   );
   assert.match(
+    tools.get("company-search")?.description ?? "",
+    /ultra.*each criterion.*5000 characters.*20 seconds.*same query, mode, and filters.*2 credits.*fast mode and 10 in ultra mode/i,
+  );
+  assert.match(
     tools.get("people-search")?.description ?? "",
     /plain-language.*filters\.countries.*next_cursor.*people-enrich.*company-search/i,
   );
