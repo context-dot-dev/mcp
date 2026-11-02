@@ -10112,7 +10112,7 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
       "json": {
         "type": "boolean",
         "default": false,
-        "description": "An object matching `jsonParams.schema`, extracted from the page."
+        "description": "An object matching `jsonParams.schema`, extracted from the page text and its embedded data (JSON-LD, meta tags, framework state)."
       }
     },
     "additionalProperties": false,
