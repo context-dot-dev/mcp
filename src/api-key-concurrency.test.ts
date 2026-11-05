@@ -213,7 +213,7 @@ test("a timeout after a long wait for a concurrency slot blames the wait instead
 
   globalThis.fetch = timeOut;
   const [apiTimeout] = await callInParallel("slow-api-key", 1);
-  assert.match(message(apiTimeout), /^Context API did not respond within 115 seconds/);
+  assert.match(message(apiTimeout), /^Context API did not respond within 100 seconds/);
 
   let finishRunningCall!: (response: Response) => void;
   const runningCall = new Promise<Response>((resolve) => { finishRunningCall = resolve; });
@@ -240,7 +240,7 @@ test("a timeout after a long wait for a concurrency slot blames the wait instead
   const slotWaitTimeout = message(queuedResult);
   assert.match(
     slotWaitTimeout,
-    /^Waited 50 seconds for one of this account's concurrent request slots, then Context API did not respond within the remaining 65 seconds/,
+    /^Waited 50 seconds for one of this account's concurrent request slots, then Context API did not respond within the remaining 50 seconds/,
   );
   assert.match(slotWaitTimeout, /account limit working as intended; do not call submit-feedback/);
   assert.doesNotMatch(slotWaitTimeout, /always call submit-feedback/);

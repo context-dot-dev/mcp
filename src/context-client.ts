@@ -392,9 +392,12 @@ function getScreenshot(value: Record<string, unknown>) {
   return { mimeType: match[1]!, data: match[2]! };
 }
 
-// Hosting proxies end MCP requests after about 125 seconds; stop waiting on the
-// API first so the client gets an actionable error instead of a gateway 524.
-const UPSTREAM_TIMEOUT_MS = 115_000;
+// Cloudflare ends an origin response after 100 seconds and Cursor ends a tool
+// call after 115, so stop waiting at 100 and the client still gets the error.
+const UPSTREAM_TIMEOUT_MS = 100_000;
+// The API answers at the caller's timeoutOpts deadline; this covers queueing,
+// Cloudflare and the body transfer on top of it.
+const DEADLINE_OVERHEAD_MS = 10_000;
 // A pooled keep-alive socket can close just as a call reuses it. fetch rejects
 // only before response headers, so retrying never repeats an answered call.
 const DROPPED_CONNECTION_CODES = new Set([
@@ -409,7 +412,7 @@ const DROPPED_CONNECTION_CODES = new Set([
 const RATE_LIMIT_RETRY_BUDGET_MS = 30_000;
 
 const RATE_LIMIT_MAX_RETRIES = 5;
-// Leaves the call at least 55 seconds of the upstream timeout to do its work.
+// Leaves a call without its own deadline at least 40 seconds to do its work.
 const QUEUE_WAIT_LIMIT_MS = 60_000;
 // The server runs several instances, so their per-key queues cannot see each
 // other's calls; the API's concurrency counter is the shared source of truth.
@@ -417,7 +420,7 @@ const QUEUE_WAIT_LIMIT_MS = 60_000;
 // deadline picks up a freed slot soon after another instance's call finishes.
 const CONCURRENCY_RETRY_MAX_WAIT_MS = 2_000;
 // After a shorter wait the API still had most of the budget, so the timeout is its own.
-const MEANINGFUL_SLOT_WAIT_MS = UPSTREAM_TIMEOUT_MS / 4;
+const MEANINGFUL_SLOT_WAIT_SHARE = 1 / 4;
 
 // Waits at least 0.5s, 1s, 2s, 4s, 8s, so a `Retry-After: 0` from the
 // concurrency limit cannot turn one call into a burst of requests.
@@ -438,23 +441,32 @@ function retryAfterMs(headers: Headers, attempt: number): number {
   return Math.max(backoff, requested);
 }
 
-export function contextFetchError(toolName: string, cause: unknown) {
+export function contextFetchError(
+  toolName: string,
+  cause: unknown,
+  deadlineMs = UPSTREAM_TIMEOUT_MS,
+) {
   if (cause instanceof Error && cause.name === "TimeoutError") {
     const slotWaitMs = (cause as { slotWaitMs?: unknown }).slotWaitMs;
     const hasWaitedForSlot =
-      typeof slotWaitMs === "number" && slotWaitMs >= MEANINGFUL_SLOT_WAIT_MS;
+      typeof slotWaitMs === "number" &&
+      slotWaitMs >= deadlineMs * MEANINGFUL_SLOT_WAIT_SHARE;
+    const deadlineSeconds = Math.round(deadlineMs / 1000);
     if (hasWaitedForSlot) {
       const waitedSeconds = Math.round(slotWaitMs / 1000);
-      const remainingSeconds = UPSTREAM_TIMEOUT_MS / 1000 - waitedSeconds;
+      const remainingSeconds = deadlineSeconds - waitedSeconds;
+      const outcome = remainingSeconds > 0
+        ? `then Context API did not respond within the remaining ${remainingSeconds} seconds`
+        : `which used up its ${deadlineSeconds}-second deadline`;
       return contextApiError(
         toolName,
-        `Waited ${waitedSeconds} seconds for one of this account's concurrent request slots, then Context API did not respond within the remaining ${remainingSeconds} seconds, so the request was stopped before the MCP client timed out.`,
+        `Waited ${waitedSeconds} seconds for one of this account's concurrent request slots, ${outcome}, so the request was stopped before the MCP client timed out.`,
         "CONCURRENCY_LIMITED",
       );
     }
     return contextApiError(
       toolName,
-      `Context API did not respond within ${UPSTREAM_TIMEOUT_MS / 1000} seconds, so the request was stopped before the MCP client timed out. Retry with a smaller request (fewer pages, results, or formats), or use submit-batch for long jobs.`,
+      `Context API did not respond within ${deadlineSeconds} seconds, so the request was stopped before the MCP client timed out. The API may still finish and bill this request; no request_id is available because no response arrived, and list-logs shows it if it finished. Send timeoutOpts.milliseconds of at most ${UPSTREAM_TIMEOUT_MS - DEADLINE_OVERHEAD_MS} with behavior "return-partial" to get what is ready by then, narrow the request (fewer pages, results, or formats), or use submit-batch for long jobs.`,
     );
   }
   const message = cause instanceof Error ? cause.message : String(cause);
@@ -470,16 +482,22 @@ export function contextFetchError(toolName: string, cause: unknown) {
 export async function fetchContextApi(
   url: URL | string,
   init: RequestInit,
+  deadlineMs = UPSTREAM_TIMEOUT_MS,
 ): Promise<Response> {
   const started = Date.now();
   const keyId = getApiKeyId(init.headers);
   let slotWaitMs = 0;
   for (let attempt = 0; ; attempt += 1) {
     const attemptStarted = Date.now();
-    const response = await fetchInApiKeySlot(url, init, started, keyId, slotWaitMs);
+    const response = await fetchInApiKeySlot(
+      url, init, started, keyId, slotWaitMs, deadlineMs,
+    );
     if (response.status !== 429) return response;
     const isConcurrencyLimit = response.headers.get("X-RateLimit-Mode") === "concurrency";
-    const retryBudgetMs = isConcurrencyLimit ? QUEUE_WAIT_LIMIT_MS : RATE_LIMIT_RETRY_BUDGET_MS;
+    const retryBudgetMs = Math.min(
+      isConcurrencyLimit ? QUEUE_WAIT_LIMIT_MS : RATE_LIMIT_RETRY_BUDGET_MS,
+      deadlineMs,
+    );
     const isOutOfRetries = !isConcurrencyLimit && attempt >= RATE_LIMIT_MAX_RETRIES;
     const wait = retryAfterMs(response.headers, attempt) + Math.random() * 250;
     if (isOutOfRetries || Date.now() - started + wait > retryBudgetMs) return response;
@@ -496,20 +514,21 @@ async function fetchInApiKeySlot(
   started: number,
   keyId: string | undefined,
   earlierSlotWaitMs: number,
+  deadlineMs: number,
 ): Promise<Response> {
   const queued = Date.now();
   const release = keyId
-    ? await acquireApiKeySlot(keyId, started + QUEUE_WAIT_LIMIT_MS)
+    ? await acquireApiKeySlot(keyId, started + Math.min(QUEUE_WAIT_LIMIT_MS, deadlineMs))
     : undefined;
   const slotWaitMs = earlierSlotWaitMs + Date.now() - queued;
   try {
-    const response = await fetchWithinTimeout(url, init, started).catch(
+    const response = await fetchWithinTimeout(url, init, started, deadlineMs).catch(
       (cause: unknown) => {
         const isDroppedConnection = DROPPED_CONNECTION_CODES.has(
           fetchFailureCode(cause) ?? "",
         );
         if (!isDroppedConnection) throw cause;
-        return fetchWithinTimeout(url, init, started);
+        return fetchWithinTimeout(url, init, started, deadlineMs);
       },
     );
     if (keyId) rememberConcurrencyLimit(keyId, response.headers);
@@ -532,12 +551,23 @@ function fetchWithinTimeout(
   url: URL | string,
   init: RequestInit,
   started: number,
+  deadlineMs: number,
 ): Promise<Response> {
   const elapsed = Date.now() - started;
   return fetch(url, {
     ...init,
-    signal: AbortSignal.timeout(Math.max(1, UPSTREAM_TIMEOUT_MS - elapsed)),
+    signal: AbortSignal.timeout(Math.max(1, deadlineMs - elapsed)),
   });
+}
+
+// A request's own timeoutOpts.milliseconds (flat or under `body`) bounds the
+// wait, so a 20-second request fails at 30 seconds instead of the hosting cap.
+export function requestDeadlineMs(args: ToolArguments): number {
+  const requested = requestContainers(args)
+    .map((container) => (container.timeoutOpts as { milliseconds?: unknown } | undefined)?.milliseconds)
+    .find((value): value is number => typeof value === "number" && value > 0);
+  if (requested === undefined) return UPSTREAM_TIMEOUT_MS;
+  return Math.min(UPSTREAM_TIMEOUT_MS, requested + DEADLINE_OVERHEAD_MS);
 }
 
 function fetchFailureCode(cause: unknown): string | undefined {
@@ -632,18 +662,19 @@ export async function callContextApi({
     }
   }
 
+  const deadlineMs = requestDeadlineMs(args);
   let response: Response;
   try {
-    response = await fetchContextApi(url, request);
+    response = await fetchContextApi(url, request, deadlineMs);
   } catch (cause) {
-    return contextFetchError(endpoint.name, cause);
+    return contextFetchError(endpoint.name, cause, deadlineMs);
   }
 
   let raw: string;
   try {
     raw = await response.text();
   } catch (cause) {
-    return contextFetchError(endpoint.name, cause);
+    return contextFetchError(endpoint.name, cause, deadlineMs);
   }
   let parsed: unknown;
   try {
