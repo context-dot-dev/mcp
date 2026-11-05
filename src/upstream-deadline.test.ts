@@ -125,8 +125,18 @@ test("a success whose body lacks request_id carries the X-Request-Id header", as
 
 test("a queued call on a concurrency-limited key gives up at its own deadline instead of the 60-second queue limit", async (t) => {
   const originalFetch = globalThis.fetch;
-  t.after(() => { globalThis.fetch = originalFetch; });
+  const originalTimeout = AbortSignal.timeout;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = originalTimeout;
+  });
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  // The real timeout signal is unref'd, so it must not be what keeps the test alive.
+  AbortSignal.timeout = () => {
+    const controller = new AbortController();
+    setImmediate(() => controller.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError")));
+    return controller.signal;
+  };
   const keyId = "ctxt_secret_limited";
   rememberConcurrencyLimit(
     createHash("sha256").update(`Bearer ${keyId}`).digest("hex"),
