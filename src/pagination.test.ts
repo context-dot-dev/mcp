@@ -337,7 +337,7 @@ test("web-crawl keeps whole pages and names the pages it dropped", async () => {
     const body = result.structuredContent as {
       results: { url: string }[];
       metadata: { numSucceeded: number };
-      _context_mcp: { truncated: boolean; omitted_urls: string[] };
+      _context_mcp: { truncated: boolean; omitted_count: number; omitted_urls: string[] };
     };
     assert.ok(JSON.stringify(body).length <= 40_000);
     assert.equal(body._context_mcp.truncated, true);
@@ -349,7 +349,44 @@ test("web-crawl keeps whole pages and names the pages it dropped", async () => {
       body._context_mcp.omitted_urls,
       results.slice(body.results.length).map((page) => page.url),
     );
+    assert.equal(body._context_mcp.omitted_count, 50 - body.results.length);
     assert.equal(body.metadata.numSucceeded, 50);
+  } finally {
+    restore();
+  }
+});
+
+test("web-crawl omitted page list itself stays within the cap", async () => {
+  const endpoint = findEndpoint("web-crawl");
+  const results = Array.from({ length: 500 }, (_, index) => ({
+    url: `https://example.test/${"deeply/nested/section/".repeat(8)}page-${index}`,
+    markdown: `# Page ${index}\n\n${"body text ".repeat(50)}`,
+  }));
+  const restore = withResponseLimit("40000", async () =>
+    Response.json({ results, metadata: { numSucceeded: 500 } }),
+  );
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint,
+      args: { url: "https://example.test", maxPages: 500 },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const body = result.structuredContent as {
+      results: { url: string }[];
+      _context_mcp: { omitted_count: number; omitted_urls: string[] };
+    };
+    assert.ok(JSON.stringify(body).length <= 40_000, String(JSON.stringify(body).length));
+    assert.ok(body.results.length > 1);
+    assert.equal(body._context_mcp.omitted_count, 500 - body.results.length);
+    assert.ok(body._context_mcp.omitted_urls.length > 0);
+    assert.ok(body._context_mcp.omitted_urls.length < body._context_mcp.omitted_count);
+    assert.deepEqual(
+      body._context_mcp.omitted_urls,
+      results
+        .slice(body.results.length, body.results.length + body._context_mcp.omitted_urls.length)
+        .map((page) => page.url),
+    );
   } finally {
     restore();
   }

@@ -343,25 +343,30 @@ function boundedObject(
     return render(value);
   }
   const isCrawl = endpointName === "web-crawl";
-  const reservedChars = isCrawl ? urlListChars(value.results) : 0;
-  const budget = {
-    remaining: Math.max(1_000, limit - RESPONSE_OVERHEAD_CHARS - reservedChars),
-    truncated: false,
-  };
+  const pageBudget = Math.max(1_000, limit - RESPONSE_OVERHEAD_CHARS);
+  const reservedChars = isCrawl
+    ? Math.min(urlListChars(value.results), Math.floor(pageBudget / 2))
+    : 0;
+  const budget = { remaining: pageBudget - reservedChars, truncated: false };
   const truncated = truncateJsonValue(value, budget) as Record<string, unknown>;
-  const omittedUrls = isCrawl ? omittedPageUrls(value.results, truncated.results) : [];
-  return render({
+  const shortened = {
     ...truncated,
     _context_mcp: {
       truncated: true,
       original_chars: originalChars,
       message:
         "Response was shortened for MCP client limits. Narrow the request or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
-      ...(omittedUrls.length > 0 && {
-        omitted_urls: omittedUrls,
-        omitted_message: "These crawled pages did not fit; scrape them individually with web-scrape.",
-      }),
     },
+  };
+  if (!isCrawl) return render(shortened);
+  const omitted = omittedPages(
+    value.results,
+    truncated.results,
+    limit - JSON.stringify(shortened).length - OMITTED_PAGES_OVERHEAD_CHARS,
+  );
+  return render({
+    ...shortened,
+    _context_mcp: { ...shortened._context_mcp, ...omitted },
   });
 }
 
@@ -374,9 +379,31 @@ function urlListChars(results: unknown): number {
   );
 }
 
-function omittedPageUrls(results: unknown, kept: unknown): string[] {
-  if (!Array.isArray(results) || !Array.isArray(kept)) return [];
-  return results.slice(kept.length).map(pageUrl).filter((url) => url !== "");
+const OMITTED_PAGES_OVERHEAD_CHARS = 200;
+
+// The list itself must fit, so with very long URLs it names the first dropped
+// pages and omitted_count says how many were dropped in total.
+function omittedPages(
+  results: unknown,
+  kept: unknown,
+  room: number,
+): { omitted_count: number; omitted_urls: string[]; omitted_message: string } | undefined {
+  if (!Array.isArray(results) || !Array.isArray(kept)) return undefined;
+  const urls = results.slice(kept.length).map(pageUrl).filter((url) => url !== "");
+  if (urls.length === 0) return undefined;
+  let remaining = room;
+  const listed: string[] = [];
+  for (const url of urls) {
+    remaining -= url.length + 4;
+    if (remaining < 0) break;
+    listed.push(url);
+  }
+  return {
+    omitted_count: urls.length,
+    omitted_urls: listed,
+    omitted_message:
+      "These crawled pages did not fit; scrape them individually with web-scrape, or crawl again with fewer maxPages.",
+  };
 }
 
 function pageUrl(page: unknown): string {
