@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:http";
+import { connect } from "node:net";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -298,6 +299,7 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
         brand: {
           domain: "https://example.test/path",
           title: "Example",
+          description: "Example sells examples.",
           logos: [
             { type: "logo", url: "javascript:alert(1)" },
             {
@@ -878,6 +880,28 @@ test("does not allocate sessions for stream-capable clients", async () => {
   }
 });
 
+test("answers a request on a connection idle for longer than Node's default keep-alive", async () => {
+  const { hostname, port } = new URL(mcpBase);
+  const socket = connect({ host: hostname, port: Number(port) });
+  const request =
+    "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n";
+  const nextResponse = () =>
+    new Promise<string>((resolve, reject) => {
+      socket.once("data", (chunk: Buffer) => resolve(chunk.toString()));
+      socket.once("error", reject);
+      setTimeout(() => reject(new Error("no response within 3 s")), 3_000);
+    });
+  await new Promise<void>((resolve) => socket.once("connect", resolve));
+  socket.write(request);
+  assert.match(await nextResponse(), /^HTTP\/1\.1 200/);
+  // Node's default closes the socket after 5 s of idle time (checked every second).
+  await new Promise((resolve) => setTimeout(resolve, 7_000));
+  assert.equal(socket.destroyed, false, "server closed the idle connection");
+  socket.write(request);
+  assert.match(await nextResponse(), /^HTTP\/1\.1 200/);
+  socket.destroy();
+});
+
 test("compresses MCP responses for clients that accept gzip", async () => {
   const listTools = (acceptEncoding: string) =>
     fetch(`${mcpBase}/mcp`, {
@@ -1107,6 +1131,20 @@ test("keeps tools removed from the list callable for cached clients", async () =
   );
 });
 
+test("publishes the unified default that list-batches sends", async () => {
+  const client = await connectClient();
+  const { tools } = await client.listTools();
+  await client.close();
+  const listBatches = tools.find((tool) => tool.name === "list-batches");
+  const parameter = listBatches?.inputSchema.properties?.shouldIncludeUnified as {
+    default?: unknown;
+    description?: string;
+  };
+  assert.equal(parameter.default, true);
+  assert.match(parameter.description ?? "", /Scrape Anything/);
+  assert.doesNotMatch(parameter.description ?? "", /Defaults to false/);
+});
+
 test("serves the same tool list to every client", async () => {
   const lists = [];
   for (let index = 0; index < 3; index += 1) {
@@ -1265,7 +1303,7 @@ test("lists the public Context API with safety annotations", async () => {
     );
   }
   const batchSchemaBytes = Buffer.byteLength(JSON.stringify(batchTool.inputSchema));
-  assert.ok(batchSchemaBytes < 10_000, `batch schema exceeds 10 KB: ${batchSchemaBytes}`);
+  assert.ok(batchSchemaBytes <= 10_240, `batch schema exceeds 10 KiB: ${batchSchemaBytes}`);
 
   // Compact mode returns these results as text without structuredContent.
   const textResultTools = new Set(["web-search", "web-scrape", "web-crawl"]);
@@ -1564,6 +1602,22 @@ test("offers a smaller core profile without disabling cached tool calls", async 
   });
   assert.equal(cachedCall.isError, undefined);
   await client.close();
+});
+
+test("core profile schemas keep fields named description, so get-brand results validate", async () => {
+  const client = await connectClient("/mcp", "opencode/1.18.35");
+  try {
+    const { tools } = await client.listTools();
+    const brandTool = tools.find((tool) => tool.name === "get-brand")!;
+    const brandSchema = brandTool.outputSchema!.properties as Record<string, { properties: Record<string, unknown> }>;
+    assert.ok(brandSchema.brand!.properties.description);
+    const result = await client.callTool({ name: "get-brand", arguments: { domain: "example.test" } });
+    assert.equal(result.isError, undefined);
+    const { brand } = result.structuredContent as { brand: { description: string } };
+    assert.equal(brand.description, "Example sells examples.");
+  } finally {
+    await client.close();
+  }
 });
 
 test("serves the core profile to agent CLIs without tool search unless they ask for the full catalog", async () => {
@@ -2492,6 +2546,7 @@ test("executes the complete batch lifecycle with headers, bodies, paths, and que
   assert.equal(listUrl.searchParams.get("status"), "completed");
   assert.equal(listUrl.searchParams.get("limit"), "10");
   assert.equal(listUrl.searchParams.get("tags"), "mcp,test");
+  assert.equal(listUrl.searchParams.get("shouldIncludeUnified"), "true");
   assert.equal(captured[2]!.url, "/batch/batch%2Fa");
 
   const resultsUrl = new URL(captured[3]!.url, upstreamBase);

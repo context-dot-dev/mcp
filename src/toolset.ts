@@ -283,7 +283,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-log": {
     title: "Get an API request log",
     description:
-      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
+      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response. An entry becomes retrievable a few seconds after its request completes, so NOT_FOUND for a request that just finished means ingestion has not caught up yet; retry after a few seconds.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -557,7 +557,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "list-batches": {
     title: "List scraping batches",
     description:
-      "List asynchronous scraping batches from newest to oldest, with status, search, tag, and cursor filters. Use this to find a batch ID or review account activity; it does not return page-level results.",
+      "List asynchronous scraping batches from newest to oldest, with status, search, tag, and cursor filters. Includes batches of every format, including Scrape Anything (unified) batches; pass shouldIncludeUnified=false to list only legacy Markdown and HTML batches. Use this to find a batch ID or review account activity; it does not return page-level results.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -579,7 +579,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-batch-results": {
     title: "Get batch results",
     description:
-      "Page through the successful and failed URL results of a completed batch as JSON. Use the returned cursor to continue when more results exist. For progress before completion, use get-batch instead.",
+      "Page through the successful and failed URL results of a completed batch as JSON. Each page is capped to stay under the MCP client response limit (about 80,000 characters), so a page can return fewer records than the requested limit; when that happens _context_mcp reports limit_requested and limit_applied. Use the returned cursor to continue when more results exist. For progress before completion, use get-batch instead.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

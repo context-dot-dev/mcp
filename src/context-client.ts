@@ -236,25 +236,24 @@ function maxResponseChars(): number {
   return DEFAULT_MAX_RESPONSE_CHARS;
 }
 
+type TruncationBudget = { remaining: number; truncated: boolean; cut: Set<string> };
+
+const TRUNCATION_MARKER = "\n\n[truncated by Context MCP]";
+// Codes, IDs, URLs and error messages stay whole past the budget, so a scrape
+// format keeps its requested, success and error fields after its data is cut.
+const SHORT_VALUE_CHARS = 100;
+// Values kept past the budget fit in the overhead boundedObject reserves.
+const OVERAGE_CHARS = 500;
+
+// Every field keeps its place: long text is cut with a marker, lists lose
+// trailing items, and objects keep their short fields. The cut paths are
+// listed in _context_mcp.truncated_fields.
 function truncateJsonValue(
   value: unknown,
-  budget: { remaining: number; truncated: boolean }
+  budget: TruncationBudget,
+  path = "",
 ): unknown {
-  if (budget.remaining <= 0) {
-    budget.truncated = true;
-    return undefined;
-  }
-  if (typeof value === "string") {
-    if (value.length <= budget.remaining) {
-      budget.remaining -= value.length;
-      return value;
-    }
-    const marker = "\n\n[truncated by Context MCP]";
-    const available = Math.max(0, budget.remaining - marker.length);
-    budget.remaining = 0;
-    budget.truncated = true;
-    return `${value.slice(0, available)}${marker}`;
-  }
+  if (typeof value === "string") return truncateString(value, budget, path);
   if (
     value === null ||
     typeof value === "number" ||
@@ -266,11 +265,13 @@ function truncateJsonValue(
   if (Array.isArray(value)) {
     const result: unknown[] = [];
     for (const entry of value) {
-      const truncatedEntry = truncateJsonValue(entry, budget);
-      if (truncatedEntry === undefined) break;
-      result.push(truncatedEntry);
+      if (budget.remaining <= 0) break;
+      result.push(truncateJsonValue(entry, budget, `${path}[]`));
     }
-    if (result.length < value.length) budget.truncated = true;
+    if (result.length < value.length) {
+      budget.truncated = true;
+      budget.cut.add(path);
+    }
     return result;
   }
   if (typeof value === "object") {
@@ -288,16 +289,29 @@ function truncateJsonValue(
     });
     for (const [name, entry] of entries) {
       budget.remaining -= name.length + 4;
-      const truncatedEntry = truncateJsonValue(entry, budget);
-      if (truncatedEntry === undefined) break;
-      result[name] = truncatedEntry;
-    }
-    if (Object.keys(result).length < Object.keys(value).length) {
-      budget.truncated = true;
+      result[name] = truncateJsonValue(entry, budget, path ? `${path}.${name}` : name);
     }
     return result;
   }
   return String(value);
+}
+
+function truncateString(
+  value: string,
+  budget: TruncationBudget,
+  path: string,
+): string {
+  const isShort =
+    value.length <= SHORT_VALUE_CHARS && budget.remaining > -OVERAGE_CHARS;
+  if (value.length <= budget.remaining || isShort) {
+    budget.remaining -= value.length;
+    return value;
+  }
+  const available = Math.max(0, budget.remaining - TRUNCATION_MARKER.length);
+  budget.remaining -= available + TRUNCATION_MARKER.length;
+  budget.truncated = true;
+  budget.cut.add(path);
+  return `${value.slice(0, available)}${TRUNCATION_MARKER}`;
 }
 
 function boundedObject(
@@ -311,13 +325,19 @@ function boundedObject(
   if (limit === 0 || originalChars <= limit) {
     return render(value);
   }
-  const budget = { remaining: Math.max(1_000, limit - 500), truncated: false };
+  const budget: TruncationBudget = {
+    remaining: Math.max(1_000, limit - OVERAGE_CHARS),
+    truncated: false,
+    cut: new Set(),
+  };
   const truncated = truncateJsonValue(value, budget) as Record<string, unknown>;
   return render({
     ...truncated,
     _context_mcp: {
+      ...(typeof value._context_mcp === "object" ? value._context_mcp : {}),
       truncated: true,
       original_chars: originalChars,
+      truncated_fields: [...budget.cut],
       message:
         "Response was shortened for MCP client limits. Narrow the request or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
     },
@@ -560,16 +580,24 @@ function fetchFailureCode(cause: unknown): string | undefined {
 export async function callContextApi({
   apiBase,
   endpoint,
-  args,
+  args: inputArgs,
   credential,
   clientUserAgent,
+  limitRequested,
 }: {
   apiBase: string;
   endpoint: Endpoint;
   args: ToolArguments;
   credential: ContextCredential;
   clientUserAgent?: string;
+  limitRequested?: number;
 }): Promise<TypedCallToolResult> {
+  // list-batches hides Scrape Anything (unified-format) batches unless
+  // shouldIncludeUnified is set, so an account with only those lists nothing.
+  const args =
+    endpoint.name === "list-batches" && inputArgs.shouldIncludeUnified === undefined
+      ? { ...inputArgs, shouldIncludeUnified: true }
+      : inputArgs;
   const requiredScope = isReadOnlyRequest(endpoint, args)
     ? "api.read"
     : "api.write";
@@ -678,6 +706,14 @@ export async function callContextApi({
     const value = isCompact
       ? compactWebResponse(endpoint.name, minimized)
       : minimized;
+    // The note is sized with the page so a shrunk page still fits with it.
+    if (limitRequested !== undefined) {
+      value._context_mcp = {
+        limit_requested: limitRequested,
+        limit_applied: args.limit,
+        message: `Page size reduced from ${limitRequested} to ${args.limit} so the page stays under the MCP client response limit. Continue with the returned cursor for the rest.`,
+      };
+    }
     const responseLimit = maxResponseChars();
     const responseChars = JSON.stringify(value).length;
     const isOversizedPage =
@@ -696,21 +732,22 @@ export async function callContextApi({
       endpoint.name === "get-batch-results" &&
       isOversizedPage && recordCount > 1;
     if (shouldReduceBatchPage) {
-      const requestedLimit = Number(args.limit ?? recordCount);
-      if (requestedLimit <= 1) {
+      const currentLimit = Number(args.limit ?? recordCount);
+      if (currentLimit <= 1) {
         return contextApiError(
           endpoint.name,
           "The batch API ignored the requested page size, so this response cannot be paginated safely. Retry the request.",
         );
       }
       const estimatedLimit = Math.floor(recordCount * responseLimit / responseChars);
-      const nextLimit = Math.max(1, Math.min(requestedLimit - 1, estimatedLimit));
+      const nextLimit = Math.max(1, Math.min(currentLimit - 1, estimatedLimit));
       return callContextApi({
         apiBase,
         endpoint,
         args: { ...args, limit: nextLimit },
         credential,
         clientUserAgent,
+        limitRequested: limitRequested ?? currentLimit,
       });
     }
     return contextObject(endpoint, value, isCompact);

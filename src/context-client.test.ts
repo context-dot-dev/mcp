@@ -317,6 +317,55 @@ test("bounds oversized tool responses while preserving structured data", async (
   }
 });
 
+test("keeps every requested scrape format when the response is shortened", async () => {
+  const originalLimit = process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+  process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = "4000";
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        url: "https://example.test/page",
+        markdown: { requested: true, success: true, data: "markdown body. ".repeat(2_000) },
+        html: { requested: true, success: true, data: "<p>html body.</p>".repeat(2_000) },
+        json: { requested: true, success: false, error: { code: "EXTRACTION_FAILED", message: "No schema matched." }, data: null },
+        parsed: { requested: false, success: null, data: null, type: "custom" },
+        request_id: "req_formats",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ name: "web-scrape", path: "/web/scrape", method: "POST" }),
+      args: { url: "https://example.test/page", formats: { markdown: true, html: true, json: true }, responseMode: "full" },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const structured = result.structuredContent as Record<string, Record<string, unknown>>;
+    assert.deepEqual(Object.keys(structured).sort(), ["_context_mcp", "html", "json", "markdown", "parsed", "request_id", "url"]);
+    for (const name of ["markdown", "html"]) {
+      assert.equal(structured[name]!.requested, true, name);
+      assert.equal(structured[name]!.success, true, name);
+      assert.ok(String(structured[name]!.data).endsWith("[truncated by Context MCP]"), name);
+    }
+    assert.deepEqual(structured.json, {
+      requested: true,
+      success: false,
+      error: { code: "EXTRACTION_FAILED", message: "No schema matched." },
+      data: null,
+    });
+    assert.equal(structured.request_id, "req_formats");
+    assert.deepEqual(structured._context_mcp!.truncated_fields, ["markdown.data", "html.data"]);
+    assert.ok(JSON.stringify(result).length < 10_000);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalLimit === undefined) {
+      delete process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+    } else {
+      process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = originalLimit;
+    }
+  }
+});
+
 test("returns unified screenshots as MCP image content", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
@@ -902,5 +951,118 @@ test("feedback failures stop recursive reporting for HTTP and network errors", a
     }
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("list-batches includes unified batches by default and honours an explicit choice", async () => {
+  const listBatches = selectEndpoints(ENDPOINTS).find((tool) => tool.name === "list-batches");
+  assert.ok(listBatches);
+
+  captured.length = 0;
+  await callContextApi({
+    apiBase,
+    endpoint: listBatches,
+    args: {},
+    credential: { apiKey: "ctxt_secret_test" },
+  });
+  assert.equal(captured.length, 1);
+  const defaulted = new URL(captured[0]!.url, apiBase);
+  assert.equal(defaulted.searchParams.get("shouldIncludeUnified"), "true");
+
+  captured.length = 0;
+  await callContextApi({
+    apiBase,
+    endpoint: listBatches,
+    args: { shouldIncludeUnified: false },
+    credential: { apiKey: "ctxt_secret_test" },
+  });
+  const explicit = new URL(captured[0]!.url, apiBase);
+  assert.equal(explicit.searchParams.get("shouldIncludeUnified"), "false");
+});
+
+test("get-batch-results reports the reduced page size when a page is shrunk", async () => {
+  const getBatchResults = selectEndpoints(ENDPOINTS).find((tool) => tool.name === "get-batch-results");
+  assert.ok(getBatchResults);
+
+  const originalLimit = process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+  process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = "5000";
+  const originalFetch = globalThis.fetch;
+  const requestedLimits: number[] = [];
+  globalThis.fetch = async (input: Parameters<typeof fetch>[0]) => {
+    const url = new URL(typeof input === "string" ? input : input.toString());
+    const limit = Number(url.searchParams.get("limit") ?? "100");
+    requestedLimits.push(limit);
+    const data = Array.from({ length: limit }, (_, index) => ({
+      url: `https://example.test/${index}`,
+      content: "y".repeat(400),
+    }));
+    return new Response(
+      JSON.stringify({ data, has_more: true, next_cursor: "cursor_next" }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: getBatchResults,
+      args: { batch_id: "batch_test", limit: 100 },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const structured = result.structuredContent as Record<string, unknown>;
+    const mcp = structured._context_mcp as Record<string, unknown>;
+    assert.equal(mcp.limit_requested, 100);
+    assert.ok((mcp.limit_applied as number) < 100);
+    assert.equal((structured.data as unknown[]).length, mcp.limit_applied);
+    assert.ok(requestedLimits[0] === 100 && requestedLimits.length > 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalLimit === undefined) {
+      delete process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+    } else {
+      process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = originalLimit;
+    }
+  }
+});
+
+test("get-batch-results keeps the shrink note when one record still exceeds the cap", async () => {
+  const getBatchResults = selectEndpoints(ENDPOINTS).find((tool) => tool.name === "get-batch-results");
+  assert.ok(getBatchResults);
+
+  const originalLimit = process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+  process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = "3000";
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input: Parameters<typeof fetch>[0]) => {
+    const url = new URL(typeof input === "string" ? input : input.toString());
+    const limit = Number(url.searchParams.get("limit") ?? "100");
+    const data = Array.from({ length: limit }, (_, index) => ({
+      url: `https://example.test/${index}`,
+      content: "y".repeat(5_000),
+    }));
+    return new Response(
+      JSON.stringify({ data, has_more: true, next_cursor: "cursor_next" }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: getBatchResults,
+      args: { batch_id: "batch_test", limit: 100 },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const structured = result.structuredContent as Record<string, unknown>;
+    const mcp = structured._context_mcp as Record<string, unknown>;
+    assert.equal(mcp.truncated, true);
+    assert.equal(mcp.limit_requested, 100);
+    assert.equal(mcp.limit_applied, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalLimit === undefined) {
+      delete process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+    } else {
+      process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = originalLimit;
+    }
   }
 });
