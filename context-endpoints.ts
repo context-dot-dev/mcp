@@ -415,7 +415,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Retrieve a request log",
     "method": "GET",
     "path": "/org/logs/{request_id}",
-    "description": "Retrieve a request log — Retrieve a request’s metadata, retained input, and response.",
+    "description": "Retrieve a request log — Retrieve a request’s metadata, retained input, and response. An entry becomes retrievable a few seconds after its request completes, so a 404 NOT_FOUND for a request that just finished means ingestion has not caught up yet; retry after a few seconds.",
     "parameters": [
       {
         "name": "request_id",
