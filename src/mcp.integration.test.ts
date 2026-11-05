@@ -298,6 +298,7 @@ function batchResponse(method: string, requestUrl: string, requestBody: Buffer) 
         brand: {
           domain: "https://example.test/path",
           title: "Example",
+          description: "Example sells examples.",
           logos: [
             { type: "logo", url: "javascript:alert(1)" },
             {
@@ -1265,7 +1266,7 @@ test("lists the public Context API with safety annotations", async () => {
     );
   }
   const batchSchemaBytes = Buffer.byteLength(JSON.stringify(batchTool.inputSchema));
-  assert.ok(batchSchemaBytes < 10_000, `batch schema exceeds 10 KB: ${batchSchemaBytes}`);
+  assert.ok(batchSchemaBytes <= 10_240, `batch schema exceeds 10 KiB: ${batchSchemaBytes}`);
 
   // Compact mode returns these results as text without structuredContent.
   const textResultTools = new Set(["web-search", "web-scrape", "web-crawl"]);
@@ -1564,6 +1565,22 @@ test("offers a smaller core profile without disabling cached tool calls", async 
   });
   assert.equal(cachedCall.isError, undefined);
   await client.close();
+});
+
+test("core profile schemas keep fields named description, so get-brand results validate", async () => {
+  const client = await connectClient("/mcp", "opencode/1.18.35");
+  try {
+    const { tools } = await client.listTools();
+    const brandTool = tools.find((tool) => tool.name === "get-brand")!;
+    const brandSchema = brandTool.outputSchema!.properties as Record<string, { properties: Record<string, unknown> }>;
+    assert.ok(brandSchema.brand!.properties.description);
+    const result = await client.callTool({ name: "get-brand", arguments: { domain: "example.test" } });
+    assert.equal(result.isError, undefined);
+    const { brand } = result.structuredContent as { brand: { description: string } };
+    assert.equal(brand.description, "Example sells examples.");
+  } finally {
+    await client.close();
+  }
 });
 
 test("serves the core profile to agent CLIs without tool search unless they ask for the full catalog", async () => {

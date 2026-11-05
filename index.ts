@@ -555,11 +555,13 @@ function removeNestedDescriptions(value: unknown, path: string[] = []): unknown 
     );
   }
   if (!value || typeof value !== "object") return value;
+  // Under `properties`, a key named description is a field, not an annotation.
+  const isPropertyMap = path.at(-1) === "properties";
   return Object.fromEntries(
     Object.entries(value).flatMap(([name, entry]) => {
       const isTopLevelParameterDescription =
         name === "description" && path.length === 2 && path[0] === "properties";
-      if (name === "description" && !isTopLevelParameterDescription) return [];
+      if (name === "description" && !isPropertyMap && !isTopLevelParameterDescription) return [];
       return [[name, removeNestedDescriptions(entry, [...path, name])]];
     }),
   );
