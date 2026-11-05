@@ -1122,6 +1122,12 @@ const MCP_PARAMETER_DESCRIPTIONS: Readonly<Record<string, string>> = {
     "`request_id` of the API call, from a list-logs entry, an API response body, or the `X-Request-Id` response header.",
 };
 
+// Values callContextApi sends when the caller leaves the parameter unset,
+// published so the schema says what an omitted value means.
+const MCP_PARAMETER_DEFAULTS: Readonly<Record<string, unknown>> = {
+  "list-batches.shouldIncludeUnified": true,
+};
+
 function mcpParameterDescription(
   toolName: string,
   parameterName: string,
@@ -1341,10 +1347,13 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
     if (parameter.in === "cookie") {
       continue;
     }
-    const parameterJsonSchema =
-      parameter.in === "query" && !parameter.required
+    const mcpDefault = MCP_PARAMETER_DEFAULTS[`${endpoint.name}.${parameter.name}`];
+    const parameterJsonSchema = {
+      ...(parameter.in === "query" && !parameter.required
         ? withoutRedundantQueryNull(parameter.schema)
-        : parameter.schema;
+        : parameter.schema),
+      ...(mcpDefault === undefined ? {} : { default: mcpDefault }),
+    };
     let parameterSchema = schemaToZod(
       withMcpSchemaDescriptions(parameterJsonSchema),
       MCP_COMPONENT_SCHEMAS,

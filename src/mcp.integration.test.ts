@@ -1107,6 +1107,20 @@ test("keeps tools removed from the list callable for cached clients", async () =
   );
 });
 
+test("publishes the unified default that list-batches sends", async () => {
+  const client = await connectClient();
+  const { tools } = await client.listTools();
+  await client.close();
+  const listBatches = tools.find((tool) => tool.name === "list-batches");
+  const parameter = listBatches?.inputSchema.properties?.shouldIncludeUnified as {
+    default?: unknown;
+    description?: string;
+  };
+  assert.equal(parameter.default, true);
+  assert.match(parameter.description ?? "", /Scrape Anything/);
+  assert.doesNotMatch(parameter.description ?? "", /Defaults to false/);
+});
+
 test("serves the same tool list to every client", async () => {
   const lists = [];
   for (let index = 0; index < 3; index += 1) {
@@ -2492,6 +2506,7 @@ test("executes the complete batch lifecycle with headers, bodies, paths, and que
   assert.equal(listUrl.searchParams.get("status"), "completed");
   assert.equal(listUrl.searchParams.get("limit"), "10");
   assert.equal(listUrl.searchParams.get("tags"), "mcp,test");
+  assert.equal(listUrl.searchParams.get("shouldIncludeUnified"), "true");
   assert.equal(captured[2]!.url, "/batch/batch%2Fa");
 
   const resultsUrl = new URL(captured[3]!.url, upstreamBase);

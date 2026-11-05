@@ -530,16 +530,24 @@ function fetchFailureCode(cause: unknown): string | undefined {
 export async function callContextApi({
   apiBase,
   endpoint,
-  args,
+  args: inputArgs,
   credential,
   clientUserAgent,
+  limitRequested,
 }: {
   apiBase: string;
   endpoint: Endpoint;
   args: ToolArguments;
   credential: ContextCredential;
   clientUserAgent?: string;
+  limitRequested?: number;
 }): Promise<TypedCallToolResult> {
+  // list-batches hides Scrape Anything (unified-format) batches unless
+  // shouldIncludeUnified is set, so an account with only those lists nothing.
+  const args =
+    endpoint.name === "list-batches" && inputArgs.shouldIncludeUnified === undefined
+      ? { ...inputArgs, shouldIncludeUnified: true }
+      : inputArgs;
   const requiredScope = isReadOnlyRequest(endpoint, args)
     ? "api.read"
     : "api.write";
@@ -647,6 +655,14 @@ export async function callContextApi({
     const value = isCompact
       ? compactWebResponse(endpoint.name, minimized)
       : minimized;
+    // The note is sized with the page so a shrunk page still fits with it.
+    if (limitRequested !== undefined) {
+      value._context_mcp = {
+        limit_requested: limitRequested,
+        limit_applied: args.limit,
+        message: `Page size reduced from ${limitRequested} to ${args.limit} so the page stays under the MCP client response limit. Continue with the returned cursor for the rest.`,
+      };
+    }
     const responseLimit = maxResponseChars();
     const responseChars = JSON.stringify(value).length;
     const isOversizedPage =
@@ -665,21 +681,22 @@ export async function callContextApi({
       endpoint.name === "get-batch-results" &&
       isOversizedPage && recordCount > 1;
     if (shouldReduceBatchPage) {
-      const requestedLimit = Number(args.limit ?? recordCount);
-      if (requestedLimit <= 1) {
+      const currentLimit = Number(args.limit ?? recordCount);
+      if (currentLimit <= 1) {
         return contextApiError(
           endpoint.name,
           "The batch API ignored the requested page size, so this response cannot be paginated safely. Retry the request.",
         );
       }
       const estimatedLimit = Math.floor(recordCount * responseLimit / responseChars);
-      const nextLimit = Math.max(1, Math.min(requestedLimit - 1, estimatedLimit));
+      const nextLimit = Math.max(1, Math.min(currentLimit - 1, estimatedLimit));
       return callContextApi({
         apiBase,
         endpoint,
         args: { ...args, limit: nextLimit },
         credential,
         clientUserAgent,
+        limitRequested: limitRequested ?? currentLimit,
       });
     }
     return contextObject(endpoint, value, isCompact);

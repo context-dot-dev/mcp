@@ -904,3 +904,74 @@ test("feedback failures stop recursive reporting for HTTP and network errors", a
     globalThis.fetch = originalFetch;
   }
 });
+
+test("list-batches includes unified batches by default and honours an explicit choice", async () => {
+  const listBatches = selectEndpoints(ENDPOINTS).find((tool) => tool.name === "list-batches");
+  assert.ok(listBatches);
+
+  captured.length = 0;
+  await callContextApi({
+    apiBase,
+    endpoint: listBatches,
+    args: {},
+    credential: { apiKey: "ctxt_secret_test" },
+  });
+  assert.equal(captured.length, 1);
+  const defaulted = new URL(captured[0]!.url, apiBase);
+  assert.equal(defaulted.searchParams.get("shouldIncludeUnified"), "true");
+
+  captured.length = 0;
+  await callContextApi({
+    apiBase,
+    endpoint: listBatches,
+    args: { shouldIncludeUnified: false },
+    credential: { apiKey: "ctxt_secret_test" },
+  });
+  const explicit = new URL(captured[0]!.url, apiBase);
+  assert.equal(explicit.searchParams.get("shouldIncludeUnified"), "false");
+});
+
+test("get-batch-results reports the reduced page size when a page is shrunk", async () => {
+  const getBatchResults = selectEndpoints(ENDPOINTS).find((tool) => tool.name === "get-batch-results");
+  assert.ok(getBatchResults);
+
+  const originalLimit = process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+  process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = "5000";
+  const originalFetch = globalThis.fetch;
+  const requestedLimits: number[] = [];
+  globalThis.fetch = async (input: Parameters<typeof fetch>[0]) => {
+    const url = new URL(typeof input === "string" ? input : input.toString());
+    const limit = Number(url.searchParams.get("limit") ?? "100");
+    requestedLimits.push(limit);
+    const data = Array.from({ length: limit }, (_, index) => ({
+      url: `https://example.test/${index}`,
+      content: "y".repeat(400),
+    }));
+    return new Response(
+      JSON.stringify({ data, has_more: true, next_cursor: "cursor_next" }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: getBatchResults,
+      args: { batch_id: "batch_test", limit: 100 },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const structured = result.structuredContent as Record<string, unknown>;
+    const mcp = structured._context_mcp as Record<string, unknown>;
+    assert.equal(mcp.limit_requested, 100);
+    assert.ok((mcp.limit_applied as number) < 100);
+    assert.equal((structured.data as unknown[]).length, mcp.limit_applied);
+    assert.ok(requestedLimits[0] === 100 && requestedLimits.length > 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalLimit === undefined) {
+      delete process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+    } else {
+      process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = originalLimit;
+    }
+  }
+});
