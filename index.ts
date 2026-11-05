@@ -1323,6 +1323,9 @@ function createNewsSearchSchema(endpoint: Endpoint): z.ZodTypeAny {
   );
 }
 
+const CHANGE_LIST_RESPONSE_MODE_DESCRIPTION =
+  "Use compact to omit diff, before_text_excerpt, after_text_excerpt, evidence, added_urls, removed_urls, and matched_urls from each change (counts remain), so a page holds more changes; call get-change for one full record. Omit or use full for complete records, up to the server response limit.";
+
 const RESPONSE_MODE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "web-search":
     "Prefer compact for research: one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 1,200 characters per field for each result. Clipping is marked. Omit or use full for the complete response, up to the server response limit. For query-relevant excerpts, enable highlightsOptions instead of reading clipped page text.",
@@ -1330,6 +1333,8 @@ const RESPONSE_MODE_DESCRIPTIONS: Readonly<Record<string, string>> = {
     "The responseMode=\"compact\" setting returns one JSON text response without unused formats or verbose page metadata, with HTML, Markdown, and highlights clipped to 4,000 characters per format. Clipping is marked; JSON, parsed data, product data, and images are kept. The responseMode=\"full\" setting returns the complete response, up to the server response limit. For query-relevant excerpts, request formats.highlights with highlightsParams.query instead of reading clipped page text.",
   "web-crawl":
     "Prefer compact for research: one JSON text response without verbose page metadata, with each page's Markdown and HTML clipped to 4,000 characters. Clipping is marked. Omit or use full for the complete response, up to the server response limit.",
+  "list-monitor-changes": CHANGE_LIST_RESPONSE_MODE_DESCRIPTION,
+  "list-changes": CHANGE_LIST_RESPONSE_MODE_DESCRIPTION,
 };
 
 function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
@@ -1409,6 +1414,14 @@ function createEndpointSchema(endpoint: Endpoint): z.ZodTypeAny {
       .enum(["full", "compact"])
       .optional()
       .describe(responseModeDescription);
+  }
+  if (endpoint.name === "get-batch") {
+    shape.filesOffset = z.number().int().min(0).optional().describe(
+      "Index of the first results.files entry to return. Defaults to 0. Pass files_next_offset from the previous response to continue.",
+    );
+    shape.filesLimit = z.number().int().min(1).max(1_000).optional().describe(
+      "Maximum results.files entries to return. Defaults to 100. Fewer are returned when they would exceed the server response limit; files_next_offset then says where to continue.",
+    );
   }
   return z.object(shape);
 }

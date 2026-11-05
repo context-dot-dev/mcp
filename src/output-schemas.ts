@@ -64,7 +64,7 @@ export const OUTPUT_SCHEMAS: Readonly<Record<string, JsonSchema>> = {
   "get-batch": output({
     ...batchFields(),
     failure: nullable("Why the batch failed; null unless status is `failed`."),
-    results: nullable("Download links (files, expires_at); null until the batch finishes."),
+    results: nullable("Download links: one page of files (url, items, bytes) with expires_at, files_total, files_offset, and files_next_offset (null on the last page); null until the batch finishes."),
   }),
   "get-batch-results": output({
     data: list("Result records for successful and failed pages."),

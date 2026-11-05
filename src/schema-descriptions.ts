@@ -77,6 +77,8 @@ export const MCP_DESCRIPTION_REPLACEMENTS: Readonly<Record<string, string>> = {
     "Filter by change detection type: `exact` compares visible text or sitemap URLs, and `semantic` judges changes against the target instructions.",
   "Unique key to prevent duplicate retry requests.":
     "Unique key for this retry request. Repeating the call with the same key, delivery, and `force` returns the original result without queuing another attempt; without a key, a repeated call can queue another attempt.",
+  "Records per page. Defaults to 25. A page can close early so its payload stays under ~8 MB; rely on next_cursor rather than counting records.":
+    "Records per page. Defaults to 25. A page closes early so the response fits the MCP server response limit, so rely on next_cursor rather than counting records.",
   "Kind of issue.":
     "Issue type: `bug` (wrong behavior or an unexpected error), `docs_mismatch` (behavior differs from the documentation), `friction` (works but is hard to use), `feature_gap` (a needed capability is missing), `quality_degradation` (lower-quality or incomplete results), or `other`.",
 };

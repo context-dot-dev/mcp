@@ -11,6 +11,32 @@ import { compactWebResponse } from "./compact-response";
 
 type ToolArguments = Record<string, unknown>;
 const DEFAULT_MAX_RESPONSE_CHARS = 80_000;
+const RESPONSE_OVERHEAD_CHARS = 500;
+const DEFAULT_BATCH_FILES_LIMIT = 100;
+// Their next_cursor names the last record sent (an offset or key), so a smaller
+// page continues from it. list-monitors and list-batches cursors are page
+// numbers that assume the original limit, so a smaller page would skip records.
+const SHRINKABLE_PAGE_ENDPOINTS = new Set([
+  "get-news-search",
+  "get-batch-results",
+  "list-monitor-changes",
+  "list-changes",
+  "list-monitor-runs",
+  "list-account-runs",
+  "list-webhook-delivery-attempts",
+  "list-access-policies",
+  "list-browser-profiles",
+]);
+const CHANGE_LIST_ENDPOINTS = new Set(["list-monitor-changes", "list-changes"]);
+const CHANGE_DETAIL_FIELDS = new Set([
+  "diff",
+  "before_text_excerpt",
+  "after_text_excerpt",
+  "evidence",
+  "added_urls",
+  "removed_urls",
+  "matched_urls",
+]);
 const OMITTED_RESPONSE_FIELDS = new Set([
   "key_metadata",
   "trace_id",
@@ -268,7 +294,11 @@ function truncateJsonValue(
     for (const entry of value) {
       const truncatedEntry = truncateJsonValue(entry, budget);
       if (truncatedEntry === undefined) break;
+      // A cut record looks complete to callers; only a lone record is worth cutting.
+      const isCutEntry = budget.truncated;
+      if (isCutEntry && result.length > 0) break;
       result.push(truncatedEntry);
+      if (isCutEntry) break;
     }
     if (result.length < value.length) budget.truncated = true;
     return result;
@@ -301,6 +331,7 @@ function truncateJsonValue(
 }
 
 function boundedObject(
+  endpointName: string,
   value: Record<string, unknown>,
   originalChars: number,
   isCompact = false,
@@ -311,8 +342,14 @@ function boundedObject(
   if (limit === 0 || originalChars <= limit) {
     return render(value);
   }
-  const budget = { remaining: Math.max(1_000, limit - 500), truncated: false };
+  const isCrawl = endpointName === "web-crawl";
+  const reservedChars = isCrawl ? urlListChars(value.results) : 0;
+  const budget = {
+    remaining: Math.max(1_000, limit - RESPONSE_OVERHEAD_CHARS - reservedChars),
+    truncated: false,
+  };
   const truncated = truncateJsonValue(value, budget) as Record<string, unknown>;
+  const omittedUrls = isCrawl ? omittedPageUrls(value.results, truncated.results) : [];
   return render({
     ...truncated,
     _context_mcp: {
@@ -320,8 +357,89 @@ function boundedObject(
       original_chars: originalChars,
       message:
         "Response was shortened for MCP client limits. Narrow the request or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
+      ...(omittedUrls.length > 0 && {
+        omitted_urls: omittedUrls,
+        omitted_message: "These crawled pages did not fit; scrape them individually with web-scrape.",
+      }),
     },
   });
+}
+
+// Crawl pages are dropped whole, so the budget keeps room to name every dropped page.
+function urlListChars(results: unknown): number {
+  if (!Array.isArray(results)) return 0;
+  return results.reduce<number>(
+    (chars, page) => chars + pageUrl(page).length + 4,
+    0,
+  );
+}
+
+function omittedPageUrls(results: unknown, kept: unknown): string[] {
+  if (!Array.isArray(results) || !Array.isArray(kept)) return [];
+  return results.slice(kept.length).map(pageUrl).filter((url) => url !== "");
+}
+
+function pageUrl(page: unknown): string {
+  const url =
+    page && typeof page === "object"
+      ? (page as Record<string, unknown>).url
+      : undefined;
+  return typeof url === "string" ? url : "";
+}
+
+// Signed result URLs are 600 characters each, so a long manifest is served in
+// pages of whole entries; an entry is never cut.
+function pageBatchFiles(
+  value: Record<string, unknown>,
+  args: ToolArguments,
+  limit: number,
+): Record<string, unknown> {
+  const results = value.results;
+  if (!results || typeof results !== "object") return value;
+  const files = (results as Record<string, unknown>).files;
+  if (!Array.isArray(files)) return value;
+  const offset = Math.max(0, Math.floor(Number(args.filesOffset ?? 0)));
+  const requested = Math.max(
+    1,
+    Math.floor(Number(args.filesLimit ?? DEFAULT_BATCH_FILES_LIMIT)),
+  );
+  const withFiles = (page: unknown[], nextOffset: number | null) => ({
+    ...value,
+    results: {
+      ...results,
+      files: page,
+      files_total: files.length,
+      files_offset: offset,
+      files_next_offset: nextOffset,
+    },
+  });
+  let remaining =
+    limit > 0
+      ? limit - RESPONSE_OVERHEAD_CHARS - JSON.stringify(withFiles([], offset)).length
+      : Number.POSITIVE_INFINITY;
+  const page: unknown[] = [];
+  for (const file of files.slice(offset, offset + requested)) {
+    const chars = JSON.stringify(file).length + 1;
+    if (chars > remaining && page.length > 0) break;
+    page.push(file);
+    remaining -= chars;
+  }
+  const nextOffset = offset + page.length;
+  return withFiles(page, nextOffset < files.length ? nextOffset : null);
+}
+
+function compactChangeList(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!Array.isArray(value.data)) return value;
+  const data = value.data.map((change) =>
+    change && typeof change === "object"
+      ? Object.fromEntries(
+          Object.entries(change).filter(([name]) => !CHANGE_DETAIL_FIELDS.has(name)),
+        )
+      : change,
+  );
+  return { ...value, data };
 }
 
 function compactObject(data: Record<string, unknown>): TypedCallToolResult {
@@ -339,7 +457,7 @@ function contextObject(
 ) {
   const screenshot = getScreenshot(value);
   if (endpoint.name !== "web-scrape" || !screenshot) {
-    return boundedObject(value, JSON.stringify(value).length, isCompact);
+    return boundedObject(endpoint.name, value, JSON.stringify(value).length, isCompact);
   }
 
   const withoutInlineScreenshot = {
@@ -351,6 +469,7 @@ function contextObject(
     },
   };
   const result = boundedObject(
+    endpoint.name,
     withoutInlineScreenshot,
     JSON.stringify(withoutInlineScreenshot).length,
     isCompact,
@@ -533,12 +652,14 @@ export async function callContextApi({
   args,
   credential,
   clientUserAgent,
+  pageShrinkAttempt = 0,
 }: {
   apiBase: string;
   endpoint: Endpoint;
   args: ToolArguments;
   credential: ContextCredential;
   clientUserAgent?: string;
+  pageShrinkAttempt?: number;
 }): Promise<TypedCallToolResult> {
   const requiredScope = isReadOnlyRequest(endpoint, args)
     ? "api.read"
@@ -644,16 +765,21 @@ export async function callContextApi({
       (endpoint.name === "web-search" ||
         endpoint.name === "web-scrape" ||
         endpoint.name === "web-crawl");
+    const shouldCompactChanges =
+      args.responseMode === "compact" && CHANGE_LIST_ENDPOINTS.has(endpoint.name);
+    const responseLimit = maxResponseChars();
     const value = isCompact
       ? compactWebResponse(endpoint.name, minimized)
-      : minimized;
-    const responseLimit = maxResponseChars();
+      : shouldCompactChanges
+        ? compactChangeList(minimized)
+        : endpoint.name === "get-batch"
+          ? pageBatchFiles(minimized, args, responseLimit)
+          : minimized;
     const responseChars = JSON.stringify(value).length;
     const isOversizedPage =
       responseLimit > 0 && responseChars > responseLimit &&
       "next_cursor" in value;
-    // Other list cursors can encode page numbers, so changing their limit can skip records.
-    if (isOversizedPage && endpoint.name !== "get-batch-results") {
+    if (isOversizedPage && !SHRINKABLE_PAGE_ENDPOINTS.has(endpoint.name)) {
       return contextApiError(
         endpoint.name,
         "This page exceeds MCP client limits. Restart pagination with a smaller limit, or set CONTEXT_MCP_MAX_RESPONSE_CHARS=0 on a private deployment.",
@@ -661,25 +787,29 @@ export async function callContextApi({
       );
     }
     const recordCount = Array.isArray(value.data) ? value.data.length : 0;
-    const shouldReduceBatchPage =
-      endpoint.name === "get-batch-results" &&
-      isOversizedPage && recordCount > 1;
-    if (shouldReduceBatchPage) {
+    if (isOversizedPage && recordCount > 1) {
       const requestedLimit = Number(args.limit ?? recordCount);
       if (requestedLimit <= 1) {
         return contextApiError(
           endpoint.name,
-          "The batch API ignored the requested page size, so this response cannot be paginated safely. Retry the request.",
+          "The API ignored the requested page size, so this response cannot be paginated safely. Retry the request.",
         );
       }
+      // The first retry trusts the average record size; later ones halve so attempts stay logarithmic.
       const estimatedLimit = Math.floor(recordCount * responseLimit / responseChars);
-      const nextLimit = Math.max(1, Math.min(requestedLimit - 1, estimatedLimit));
+      const halvedLimit =
+        pageShrinkAttempt > 0 ? Math.floor(requestedLimit / 2) : estimatedLimit;
+      const nextLimit = Math.max(
+        1,
+        Math.min(requestedLimit - 1, estimatedLimit, halvedLimit),
+      );
       return callContextApi({
         apiBase,
         endpoint,
         args: { ...args, limit: nextLimit },
         credential,
         clientUserAgent,
+        pageShrinkAttempt: pageShrinkAttempt + 1,
       });
     }
     return contextObject(endpoint, value, isCompact);

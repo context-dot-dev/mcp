@@ -107,7 +107,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "web-crawl": {
     title: "Crawl a website",
     description:
-      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Prefer responseMode=\"compact\" for focused research; use full for complete page content or metadata. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
+      "Start from a URL, follow relevant internal links, and return clean Markdown for multiple pages in one synchronous request. Prefer responseMode=\"compact\" for focused research; use full for complete page content or metadata. Pages that do not fit the server response limit are listed in _context_mcp.omitted_urls for web-scrape. Use web-map for URLs only or submit-batch for large jobs that should run asynchronously.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -414,7 +414,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "list-monitor-changes": {
     title: "List changes for a monitor",
     description:
-      "List changes detected by one monitor, with time and tag filters. Use this for a monitor-specific change history, then call get-change when full diffs, evidence, confidence, and importance are needed.",
+      "List changes detected by one monitor, with time and tag filters. Use this for a monitor-specific change history; pass responseMode=\"compact\" to omit diffs, excerpts, evidence, and URL lists, then call get-change when full diffs, evidence, confidence, and importance are needed.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -513,7 +513,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "list-changes": {
     title: "List all detected changes",
     description:
-      "List detected changes across all monitors in the authenticated account, with monitor, type, time, and tag filters. Each change has its ID, monitor and run IDs, target and detection types, title, summary, URL, detection time, importance, confidence, and the diff, evidence, added or removed URLs, or newly matched search results when available. Use this for an account-wide change feed; use list-monitor-changes for one monitor.",
+      "List detected changes across all monitors in the authenticated account, with monitor, type, time, and tag filters. Each change has its ID, monitor and run IDs, target and detection types, title, summary, URL, detection time, importance, confidence, and the diff, evidence, added or removed URLs, or newly matched search results when available. Pass responseMode=\"compact\" to omit the diff, excerpts, evidence, and URL lists and call get-change for one full record. Use this for an account-wide change feed; use list-monitor-changes for one monitor.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -568,7 +568,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-batch": {
     title: "Get batch status",
     description:
-      "Retrieve one batch's status, progress, timing, credit accounting, errors, and download links when complete. Poll this after submit-batch; use get-batch-results only after the batch has completed.",
+      "Retrieve one batch's status, progress, timing, credit accounting, errors, and download links when complete. Download links are paged: results.files holds up to filesLimit entries (default 100) starting at filesOffset, with files_total and files_next_offset; pass files_next_offset as filesOffset for the next page. Poll this after submit-batch; use get-batch-results only after the batch has completed.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -579,7 +579,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-batch-results": {
     title: "Get batch results",
     description:
-      "Page through the successful and failed URL results of a completed batch as JSON. Use the returned cursor to continue when more results exist. For progress before completion, use get-batch instead.",
+      "Page through the successful and failed URL results of a completed batch as JSON. Pages close early to fit the server response limit, so use the returned cursor to continue when more results exist rather than counting records. For bulk retrieval, download the result files listed by get-batch instead. For progress before completion, use get-batch instead.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
