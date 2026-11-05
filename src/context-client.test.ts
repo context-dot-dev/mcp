@@ -383,6 +383,32 @@ test("omits an oversized base64 value in compact scrape responses", async () => 
   assert.ok(!textBlock.text.includes("[truncated by Context MCP]"));
 });
 
+test("keeps later array entries when one token does not fit", async () => {
+  const result = await withBoundedResponse(
+    {
+      images: [
+        "https://example.test/a.png",
+        `data:image/png;base64,${"iVBO".repeat(1_000)}`,
+        "https://example.test/c.png",
+      ],
+      status: "complete",
+    },
+    { path: "/web/scrape" },
+  );
+  const structured = result.structuredContent as Record<string, unknown>;
+  assert.deepEqual(structured.images, [
+    "https://example.test/a.png",
+    null,
+    "https://example.test/c.png",
+  ]);
+  assert.equal(structured.status, "complete");
+  assert.equal(
+    (structured._context_mcp as Record<string, unknown>).truncated,
+    true,
+  );
+  assert.ok(!JSON.stringify(result).includes("[truncated by Context MCP]"));
+});
+
 test("omits an oversized data URL whole and keeps its siblings", async () => {
   const result = await withBoundedResponse(
     {

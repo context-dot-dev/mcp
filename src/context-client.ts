@@ -249,10 +249,6 @@ function truncateJsonValue(
       budget.remaining -= value.length;
       return value;
     }
-    if (isSingleToken(value)) {
-      budget.truncated = true;
-      return undefined;
-    }
     const marker = "\n\n[truncated by Context MCP]";
     const available = Math.max(0, budget.remaining - marker.length);
     budget.remaining = 0;
@@ -270,6 +266,12 @@ function truncateJsonValue(
   if (Array.isArray(value)) {
     const result: unknown[] = [];
     for (const entry of value) {
+      if (isOversizedToken(entry, budget)) {
+        result.push(null);
+        budget.remaining -= "null".length;
+        budget.truncated = true;
+        continue;
+      }
       const truncatedEntry = truncateJsonValue(entry, budget);
       if (truncatedEntry === undefined) break;
       result.push(truncatedEntry);
@@ -292,11 +294,7 @@ function truncateJsonValue(
     });
     for (const [name, entry] of entries) {
       budget.remaining -= name.length + 4;
-      const isOversizedToken =
-        typeof entry === "string" &&
-        entry.length > budget.remaining &&
-        isSingleToken(entry);
-      if (isOversizedToken) {
+      if (isOversizedToken(entry, budget)) {
         const reason = `exceeds MCP response budget (${entry.length} characters); request a byte Range, a smaller file, or use the REST API`;
         result[name] = null;
         result.omitted_reason = reason;
@@ -318,8 +316,15 @@ function truncateJsonValue(
 
 // A string without whitespace is one token (base64, data URL, signed URL,
 // ID), and a cut token cannot be decoded or followed, so it is omitted whole.
-function isSingleToken(value: string): boolean {
-  return !/\s/.test(value);
+function isOversizedToken(
+  value: unknown,
+  budget: { remaining: number },
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > budget.remaining &&
+    !/\s/.test(value)
+  );
 }
 
 function boundedObject(
