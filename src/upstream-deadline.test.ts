@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test, { type TestContext } from "node:test";
 import type { Endpoint } from "../context-endpoints";
 import { callContextApi, requestDeadlineMs } from "./context-client";
+import { rememberConcurrencyLimit } from "./api-key-concurrency";
 
 const apiBase = "https://api.context.test/v1";
 const endpoint: Endpoint = {
@@ -40,11 +42,14 @@ function installHangingFetch(t: TestContext): { timeoutMs: number[] } {
     );
     return controller.signal;
   };
-  globalThis.fetch = (_url, init) =>
-    new Promise((_resolve, reject) => {
-      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
-    });
+  globalThis.fetch = (_url, init) => hangUntilAborted(init);
   return seen;
+}
+
+function hangUntilAborted(init: RequestInit | undefined): Promise<Response> {
+  return new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+  });
 }
 
 test("the upstream deadline follows timeoutOpts.milliseconds plus the overhead, capped at 100 seconds", () => {
@@ -116,4 +121,40 @@ test("a success whose body lacks request_id carries the X-Request-Id header", as
   });
   assert.equal(result.isError, undefined);
   assert.equal((result.structuredContent as { request_id?: string }).request_id, "req_header_ok");
+});
+
+test("a queued call on a concurrency-limited key gives up at its own deadline instead of the 60-second queue limit", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const keyId = "ctxt_secret_limited";
+  rememberConcurrencyLimit(
+    createHash("sha256").update(`Bearer ${keyId}`).digest("hex"),
+    new Headers({ "X-RateLimit-Mode": "concurrency", "X-RateLimit-Limit": "1" }),
+  );
+  let finishHolding!: (response: Response) => void;
+  const holdingResponse = new Promise<Response>((resolve) => { finishHolding = resolve; });
+  let calls = 0;
+  globalThis.fetch = (_url, init) => {
+    calls += 1;
+    return calls === 1 ? holdingResponse : hangUntilAborted(init);
+  };
+  const credential = { apiKey: keyId };
+  const holdingSlot = callContextApi({ apiBase, endpoint, args: { url: "https://example.com" }, credential });
+  const queued = callContextApi({
+    apiBase,
+    endpoint,
+    args: { url: "https://example.com", timeoutOpts: { milliseconds: 1_000 } },
+    credential,
+  });
+  t.mock.timers.tick(11_000);
+  const result = await queued;
+  assert.equal(result.isError, true);
+  assert.match(
+    resultText(result),
+    /^Waited 11 seconds for one of this account's concurrent request slots, which used up its 11-second deadline/,
+  );
+  assert.match(resultText(result), /account limit working as intended/);
+  finishHolding(new Response("{}"));
+  await holdingSlot;
 });
