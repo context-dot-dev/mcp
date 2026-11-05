@@ -57,6 +57,8 @@ export const MCP_DESCRIPTION_REPLACEMENTS: Readonly<Record<string, string>> = {
     "Labels for filtering usage in the dashboard.",
   "Tags to filter by (matches batches having any of them). Pass repeated `tags` params or one comma-separated list, e.g. `tags=docs,competitor`.":
     "Tags to filter by; matches batches with any of them. Pass an array or one comma-separated string.",
+  "Include batches submitted with Scrape Anything formats. Defaults to false.":
+    "Include batches submitted with Scrape Anything (unified) formats. Defaults to true; set false to list only legacy Markdown and HTML batches.",
   "Comma-separated list of tags to filter by (matches monitors having any of them).":
     "Tags to filter by; matches monitors with any of them.",
   "Maximum number of items to return per page (1-100). Defaults to 25.":
