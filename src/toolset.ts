@@ -283,7 +283,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-log": {
     title: "Get an API request log",
     description:
-      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
+      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response. An entry becomes retrievable a few seconds after its request completes, so NOT_FOUND for a request that just finished means ingestion has not caught up yet; retry after a few seconds.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,

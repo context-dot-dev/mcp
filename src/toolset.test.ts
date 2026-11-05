@@ -168,6 +168,10 @@ test("tool descriptions route agents between overlapping workflows", () => {
     /errors_only.*request_id.*get-log/i,
   );
   assert.match(
+    tools.get("get-log")?.description ?? "",
+    /few seconds.*NOT_FOUND.*retry/i,
+  );
+  assert.match(
     tools.get("get-usage")?.description ?? "",
     /refill.*get-usage-history/i,
   );
