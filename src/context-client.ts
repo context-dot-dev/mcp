@@ -268,7 +268,11 @@ function truncateJsonValue(
     const result: unknown[] = [];
     const available = budget.remaining;
     for (const entry of value) {
-      if (budget.remaining > 0 && isOversizedToken(entry, available)) {
+      const isUndeliverable =
+        budget.remaining > 0 &&
+        typeof entry === "string" &&
+        isOversizedToken(entry, available);
+      if (isUndeliverable) {
         result.push(null);
         budget.remaining -= "null".length;
         budget.truncated = true;
@@ -296,7 +300,7 @@ function truncateJsonValue(
     });
     for (const [name, entry] of entries) {
       budget.remaining -= name.length + 4;
-      if (isOversizedToken(entry, budget.remaining)) {
+      if (typeof entry === "string" && isOversizedToken(entry, budget.remaining)) {
         const reason = `exceeds MCP response budget (${entry.length} characters); request a byte Range, a smaller file, or use the REST API`;
         result[name] = null;
         result.omitted_reason = reason;
@@ -318,13 +322,8 @@ function truncateJsonValue(
 
 // A string without whitespace is one token (base64, data URL, signed URL,
 // ID), and a cut token cannot be decoded or followed, so it is omitted whole.
-function isOversizedToken(value: unknown, available: number): value is string {
-  return (
-    typeof value === "string" &&
-    available > 0 &&
-    value.length > available &&
-    !/\s/.test(value)
-  );
+function isOversizedToken(value: string, available: number): boolean {
+  return available > 0 && value.length > available && !/\s/.test(value);
 }
 
 function boundedObject(
