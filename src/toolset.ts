@@ -283,7 +283,7 @@ const TOOL_OVERRIDES: Record<string, ToolOverride> = {
   "get-log": {
     title: "Get an API request log",
     description:
-      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Zero-data-retention requests contain metadata but no retained input or response.",
+      "Retrieve one API request from the authenticated Context account by the request_id in a list-logs data entry, including its redacted retained input, response, timing, credits, status, and user agent. Web-search entries retain the query and the ranked results (url, title, date, relevance) without page content, so a search whose response was lost to a client timeout can be recovered here. Zero-data-retention requests contain metadata but no retained input or response.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
