@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:http";
+import { connect } from "node:net";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -876,6 +877,28 @@ test("does not allocate sessions for stream-capable clients", async () => {
     const payload = await response.json();
     assert.equal(payload.result.serverInfo.name, "context");
   }
+});
+
+test("answers a request on a connection idle for longer than Node's default keep-alive", async () => {
+  const { hostname, port } = new URL(mcpBase);
+  const socket = connect({ host: hostname, port: Number(port) });
+  const request =
+    "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n";
+  const nextResponse = () =>
+    new Promise<string>((resolve, reject) => {
+      socket.once("data", (chunk: Buffer) => resolve(chunk.toString()));
+      socket.once("error", reject);
+      setTimeout(() => reject(new Error("no response within 3 s")), 3_000);
+    });
+  await new Promise<void>((resolve) => socket.once("connect", resolve));
+  socket.write(request);
+  assert.match(await nextResponse(), /^HTTP\/1\.1 200/);
+  // Node's default closes the socket after 5 s of idle time (checked every second).
+  await new Promise((resolve) => setTimeout(resolve, 7_000));
+  assert.equal(socket.destroyed, false, "server closed the idle connection");
+  socket.write(request);
+  assert.match(await nextResponse(), /^HTTP\/1\.1 200/);
+  socket.destroy();
 });
 
 test("compresses MCP responses for clients that accept gzip", async () => {

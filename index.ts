@@ -8,6 +8,7 @@ import {
   type EnhancedToolContext,
 } from "mcp-use/server";
 import type { HonoRequest } from "hono";
+import type { Server as HttpServer } from "node:http";
 import { Agent, setGlobalDispatcher } from "undici";
 import { compress } from "hono/compress";
 import { z } from "zod";
@@ -264,6 +265,21 @@ const server = new MCPServer({
   publicLandingPage: true,
   stateless: true,
   ...(oauthProvider ? { oauth: oauthProvider } : {}),
+});
+
+// Node closes idle keep-alive connections after 5 s. The hosting proxy pools
+// its connections to this server for longer (60 s to 600 s), so a call could
+// be written to a socket the server had just closed and never be answered.
+// mcp-use never exposes the HTTP server; the first request's socket does.
+const KEEP_ALIVE_TIMEOUT_MS = 620_000;
+server.app.use("*", async (context, next) => {
+  const httpServer = (
+    context.env as { incoming?: { socket?: { server?: HttpServer } } } | undefined
+  )?.incoming?.socket?.server;
+  if (httpServer && httpServer.keepAliveTimeout < KEEP_ALIVE_TIMEOUT_MS) {
+    httpServer.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS;
+  }
+  await next();
 });
 
 server.app.get("/health", (c) => c.json({ status: "ok" }));
