@@ -279,34 +279,26 @@ test("preserves read-only scraping and requires write scope for browser instruct
   assert.deepEqual(JSON.parse(captured[2]!.body.toString()), interactive);
 });
 
-test("bounds oversized tool responses while preserving structured data", async () => {
+async function withBoundedResponse(
+  payload: Record<string, unknown>,
+  endpointOverrides: Partial<Endpoint>,
+  args: Record<string, unknown> = {},
+) {
   const originalLimit = process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
   process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = "2000";
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
-    new Response(
-      JSON.stringify({
-        ok: true,
-        markdown: "x".repeat(10_000),
-        status: "complete",
-      }),
-      { status: 200, headers: { "content-type": "application/json" } }
-    );
-
+    new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   try {
-    const result = await callContextApi({
+    return await callContextApi({
       apiBase: "https://api.context.test/v1",
-      endpoint: endpoint({ path: "/web/scrape/markdown" }),
-      args: {},
+      endpoint: endpoint(endpointOverrides),
+      args,
       credential: { apiKey: "ctxt_secret_test" },
     });
-    const structured = result.structuredContent as Record<string, unknown>;
-    assert.equal(
-      (structured._context_mcp as Record<string, unknown>).truncated,
-      true
-    );
-    assert.equal(structured.status, "complete");
-    assert.ok(JSON.stringify(result).length < 6_000);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalLimit === undefined) {
@@ -315,6 +307,97 @@ test("bounds oversized tool responses while preserving structured data", async (
       process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = originalLimit;
     }
   }
+}
+
+test("bounds oversized tool responses while preserving structured data", async () => {
+  const result = await withBoundedResponse(
+    { ok: true, markdown: "word ".repeat(2_000), status: "complete" },
+    { path: "/web/scrape/markdown" },
+  );
+  const structured = result.structuredContent as Record<string, unknown>;
+  assert.equal(
+    (structured._context_mcp as Record<string, unknown>).truncated,
+    true
+  );
+  assert.equal(structured.status, "complete");
+  const markdown = String(structured.markdown);
+  assert.ok(markdown.startsWith("word word "));
+  assert.ok(markdown.endsWith("\n\n[truncated by Context MCP]"));
+  assert.ok(JSON.stringify(result).length < 6_000);
+});
+
+test("omits an oversized base64 value whole instead of cutting it", async () => {
+  const result = await withBoundedResponse(
+    {
+      markdown: "A short page.",
+      bytes: {
+        requested: true,
+        success: true,
+        data: { contentType: "application/pdf", base64: "JVBE".repeat(2_500) },
+      },
+      request_id: "req_bytes",
+    },
+    { name: "web-scrape", path: "/web/scrape" },
+    { url: "https://example.test/file.pdf", formats: { bytes: true } },
+  );
+  const structured = result.structuredContent as Record<string, unknown>;
+  const bytes = structured.bytes as Record<string, unknown>;
+  assert.deepEqual(bytes, {
+    requested: true,
+    success: true,
+    data: {
+      contentType: "application/pdf",
+      base64: null,
+      omitted_reason:
+        "exceeds MCP response budget (10000 characters); request a byte Range, a smaller file, or use the REST API",
+    },
+  });
+  assert.equal(structured.markdown, "A short page.");
+  assert.equal(structured.request_id, "req_bytes");
+  assert.equal(
+    (structured._context_mcp as Record<string, unknown>).truncated,
+    true,
+  );
+  assert.ok(!JSON.stringify(result).includes("[truncated by Context MCP]"));
+});
+
+test("omits an oversized base64 value in compact scrape responses", async () => {
+  const result = await withBoundedResponse(
+    {
+      bytes: {
+        requested: true,
+        success: true,
+        data: { contentType: "image/webp", base64: "UklG".repeat(2_500) },
+      },
+    },
+    { name: "web-scrape", path: "/web/scrape" },
+    { url: "https://example.test/a.webp", formats: { bytes: true }, responseMode: "compact" },
+  );
+  const textBlock = result.content.find((block) => block.type === "text");
+  assert.ok(textBlock && textBlock.type === "text");
+  const compact = JSON.parse(textBlock.text) as Record<string, unknown>;
+  const bytes = compact.bytes as Record<string, unknown>;
+  assert.equal(bytes.contentType, "image/webp");
+  assert.equal(bytes.base64, null);
+  assert.match(String(bytes.omitted_reason), /^exceeds MCP response budget \(10000 characters\)/);
+  assert.ok(!textBlock.text.includes("[truncated by Context MCP]"));
+});
+
+test("omits an oversized data URL whole and keeps its siblings", async () => {
+  const result = await withBoundedResponse(
+    {
+      name: "Acme",
+      logo: `data:image/svg+xml;base64,${"PHN2".repeat(1_000)}`,
+      colors: ["#112233"],
+    },
+    { path: "/brand/retrieve" },
+  );
+  const structured = result.structuredContent as Record<string, unknown>;
+  assert.equal(structured.name, "Acme");
+  assert.deepEqual(structured.colors, ["#112233"]);
+  assert.equal(structured.logo, null);
+  assert.match(String(structured.omitted_reason), /^exceeds MCP response budget \(4026 characters\)/);
+  assert.ok(!JSON.stringify(result).includes("[truncated by Context MCP]"));
 });
 
 test("returns unified screenshots as MCP image content", async () => {
