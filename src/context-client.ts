@@ -316,6 +316,7 @@ function boundedObject(
   return render({
     ...truncated,
     _context_mcp: {
+      ...(typeof value._context_mcp === "object" ? value._context_mcp : {}),
       truncated: true,
       original_chars: originalChars,
       message:
