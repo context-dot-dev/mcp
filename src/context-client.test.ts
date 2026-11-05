@@ -317,6 +317,55 @@ test("bounds oversized tool responses while preserving structured data", async (
   }
 });
 
+test("keeps every requested scrape format when the response is shortened", async () => {
+  const originalLimit = process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+  process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = "4000";
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        url: "https://example.test/page",
+        markdown: { requested: true, success: true, data: "markdown body. ".repeat(2_000) },
+        html: { requested: true, success: true, data: "<p>html body.</p>".repeat(2_000) },
+        json: { requested: true, success: false, error: { code: "EXTRACTION_FAILED", message: "No schema matched." }, data: null },
+        parsed: { requested: false, success: null, data: null, type: "custom" },
+        request_id: "req_formats",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  try {
+    const result = await callContextApi({
+      apiBase: "https://api.context.test/v1",
+      endpoint: endpoint({ name: "web-scrape", path: "/web/scrape", method: "POST" }),
+      args: { url: "https://example.test/page", formats: { markdown: true, html: true, json: true }, responseMode: "full" },
+      credential: { apiKey: "ctxt_secret_test" },
+    });
+    const structured = result.structuredContent as Record<string, Record<string, unknown>>;
+    assert.deepEqual(Object.keys(structured).sort(), ["_context_mcp", "html", "json", "markdown", "parsed", "request_id", "url"]);
+    for (const name of ["markdown", "html"]) {
+      assert.equal(structured[name]!.requested, true, name);
+      assert.equal(structured[name]!.success, true, name);
+      assert.ok(String(structured[name]!.data).endsWith("[truncated by Context MCP]"), name);
+    }
+    assert.deepEqual(structured.json, {
+      requested: true,
+      success: false,
+      error: { code: "EXTRACTION_FAILED", message: "No schema matched." },
+      data: null,
+    });
+    assert.equal(structured.request_id, "req_formats");
+    assert.deepEqual(structured._context_mcp!.truncated_fields, ["markdown.data", "html.data"]);
+    assert.ok(JSON.stringify(result).length < 10_000);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalLimit === undefined) {
+      delete process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS;
+    } else {
+      process.env.CONTEXT_MCP_MAX_RESPONSE_CHARS = originalLimit;
+    }
+  }
+});
+
 test("returns unified screenshots as MCP image content", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
