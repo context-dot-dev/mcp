@@ -409,6 +409,35 @@ test("keeps later array entries when one token does not fit", async () => {
   assert.ok(!JSON.stringify(result).includes("[truncated by Context MCP]"));
 });
 
+test("stops a long token array at the budget instead of null-filling it", async () => {
+  const urls = Array.from(
+    { length: 2_000 },
+    (_, index) => `https://example.test/page-${index}.html`,
+  );
+  const result = await withBoundedResponse(
+    { urls, status: "complete" },
+    { path: "/web/urls" },
+  );
+  const structured = result.structuredContent as Record<string, unknown>;
+  const kept = structured.urls as unknown[];
+  assert.ok(kept.length > 10 && kept.length < urls.length);
+  assert.deepEqual(kept, urls.slice(0, kept.length));
+  assert.equal(structured.status, "complete");
+  assert.ok(JSON.stringify(result).length < 6_000);
+});
+
+test("stops a long token object at the budget instead of null-filling it", async () => {
+  const fields = Object.fromEntries(
+    Array.from({ length: 300 }, (_, index) => [`f${index}`, `tok-${index}`]),
+  );
+  const result = await withBoundedResponse(fields, { path: "/brand/retrieve" });
+  const structured = result.structuredContent as Record<string, unknown>;
+  const values = Object.values(structured);
+  assert.ok(values.length > 10 && values.length < 300);
+  assert.ok(values.filter((value) => value === null).length <= 1);
+  assert.ok(JSON.stringify(result).length < 6_000);
+});
+
 test("omits an oversized data URL whole and keeps its siblings", async () => {
   const result = await withBoundedResponse(
     {
