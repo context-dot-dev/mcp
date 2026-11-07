@@ -6701,7 +6701,7 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Submit a batch",
     "method": "POST",
     "path": "/batch/submit",
-    "description": "Submit a batch — Scrape up to 100,000 URLs, or crawl a site, asynchronously using the same formats and scrape parameters as POST /web/scrape. Choose Markdown, HTML, screenshots, images, bytes, parsed fields, products, highlights, and JSON. Poll the batch ID or receive a webhook when it finishes.",
+    "description": "Submit a batch — Scrape up to 100,000 URLs, or crawl a site, asynchronously using the same formats and scrape parameters as POST /web/scrape. Choose Markdown, HTML, screenshots, images, bytes, parsed fields, products, highlights, and JSON. Submission persists the input and returns immediately with status pending. Organizations with fewer than 10 available credits and no overage are rejected with 402 up front. Each organization can submit up to 1,000 batches per minute, independently of its polling budget. Batches wait pending when execution capacity is full. Validation, sitemap discovery, the full credit quote, and shard scheduling happen afterward. Poll the batch ID or receive a webhook when it finishes. Deferred rejections appear as status failed with a failure code and message.",
     "parameters": [
       {
         "name": "Idempotency-Key",
@@ -6778,6 +6778,7 @@ export const ENDPOINTS: Endpoint[] = [
         "schema": {
           "type": "string",
           "enum": [
+            "pending",
             "queued",
             "running",
             "cancelling",
