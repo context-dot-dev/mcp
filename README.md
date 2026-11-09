@@ -1,190 +1,177 @@
-# Context MCP Server
+![Context MCP — Give your agents the internet. Live web search, scraping, and structured data through the Model Context Protocol.](docs/assets/context-mcp-hero.png)
 
-A remote MCP server that gives AI agents reliable context from the live web, company news, and files: search, scraping, crawling, structured extraction, document parsing, brand intelligence, large batches, screenshots, and change monitoring.
+# Context MCP server
 
-The server exposes 45 tools: 44 operations in [API-reference sidebar order](https://docs.context.dev/api-reference/web-scraping/scrape), with the `get-brand` visual wrapper immediately after brand retrieval. Prefetch is intentionally excluded. Webhook event payload pages describe incoming notifications and are not callable tools. Request schemas are generated from the Context OpenAPI specification.
+**Give your AI assistant live web search, web scraping, and structured data.**
 
-## Connect
+Context MCP is the official [Context.dev](https://www.context.dev) server for the **Model Context Protocol (MCP)**. Connect Claude, ChatGPT, Codex, Cursor, or another compatible AI client to search the web, read pages, research companies, parse documents, and monitor changes—all from a conversation.
 
-The MCP endpoint is:
+[Get started](#connect-in-a-minute) · [Things to try](#things-to-try) · [Documentation](https://docs.context.dev/install-mcp) · [Tool reference](docs/tools.md) · [Contribute](CONTRIBUTING.md)
 
-```text
-https://<your-domain>/mcp
+## Connect in a minute
+
+**No clone, npm install, or local server needed.**
+
+1. Add this remote MCP server to your AI client's MCP or connector settings:
+
+   ```text
+   https://mcp.context.dev/mcp
+   ```
+
+2. Sign in with your [Context.dev account](https://www.context.dev/signup) when prompted.
+3. Start a conversation and try: **“Search the web for recent developments in battery recycling. Include source links.”**
+
+Choose your client for the exact setup:
+
+<details>
+<summary><strong>Claude and ChatGPT</strong></summary>
+
+Use the official [Claude connector](https://docs.context.dev/integrations/claude-connector) or [ChatGPT integration](https://docs.context.dev/integrations/chatgpt-plugin), then complete sign-in and enable Context in your conversation.
+
+For a manual Claude connection, add a custom connector with the URL above. Client plans and workspace policies can affect connector availability.
+
+</details>
+
+<details>
+<summary><strong>Claude Code</strong></summary>
+
+```bash
+claude mcp add --transport http --scope user context https://mcp.context.dev/mcp
 ```
 
-The bare server URL (`https://<your-domain>/`) also accepts MCP requests, for clients configured without the `/mcp` path. The server is stateless and sends no unsolicited messages, so a `GET` that asks for an event stream returns `405`, as the Streamable HTTP transport allows. When a client sends an expired or invalid OAuth token, the `401` challenge carries `error="invalid_token"` so the client refreshes the token instead of waiting for the user to sign in again.
+Start Claude Code, run `/mcp`, select `context`, and finish sign-in in your browser.
 
-Connect through OAuth, or send a Context API key in the `Authorization` header (works on both hosted and local deployments):
+</details>
 
-```text
-Authorization: Bearer ctxt_secret_...
+<details>
+<summary><strong>Codex</strong></summary>
+
+```bash
+codex mcp add context --url https://mcp.context.dev/mcp
 ```
 
-`X-API-Key: ctxt_secret_...` is also accepted. If a client cannot use OAuth or custom headers, put the key in the endpoint URL:
+Complete browser sign-in. If it does not start automatically, run:
 
-```text
-https://<your-domain>/mcp?api_key=ctxt_secret_...
+```bash
+codex mcp login context
 ```
 
-Prefer OAuth or headers because URLs can be saved in client configuration, logs, browser history, and analytics. Rotate a key if its URL is exposed.
+</details>
 
-OpenCode and Kilo receive a 10-tool core catalog by default to keep prompts small. Add `?profile=full` to the MCP URL to list all tools, including company and people search. Use `?profile=core` to request the smaller catalog explicitly.
+<details>
+<summary><strong>Cursor</strong></summary>
 
-## Tools
+Add this entry to `.cursor/mcp.json` for your project, or `~/.cursor/mcp.json` for all projects. Keep any servers you already have.
 
-| Group | Tools |
+```json
+{
+  "mcpServers": {
+    "context": {
+      "url": "https://mcp.context.dev/mcp"
+    }
+  }
+}
+```
+
+Enable `context` in Cursor's MCP settings and complete sign-in. The [Context.dev Cursor plugin](https://docs.context.dev/integrations/cursor-plugin) is another installation option; choose one to avoid duplicate connections.
+
+</details>
+
+For **Gemini CLI, VS Code, OpenCode, and other clients**, see the [client setup guide](https://docs.context.dev/install-mcp). The server uses remote **Streamable HTTP** and supports OAuth or API key authentication.
+
+## Things to try
+
+Ask naturally. Your assistant chooses the appropriate tools.
+
+| What you want | Try this prompt |
 | --- | --- |
-| Scrape and crawl | `web-scrape`, `web-map`, `web-crawl` |
-| Search and research | `web-search`, `web-answers` |
-| Brand and design | `brand-retrieve-unified`, `get-brand`, `brand-search`, `web-styleguide` |
-| Companies and people | `company-search`, `people-search`, `people-enrich` |
-| News by topic or company | `get-news-search` |
-| Parse | `parse-document` |
-| Batches | `submit-batch`, `list-batches`, `get-batch`, `get-batch-results`, `cancel-batch`, `delete-batch` |
-| Monitors | `create-monitor`, `list-monitors`, `get-monitor`, `update-monitor`, `delete-monitor`, `get-monitor-limits`, `list-monitor-credit-usage`, `run-monitor-now`, run and change history, `rotate-monitor-webhook-secret` |
-| Webhook deliveries | `list-webhook-deliveries`, `get-webhook-delivery`, `list-webhook-delivery-attempts`, `retry-webhook-delivery` |
-| Access policies | `list-access-policies`, `create-access-policy`, `get-access-policy`, `update-access-policy`, `delete-access-policy` |
-| API debugging | `list-logs`, `get-log` |
-| Browser profiles | `list-browser-profiles` |
-| Credit usage | `get-usage`, `get-usage-history` |
-| Feedback | `submit-feedback` |
+| Research with current sources | “Find recent research on sodium-ion batteries. Summarize the main findings and link to the sources.” |
+| Read a website | “Read https://docs.context.dev/ and explain how to scrape a page.” |
+| Extract structured data | “From this product page, extract the name, price, currency, and availability as JSON: [URL].” |
+| Explore documentation | “Crawl this documentation section and summarize its authentication methods: [URL].” |
+| Research a company | “Find recent news about Stripe and retrieve its brand colors and logo.” |
+| Work with a document | “Convert this PDF to Markdown and summarize the key points.” |
+| Track changes | “Create a monitor for this pricing page and tell me what changes: [URL].” |
 
-`get-brand` includes a visual brand card. Tool descriptions explain when each tool should be used, which adjacent tool to choose instead, whether work is synchronous or asynchronous, and what the result contains. API-backed tools retain the public OpenAPI request validation with MCP safety annotations audited for account state, open-web access, and destructive operations.
+Document parsing requires a client that can supply the file's bytes. Creating monitors or batches changes your Context account and can consume credits; review the proposed action before approving it.
 
-Every tool declares `idempotentHint`. Read-only tools, `parse-document`, `update-monitor`, and the cancel and delete tools are idempotent. Tools that create a batch, monitor, run, webhook secret, webhook attempt, or feedback record, and `web-scrape` with its browser actions, are not. Tools whose results are always JSON objects declare a compact `outputSchema`: top-level fields only, none required, extra fields allowed, so account-limit errors and shortened responses still validate. `web-search`, `web-scrape`, and `web-crawl` declare none, because compact mode returns text without `structuredContent`.
+## What can Context MCP do?
 
-Agents are instructed to always call `submit-feedback` once per unexpected API issue, including incomplete or incorrect successful results, even when a retry or workaround succeeds. This guidance is sent in MCP initialization instructions, the feedback tool description, and API error responses (including `get-brand`). Account limits working as intended (402 `USAGE_EXCEEDED` (or legacy 401), 429 `RATE_LIMITED`, 403 `PAID_PLAN_REQUIRED`) instead tell agents not to report them and give the next step; error text also carries `credits_remaining`, `Retry-After`, and (on 429s) `X-RateLimit-Remaining`/`X-RateLimit-Limit` when the API returns them. Reports include expected versus actual behavior and the affected request ID, with a public page/docs URL as a fallback. Request IDs from response bodies or `X-Request-Id` headers are preserved for reporting. Reports must omit secrets and private data and respect user preferences and host permissions. A failed feedback submission must not trigger another feedback report or a retry loop. The shared guidance lives in `src/feedback.ts`.
+| Capability | Tools |
+| --- | --- |
+| **Search and answers** — find current sources and research a question | `web-search`, `web-answers` |
+| **Read and extract** — turn pages into Markdown, HTML, screenshots, or structured JSON | `web-scrape` |
+| **Map and crawl** — discover URLs and read linked pages | `web-map`, `web-crawl` |
+| **Company news** — search a topic or a named company | `get-news-search` |
+| **Brand and design** — retrieve logos, colors, company details, and design styles | `get-brand`, `brand-retrieve-unified`, `brand-search`, `web-styleguide` |
+| **Companies and people** — find businesses and professional profiles | `company-search`, `people-search`, `people-enrich` |
+| **Documents** — convert supplied files into Markdown | `parse-document` |
+| **Batches and monitors** — process many URLs and track changes over time | Batch, monitor, and webhook tools |
+| **Account tools** — inspect usage, debug requests, and manage website access policies | Usage, log, and access-policy tools |
 
-Use `web-scrape` for one known page. It can return HTML, Markdown, screenshots, page images, original bytes, CSS-selected fields, focused highlights, schema-shaped JSON, and product data in one request. It also supports browser actions, browser profiles for pages behind a sign-in, prebuilt parsers, custom target headers, PDF parsing (with optional page markers through `includeNumberedPages`; such scrapes are never served from cache), `timeoutOpts`, `zdr`, and `tags`. Use `web-map` to map URLs through `/web/urls`. Use `get-news-search` for live or historical news, either a plain-language `query` (ordered by relevance) or one company identified by exactly one name, domain, ticker, or ISIN; use `web-search` for general web pages or when the source is unknown; use `web-answers` when the user wants a sourced JSON answer rather than ranked links. Use `company-search` or `people-search` to find companies or people from a plain-language description, `brand-search` to resolve a company the user already named, and `people-enrich` to match one known person. Use `web-crawl` for a focused multi-page request, and `submit-batch` for up to 100,000 URLs or a large asynchronous crawl using the same formats and parameters as `web-scrape`. The older Markdown/HTML batch format remains supported. A batch returns an ID; poll `get-batch`, then page through `get-batch-results` after completion.
+See the [complete tool reference](docs/tools.md) for tool names, response formats, permissions, and limits.
 
-`company-search` runs in `fast` mode by default: queries up to 500 characters, results in about two seconds, and 2 credits per nonempty page. Set `mode` to `ultra` for complex searches with several criteria. It searches more thoroughly, checks every result against each criterion, accepts queries up to 5,000 characters, can take up to 20 seconds, and costs 10 credits per nonempty page. Pass the same `mode` with `cursor`.
+## Frequently asked questions
 
-`people-search` runs in `fast` mode by default: queries up to 500 characters and 10 credits per nonempty page. Set `mode` to `ultra` for complex searches with several criteria. It judges each candidate against every criterion, accepts queries up to 5,000 characters, adds `match.confidence` (0 to 1) to each person, can take up to 30 seconds, and costs 50 credits per nonempty page. Pass the same `mode` with `cursor`. `parse-document` accepts `includeNumberedPages` to start each PDF page with a `<!-- page N -->` line.
+### Is Context MCP free and open source?
 
-Monitors watch a `page`, `sitemap`, `extract`, or `search` target on a schedule. A `search` target runs a web search `query` on every check and reports results not seen before in the change's `matched_urls` and `evidence`; with the default `semantic` detection only results describing a new development that matches the target `instructions` are reported, while `exact` detection reports every new result.
+This server's source code is available under the [MIT license](LICENSE). Calls to Context.dev use your account's credits and entitlements, including when you run this server yourself. See [current plans and pricing](https://www.context.dev/pricing).
 
-Access policies limit which websites requests can reach. `create-access-policy` takes an `allowed_domains` or `blocked_domains` list (subdomains match, and wildcards such as `*.gov` are accepted) and an `applies_to` scope: `request` policies apply when their ID is passed in `policies` on `web-scrape`, `web-crawl`, `web-search`, `web-answers`, `get-news-search`, `brand-retrieve-unified`, `submit-batch`, `create-monitor`, or `update-monitor`; `api_keys` and `organization` policies apply automatically. A blocked URL fails with `ACCESS_POLICY_DENIED`. The organization must have access policies enabled, or the tools return `ACCESS_POLICIES_NOT_ENABLED`. `brand-retrieve-unified` and `web-styleguide` also accept `zdr`.
+### Do I need an API key?
 
-Scrape browser instructions (`perform` actions) and sign-ins that create a browser profile require the OAuth `api.write` scope. Captures that only read, scroll, or wait continue to work with `api.read`.
+Most supported clients connect through OAuth: sign in once in your browser. If your client cannot use OAuth, configure a private header instead:
 
-Tool arguments are repaired against the published input schema before validation, because models often send a near miss and then repeat it. Nested objects and arrays sent as JSON strings are parsed (opencode with Qwen or Nemotron does this). Missing `arguments` become `{}`. `null` or `""` in optional fields, unknown keys inside option objects, and parameters nested in the wrong object are dropped or moved. Numbers and booleans sent as strings are converted, enum values and keys that differ only in case or separators are matched, and out-of-range integers such as `numResults: 5` are clamped to the published bounds. Tool-specific repairs cover patterns seen in production: `web-scrape` defaults to Markdown and reads `format`, `["markdown"]`, or web-search style options; `web-answers` accepts `query` and a JSON Schema for the answer shape; `web-map` accepts a URL; `get-news-search` builds `searchBy` from a flat `query` or flat company identifiers; `company-search` and `people-search` move flat filters such as `country` or `min_employees` under `filters` and convert country names to two-letter codes; and `brand-retrieve-unified` builds its lookup object from flat company identifiers; a call that carries only another tool's input (a URL sent to `web-search`, a query sent to `web-scrape`, `list-monitor-changes` without a monitor) goes to that tool. Calls that already pass validation are sent unchanged, except that `web-scrape` requests the formats whose options it was given, as the API requires. Anything that still does not fit fails validation as before, with a short hint about the expected input; free-text topics sent to `get-news-search` go out as a natural-language `query` and are never guessed into company names. Published schemas omit `$schema` and `allOf`, enums with more than 30 values are published as strings and validated on the server, and patterns are anchored for clients that require it. API defaults are published as `default` keywords, and a "Defaults to" sentence is dropped only when its default keyword says the same; defaults that depend on other inputs stay in the description. Merged union properties describe each variant, and response-only (`readOnly`) fields such as a monitor webhook's generated `secret` are left out of input schemas. `src/schema-descriptions.ts` replaces API descriptions that repeat schema limits or describe query-string encoding, keyed by the API text, so a spec sync that changes that text restores the API wording.
+```http
+Authorization: Bearer YOUR_CONTEXT_API_KEY
+```
 
-Requests rejected with `429` are retried up to five times with backoff while the `Retry-After` delay fits within 30 seconds; they did no work, so the retry is safe. A Context API call is stopped with an actionable error 10 seconds after the request's own `timeoutOpts.milliseconds` deadline, or after 100 seconds when the request has no deadline or asks for more, because Cloudflare ends origin responses at 100 seconds and Cursor ends tool calls at 115. The error says that the API may still finish and bill the request. Tools removed when scraping was consolidated (`web-scrape-markdown`, `web-scrape-html`, `web-scrape-images`, `web-scrape-sitemap`, `web-extract`, `web-screenshot`) remain callable for clients with cached tool lists but are not listed.
+`X-API-Key` also works. Keep the key in your client's secret configuration, outside committed files and prompts. Prefer headers over putting credentials in the server URL.
 
-Tool responses are capped at 80,000 characters by default to stay within hosted-client limits. Oversized structured responses include `_context_mcp.truncated=true` and `_context_mcp.truncated_fields` naming the cut values. Every field keeps its place: long text is cut with an inline marker, lists lose trailing items, and short values such as codes, IDs and error messages stay whole, so a requested scrape format always keeps its `requested`, `success`, and `error` fields. Narrow the request when possible; private deployments can change `CONTEXT_MCP_MAX_RESPONSE_CHARS` or set it to `0` for no cap.
+### Does this run the scraping engine on my computer?
 
-For focused research, pass `responseMode: "compact"` to `web-search` or `web-scrape`. Compact mode returns one JSON text block instead of duplicating it in `structuredContent`, omits unused formats, cache metadata and verbose page metadata, and unwraps successful format data. URLs, titles, request IDs and extraction failures remain available. Empty successful Highlights remain an empty array. Other tools and the REST API are unchanged; omitting the parameter or using `"full"` preserves the existing response.
+No. This repository runs the MCP interface. Search, scraping, extraction, and other data operations are handled by the Context.dev API. Self-hosting changes where the MCP server runs; it still needs a Context account.
 
-Compact HTML, Markdown and Highlights are limited to 1,200 characters per format per search result, or 4,000 per scrape format (shared across each Highlights array). Clipping adds an inline marker and `_context_mcp.truncated=true`. Prefer `highlightsOptions: { enabled: true, maxCharacters: 1200 }` for search, or `formats: { highlights: true }` with `highlightsParams: { query: "your question", maxCharacters: 4000 }` for scrape, so the API selects relevant excerpts within the budget. Compact mode itself does not change retrieval or credits. Use `responseMode: "full"` when you need longer text or page metadata. JSON, parsed fields, product data, bytes and images are not shortened by compact mode; the overall server limit still applies.
+### Why does my client show fewer tools?
 
-## Run locally
+OpenCode and Kilo receive a smaller core catalog by default. To request the full catalog, use `https://mcp.context.dev/mcp?profile=full`. To explicitly request the core catalog, use `?profile=core`.
+
+### How can I use less context in my agent?
+
+Ask for focused results, relevant highlights, or compact responses. `web-search` and `web-scrape` accept `responseMode: "compact"`. Compact responses reduce returned content; they do not change API credit costs. See [response limits and compact mode](docs/tools.md).
+
+### What if a connection or request fails?
+
+Check that the URL includes `/mcp`, complete sign-in, and enable the server in your client. Reconnect if authentication has expired. If you run out of credits, check [usage and billing](https://www.context.dev/dashboard/subscription); reconnecting will not replenish credits. See the [setup and troubleshooting guide](https://docs.context.dev/install-mcp).
+
+## Run locally or self-host
+
+For contributors and teams that want to run their own MCP interface:
 
 ```bash
-npm install
-CONTEXT_API_KEY=ctxt_secret_local_test npm run dev
+git clone https://github.com/context-dot-dev/mcp.git
+cd mcp
+npm ci
 ```
 
-Use a non-production API base when testing request execution:
+Then start it with a key stored in your environment:
 
 ```bash
-CONTEXT_API_BASE=http://127.0.0.1:4000 \
-CONTEXT_API_KEY=ctxt_secret_local_test \
-npm start
+export CONTEXT_API_KEY="YOUR_CONTEXT_API_KEY"
+npm run dev
 ```
 
-Regenerate tools after the Context OpenAPI document changes:
+Use **Node.js 22.12 or later**. Connect to `http://localhost:3000/mcp`. A real API key sends requests to the Context.dev API and uses your account's credits. Keep a local server with a fallback API key private.
 
-```bash
-npm run generate:endpoints -- /absolute/path/to/openapispec.json context-endpoints.ts
-```
+- [Development guide](docs/development.md) — setup, tests, and endpoint generation.
+- [Deployment guide](docs/deployment.md) — OAuth, domains, and production configuration.
+- [Contributing](CONTRIBUTING.md) — report a bug or propose a change.
+- [Security policy](SECURITY.md) — report a vulnerability privately.
 
-Run the complete local verification suite:
+## Documentation and support
 
-```bash
-npm test
-```
+- [Context.dev documentation](https://docs.context.dev/) and [API reference](https://docs.context.dev/api-reference/web-scraping/scrape)
+- [Agent quickstart](https://docs.context.dev/agent-quickstart.md) and [documentation index for AI tools](https://docs.context.dev/llms.txt)
+- [GitHub issues](https://github.com/context-dot-dev/mcp/issues) for bugs and feature requests
+- [Contact Context.dev](https://www.context.dev/contact) for account help
 
-The integration tests start local fake Context and OAuth services. They do not call the production API or database.
-
-## OAuth deployment
-
-Public deployments use OAuth Authorization Code with PKCE through the server's `/authorize`, `/token`, and `/register` endpoints. The upstream Context authorization server must expose:
-
-```text
-GET  /oauth2/authorize
-POST /oauth2/token
-```
-
-The access token returned by Context is an encrypted JWE. It must contain `sub`, `scope`, and `context_api_key`, use `alg=dir` and `enc=A256GCM`, and be issued specifically for the public MCP resource URL. The MCP decrypts the token, validates issuer, audience, and expiry, then sends only the embedded Context key to the Context API. The OAuth token is never passed through as an API key.
-
-Required deployment variables:
-
-```text
-MCP_URL=https://<your-domain>
-CONTEXT_API_BASE=https://api.context.dev/v1
-CONTEXT_OAUTH_ISSUER=https://www.context.dev
-CONTEXT_OAUTH_CLIENT_ID=<registered-client-id>
-CONTEXT_OAUTH_CLIENT_SECRET=<registered-client-secret>
-CONTEXT_OAUTH_TOKEN_ENCRYPTION_KEY=<base64url-encoded-32-byte-key>
-```
-
-The Context web app authorization server uses the same client ID, client secret, encryption key, and issuer, plus:
-
-```text
-CONTEXT_OAUTH_REDIRECT_URI=https://<your-domain>/oauth/callback
-CONTEXT_OAUTH_AUDIENCE=https://<your-domain>/mcp
-```
-
-Generate the encryption key once and store the same value in the MCP deployment and Context authorization server:
-
-```bash
-node -e 'console.log(require("node:crypto").randomBytes(32).toString("base64url"))'
-```
-
-Any MCP client can connect through open Dynamic Client Registration: `/register` returns a signed `client_id` that embeds the client's redirect URIs, and `/authorize` and `/token` only proceed toward a redirect target bound into that registration. Registrable redirect URIs are HTTPS callbacks on any domain, loopback HTTP (`localhost`, `127.0.0.1`, `[::1]` — any port per RFC 8252, since CLI clients such as Claude Code and Codex bind an ephemeral port per session), and private-use app schemes such as `cursor://`. The Context consent screen labels destinations it does not recognize as unverified and shows the user where the connection's access will be delivered.
-
-Consent-screen branding is reserved for HTTPS callbacks on `claude.ai`, `claude.com`, `anthropic.com`, `chatgpt.com`, `openai.com`, `cursor.com`, `vscode.dev`, `mistral.ai`, `consent.azure-apim.net`, `cloud.google.com`, `oauth.n8n.cloud`, `mcpjam.com`, and `manufact.com` (any subdomain and path) and the `cursor://`, `vscode://`, and `warp://` schemes — see `client-display.ts` in the Context web app. Multi-tenant platforms are scoped to the vendor-operated OAuth host (`cloud.google.com`, `oauth.n8n.cloud`, `consent.azure-apim.net`) rather than the apex, since customers control endpoints on sibling subdomains.
-
-Rotating `CONTEXT_OAUTH_TOKEN_ENCRYPTION_KEY` invalidates every issued `client_id` along with in-flight tokens. Clients receive `invalid_client` at the token endpoint and re-register automatically on their next connection.
-
-Clients that registered before signed client_ids still hold the fixed shared client id; their redirects stay gated by the trusted-domain list above, plus any origin added via:
-
-```text
-MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS=https://trusted-client.example
-```
-
-## Custom domain
-
-1. Add the intended MCP hostname in the Manufact deployment's Domains page.
-2. Copy the exact DNS record Manufact provides into the Context DNS provider.
-3. Set `MCP_URL` to the final HTTPS origin, without `/mcp`.
-4. Redeploy only after the DNS record and OAuth variables are ready.
-5. Verify:
-
-```bash
-curl -fsS https://<your-domain>/health
-curl -fsS https://<your-domain>/.well-known/oauth-protected-resource/mcp
-curl -fsS https://<your-domain>/.well-known/oauth-authorization-server
-```
-
-Do not guess the DNS target; use the value shown by Manufact for this deployment.
-
-## Claude connector
-
-After the custom domain and OAuth flow are verified:
-
-1. In Claude, open Settings, then Connectors, then Add custom connector.
-2. Enter the public `https://<your-domain>/mcp` URL.
-3. Complete Context OAuth and test both a read tool and a write tool.
-
-Before directory submission, prepare a privacy policy, support contact, user-facing setup documentation, accurate tool annotations, a test account, and a stable production domain. Directory review should happen only after the full hosted OAuth flow is exercised from a fresh Claude account.
-
-## Credit exhaustion and entitlements
-
-`USAGE_EXCEEDED` from the upstream API is a tool execution error for both HTTP 402 and legacy HTTP 401. The MCP transport remains a normal SDK result with `isError: true`, structured details in `structuredContent`, and the same details plus an explanation in text `content`. Billing failures do not issue OAuth challenges, refresh tokens, or require reconnection. Genuine OAuth failures keep their normal recovery.
-
-The additive `error_data` includes `is_authenticated`, `should_retry: false`, `retry_condition: "sufficient_credits"`, and `info_url`. Known balance, required credits and its estimate flag, charged credits, and refill timestamp/amount are retained; unknown account values are omitted. The existing request ID and credit metadata are retained when present. `get-usage` remains available at zero balance and costs no credits. Wait for sufficient credits before repeating the same operation; a refill may cover it. `403 PAID_PLAN_REQUIRED` describes a separate entitlement gate.
-
-Concurrency `429 RATE_LIMITED` responses are also structured tool errors. They preserve upstream `error_data` or read known limits and delays from legacy concurrency headers, with `limit_type: "concurrency"`, `retry_condition: "available_concurrency"`, and recovery by waiting for in-flight requests or increasing the effective limit. Per-minute rate limits keep their existing response and retry behavior.
-
-Recovery links to [subscription and billing settings](https://context.dev/dashboard/subscription). It does not automatically initiate checkout or direct the model to recommend a purchase. These fields describe account state; they do not force a model recommendation.
+Built by [Context.dev](https://www.context.dev). Licensed under [MIT](LICENSE).
