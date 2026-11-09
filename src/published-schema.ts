@@ -6,10 +6,21 @@ import { toGrammarSafePattern } from "./openapi-schema";
 // are still validated and repaired against the full schema; every transform
 // here may only widen what the published schema accepts.
 export function compactPublishedSchema(schema: JsonSchema): JsonSchema {
-  const compactedChildren = compactChildren(schema);
+  const compactedChildren = compactChildren(expandTypeUnion(schema));
   const withoutNoise = dropValidationNoise(compactedChildren);
   const merged = mergeObjectUnion(withoutNoise);
   return shortenDescription(merged);
+}
+
+// Zod now emits primitive unions as type arrays. Gemini accepts anyOf instead;
+// keep other constraints, including an existing anyOf, in the intersection.
+function expandTypeUnion(schema: JsonSchema): JsonSchema {
+  if (!Array.isArray(schema.type)) return schema;
+  const { type: types, anyOf, ...rest } = schema;
+  return {
+    ...rest,
+    anyOf: types.map((type) => ({ type, ...(anyOf ? { anyOf } : {}) })),
+  };
 }
 
 function compactChildren(schema: JsonSchema): JsonSchema {

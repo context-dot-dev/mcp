@@ -6,6 +6,43 @@ import { COMPONENT_SCHEMAS, ENDPOINTS, type JsonSchema } from "../context-endpoi
 import { schemaToZod, toGrammarSafePattern } from "./openapi-schema";
 import { compactPublishedSchema } from "./published-schema";
 
+test("Zod primitive unions remain compatible with Gemini without changing accepted values", () => {
+  const validator = z.object({
+    body: z.object({
+      phone: z.union([z.string(), z.number()]).describe("Phone number."),
+      mcc: z.union([z.string(), z.number()]).optional(),
+    }),
+  });
+  const internal = z.toJSONSchema(validator, { io: "input" }) as JsonSchema;
+  const { $schema: _dialect, ...published } = compactPublishedSchema(internal);
+  const phone = published.properties?.body.properties?.phone;
+  assert.equal(phone?.description, "Phone number.");
+  assert.equal(phone?.type, undefined);
+  assert.deepEqual(phone?.anyOf, [{ type: "string" }, { type: "number" }]);
+  const validate = new Ajv({ strict: false }).compile(published);
+  for (const value of ["123", 123, null, true, [], {}]) {
+    const input = { body: { phone: value, mcc: value } };
+    assert.equal(validate(input), validator.safeParse(input).success);
+  }
+});
+
+test("expanding type unions preserves existing union constraints and nullability", () => {
+  const schema: JsonSchema = {
+    type: ["string", "number", "null"],
+    anyOf: [{ type: "string", minLength: 2 }, { type: "number", minimum: 10 }],
+  };
+  const ajv = new Ajv({ strict: false });
+  const original = ajv.compile(schema);
+  const published = ajv.compile(compactPublishedSchema(schema));
+  for (const value of ["", "a", "ab", 0, 10, null, true, [], {}]) {
+    assert.equal(published(value), original(value), JSON.stringify(value));
+  }
+  const nullable = ajv.compile(compactPublishedSchema({ type: ["string", "null"] }));
+  assert.equal(nullable(null), true);
+  assert.equal(nullable("text"), true);
+  assert.equal(nullable(123), false);
+});
+
 test("published schemas accept every sampled payload the validators accept", () => {
   const ajv = new Ajv({ strict: false, allErrors: false });
   const rejected: string[] = [];
