@@ -1207,16 +1207,18 @@ export const ENDPOINTS: Endpoint[] = [
     "title": "Parse a file",
     "method": "POST",
     "path": "/parse",
-    "description": "Parse a file — Convert uploaded file bytes into Markdown and optional HTML.",
+    "description": "Parse a file — Convert uploaded file bytes into Markdown and optional HTML. WARC and WARC.GZ archives combine HTTP response, resource, and conversion records in archive order. Revisit and segmented records are skipped. Decoded WARC content is limited to 50 MiB.",
     "parameters": [
       {
         "name": "extension",
         "in": "query",
         "required": false,
-        "description": "Optional file extension hint, such as pdf, docx, xlsx, pptx, html, json, csv, md, py, rtf, jpg, png, or txt.",
+        "description": "Optional file extension hint, such as pdf, docx, xlsx, pptx, html, json, csv, md, py, rtf, jpg, png, txt, warc, or warc.gz.",
         "schema": {
           "type": "string",
           "enum": [
+            "warc",
+            "warc.gz",
             "txt",
             "text",
             "md",
@@ -1288,7 +1290,7 @@ export const ENDPOINTS: Endpoint[] = [
             "pgm",
             "pnm"
           ],
-          "description": "Optional file extension hint, such as pdf, docx, xlsx, pptx, html, json, csv, md, py, rtf, jpg, png, or txt."
+          "description": "Optional file extension hint, such as pdf, docx, xlsx, pptx, html, json, csv, md, py, rtf, jpg, png, txt, warc, or warc.gz."
         }
       },
       {
@@ -9425,10 +9427,39 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                     "maxLength": 256,
                                     "description": "Regex pattern; sitemap URLs matching it are not scraped, even when they match `regex`.",
                                     "example": "/tag/|/author/"
+                                  },
+                                  "excludePaths": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    "maxItems": 100,
+                                    "default": [
+                                      "/feed",
+                                      "/rss",
+                                      "/atom",
+                                      "/api/",
+                                      "/cdn-cgi/",
+                                      "/_next/",
+                                      "/__"
+                                    ],
+                                    "description": "Path fragments that skip a sitemap URL in a crawl. Works separately from any regex inclusion or exclusion you define. Defaults to [\"/feed\",\"/rss\",\"/atom\",\"/api/\",\"/cdn-cgi/\",\"/_next/\",\"/__\"]. Pass `[]` to keep every listed URL.",
+                                    "example": []
                                   }
                                 },
                                 "default": {
-                                  "maxUrls": 100
+                                  "maxUrls": 100,
+                                  "excludePaths": [
+                                    "/feed",
+                                    "/rss",
+                                    "/atom",
+                                    "/api/",
+                                    "/cdn-cgi/",
+                                    "/_next/",
+                                    "/__"
+                                  ]
                                 },
                                 "additionalProperties": false,
                                 "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
@@ -9801,10 +9832,39 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                                     "maxLength": 256,
                                     "description": "Regex pattern; sitemap URLs matching it are not scraped, even when they match `regex`.",
                                     "example": "/tag/|/author/"
+                                  },
+                                  "excludePaths": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    "maxItems": 100,
+                                    "default": [
+                                      "/feed",
+                                      "/rss",
+                                      "/atom",
+                                      "/api/",
+                                      "/cdn-cgi/",
+                                      "/_next/",
+                                      "/__"
+                                    ],
+                                    "description": "Path fragments that skip a sitemap URL in a crawl. Works separately from any regex inclusion or exclusion you define. Defaults to [\"/feed\",\"/rss\",\"/atom\",\"/api/\",\"/cdn-cgi/\",\"/_next/\",\"/__\"]. Pass `[]` to keep every listed URL.",
+                                    "example": []
                                   }
                                 },
                                 "default": {
-                                  "maxUrls": 100
+                                  "maxUrls": 100,
+                                  "excludePaths": [
+                                    "/feed",
+                                    "/rss",
+                                    "/atom",
+                                    "/api/",
+                                    "/cdn-cgi/",
+                                    "/_next/",
+                                    "/__"
+                                  ]
                                 },
                                 "additionalProperties": false,
                                 "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
@@ -11882,10 +11942,39 @@ export const COMPONENT_SCHEMAS: Record<string, JsonSchema> = {
                     "maxLength": 256,
                     "description": "Regex pattern; sitemap URLs matching it are not scraped, even when they match `regex`.",
                     "example": "/tag/|/author/"
+                  },
+                  "excludePaths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "maxItems": 100,
+                    "default": [
+                      "/feed",
+                      "/rss",
+                      "/atom",
+                      "/api/",
+                      "/cdn-cgi/",
+                      "/_next/",
+                      "/__"
+                    ],
+                    "description": "Path fragments that skip a sitemap URL in a crawl. Works separately from any regex inclusion or exclusion you define. Defaults to [\"/feed\",\"/rss\",\"/atom\",\"/api/\",\"/cdn-cgi/\",\"/_next/\",\"/__\"]. Pass `[]` to keep every listed URL.",
+                    "example": []
                   }
                 },
                 "default": {
-                  "maxUrls": 100
+                  "maxUrls": 100,
+                  "excludePaths": [
+                    "/feed",
+                    "/rss",
+                    "/atom",
+                    "/api/",
+                    "/cdn-cgi/",
+                    "/_next/",
+                    "/__"
+                  ]
                 },
                 "additionalProperties": false,
                 "description": "Limits and filters for the sitemap URLs. A sitemap batch scrapes exactly those URLs and never follows links off them, so there is no crawl depth here."
