@@ -7005,6 +7005,14 @@ export const ENDPOINTS: Endpoint[] = [
             "maxLength": 64,
             "description": "Use next_cursor with the same query, mode and filters to fetch the next page."
           },
+          "zdr": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
+          },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
           }
@@ -7061,6 +7069,14 @@ export const ENDPOINTS: Endpoint[] = [
             "type": "string",
             "maxLength": 65536,
             "description": "Use next_cursor with the same query, mode and filters to fetch the next page."
+          },
+          "zdr": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "description": "`enabled` turns on zero data retention. Returns 403 `ZDR_NOT_ENABLED` unless your organization has ZDR."
           },
           "tags": {
             "$ref": "#/components/schemas/RequestTags"
