@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Account and billing help
+    url: https://www.context.dev/contact
+    about: Contact Context.dev for account-specific help.
+  - name: Report a security vulnerability
+    url: https://github.com/context-dot-dev/mcp/blob/main/SECURITY.md
+    about: Follow the security policy to report vulnerabilities privately.

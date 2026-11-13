@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible problem with Context MCP.
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include API keys, tokens, cookies, or private content. For vulnerabilities, follow SECURITY.md."
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Explain what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal prompt or tool call with secrets removed.
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Client and deployment
+      placeholder: "Cursor; hosted Context MCP, or self-hosted at commit ..."
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details
+      description: Sanitized errors, request IDs, and relevant screenshots.

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Context Build"
+  short_description: "Add live web data to application code"
+  default_prompt: "Use $context-build to integrate Context.dev into this application."
+policy:
+  allow_implicit_invocation: true
